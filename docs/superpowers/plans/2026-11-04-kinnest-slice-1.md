@@ -175,6 +175,10 @@
 
 ### Task 10: Production deploy, backups, restore, phone test guide
 
+> **Revised 2026-11-04 (owner):** hosting runs on the Mac first. The real-use stack (`deploy/docker-compose.prod.yml`) runs on the Mac with
+> `PUBLIC_HOST=:80`, `CADDY_HTTP_PORT=8080` behind a tunnel; backups go to a local folder; `deploy/ORACLE_SETUP.md` is a later-stage guide and
+> `docs/RUNNING_ON_MAC.md` is the primary one. Step 5 (owner hand-off to Oracle) moves to the stage after slice 1 is tested.
+
 **Files:**
 - Create: `deploy/docker-compose.prod.yml`, `deploy/Caddyfile`, `deploy/backup.sh`, `deploy/restore.sh`, `deploy/ORACLE_SETUP.md`, `docs/TESTING_ON_PHONE.md`, `docs/MANUAL_TEST_CHECKLIST.md`
 
