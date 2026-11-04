@@ -110,13 +110,15 @@ test('feed sheet hides ml for breast types', async () => {
   expect(screen.getByLabelText(en.home.duration)).toBeInTheDocument()
 })
 
-test('warns when someone else just logged the same thing', async () => {
+test('warns when someone else just logged the same thing, and says when', async () => {
+  const at = '2026-11-04T10:05:00.000Z'
   mockApi({
     ...base(),
-    'POST /api/feeds': { status: 201, body: { id: 'x', recent_other: { user_name: 'Mom', at: new Date().toISOString() } } },
+    'POST /api/feeds': { status: 201, body: { id: 'x', recent_other: { user_name: 'Mom', at } } },
   })
   renderApp(<Home />)
   await userEvent.click(await screen.findByRole('button', { name: en.home.feed }))
   await userEvent.click(screen.getByRole('button', { name: en.home.saveFeed }))
-  expect(await screen.findByText(en.home.alsoLogged.replace('{{name}}', 'Mom'))).toBeInTheDocument()
+  const warning = await screen.findByText(/Mom also logged/)
+  expect(warning).toHaveTextContent(formatClock(at))
 })

@@ -11,6 +11,7 @@ import Toast, { type ToastData } from '../components/Toast'
 import Today from '../components/Today'
 import { Button } from '../components/ui/button'
 import { useLogDiaper, useLogFeed, useUndoDiaper, type FeedInput } from '../hooks/log'
+import { formatClock } from '../lib/time'
 import { useNow } from '../lib/useNow'
 import { mergePending, useQueue } from '../offline/pending'
 import { clearRejected, remove } from '../offline/queue'
@@ -48,7 +49,7 @@ export default function Home() {
           message: r.queued
             ? t('home.queued')
             : r.recent_other
-              ? t('home.alsoLogged', { name: r.recent_other.user_name })
+              ? t('home.alsoLogged', { name: r.recent_other.user_name, time: formatClock(r.recent_other.at) })
               : t('home.logged'),
         })
       },
@@ -60,12 +61,13 @@ export default function Home() {
     logDiaper.mutate(
       { id, kind, at: new Date().toISOString() },
       {
+        onError: () => setToast({ message: t('home.saveError') }),
         onSuccess: (r) =>
           setToast({
             message: r.queued
               ? t('home.queued')
               : r.recent_other
-                ? t('home.alsoLogged', { name: r.recent_other.user_name })
+                ? t('home.alsoLogged', { name: r.recent_other.user_name, time: formatClock(r.recent_other.at) })
                 : t('home.logged'),
             action: {
               label: t('home.undo'),
