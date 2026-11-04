@@ -2,7 +2,7 @@ import logging
 import smtplib
 from dataclasses import dataclass
 from email.message import EmailMessage
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 from app.config import Settings
 
@@ -27,7 +27,8 @@ def send_email(settings: Settings, to: str, subject: str, body: str) -> None:
         return
     u = urlparse(settings.smtp_url)  # smtp://user:pass@host:587 or smtps://...:465
     msg = EmailMessage()
-    msg["From"] = u.username or "kinnest@localhost"
+    user, password = unquote(u.username or ""), unquote(u.password or "")  # "@" in a Gmail address arrives as %40
+    msg["From"] = user or "kinnest@localhost"
     msg["To"] = to
     msg["Subject"] = subject
     msg.set_content(body)
@@ -35,6 +36,6 @@ def send_email(settings: Settings, to: str, subject: str, body: str) -> None:
     with cls(u.hostname, u.port or (465 if u.scheme == "smtps" else 587), timeout=20) as s:
         if u.scheme == "smtp":
             s.starttls()
-        if u.username:
-            s.login(u.username, u.password or "")
+        if user:
+            s.login(user, password)
         s.send_message(msg)

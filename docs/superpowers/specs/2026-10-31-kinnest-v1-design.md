@@ -168,6 +168,9 @@ Defaults (my call, owner may override): timezone Asia/Kolkata, metric units (ml,
 ## 7. Hosting and environments
 Constraint: **free**. Reminders need an always-on process.
 
+**Stage order (owner, 2026-11-04): Mac first, hosted second.** The same Docker stack serves both. While it runs on the Mac,
+reminders only fire while the Mac is awake and online, which the owner accepts until the hosted stage.
+
 - **Production v1: Oracle Cloud Always Free VM** (ARM). Google Cloud e2-micro Always Free only if Oracle
   signup/capacity blocks the owner.
   - Docker Compose: Caddy (HTTPS + serves the built React app), API, reminder worker, Postgres.
@@ -187,11 +190,12 @@ Constraint: **free**. Reminders need an always-on process.
   reinstall the PWA and re-enable notifications once — accepted.
 
 ## 8. Build order (slices within v1)
-Each slice is built and tested before the next. The family uses it for real from the end of slice 1,
-so production deploy and backups come in slice 1 — her records are never on the server without a backup (my call).
+Each slice is built and tested before the next. Order of hosting, as the owner decided: run on the Mac first,
+move to a hosted VM with a domain afterwards. Backups exist from the first day of real use (my call).
 1. Foundation + daily care: project setup, Docker, auth (Google + magic link), family/roles/invites, i18n layer,
    feeds, diapers, home screen, PWA install, web push, feed reminders + escalation, offline queue,
-   health banner, **production deploy on Oracle with DuckDNS + Caddy, and nightly backups to Oracle Object Storage**.
+   health banner, a real-use stack that runs on the owner's Mac behind an HTTPS tunnel, and database backups to a local folder.
+   Hosting on an Oracle VM (DuckDNS + Caddy, backups to Object Storage) is the stage after slice 1 has been tested on the Mac.
 2. Medicines (all three schedule kinds) with reminders and escalation; sleep.
 3. Growth with WHO charts; vaccines; doctor visits with files.
 4. Photos, cry clips, timeline view, supplies stock.

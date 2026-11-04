@@ -1,0 +1,17 @@
+# PUBLIC_HOST is e.g. kinnest.duckdns.org. Caddy gets and renews the HTTPS certificate by itself.
+{$PUBLIC_HOST} {
+	encode gzip
+
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+
+	handle {
+		root * /srv
+		# the service worker and app shell must always be revalidated so updates reach phones
+		@shell path /sw.js /workbox-*.js /index.html /manifest.webmanifest /sw-push.js
+		header @shell Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+}
