@@ -1,8 +1,21 @@
 {
-  "app": { "name": "Kinnest", "tagline": "Her whole story, one family nest." },
-  "common": { "loading": "Loading…", "error": "Something went wrong. Please try again.", "signOut": "Sign out" },
-  "theme": { "toggle": "Toggle dark mode" },
-  "nav": { "home": "Home", "members": "Family", "settings": "Settings" },
+  "app": {
+    "name": "Kinnest",
+    "tagline": "Her whole story, one family nest."
+  },
+  "common": {
+    "loading": "Loading…",
+    "error": "Something went wrong. Please try again.",
+    "signOut": "Sign out"
+  },
+  "theme": {
+    "toggle": "Toggle dark mode"
+  },
+  "nav": {
+    "home": "Home",
+    "members": "Family",
+    "settings": "Settings"
+  },
   "login": {
     "title": "Welcome to Kinnest",
     "google": "Continue with Google",
@@ -12,8 +25,37 @@
     "sent": "Check your email for a sign-in link. It works once and expires in 15 minutes.",
     "note": "Only people invited by the family admin can sign in."
   },
-  "home": { "title": "Home", "soon": "Feeds and diapers will show up here." },
-  "roles": { "admin": "Admin", "caregiver": "Caregiver", "viewer": "Viewer" },
+  "home": {
+    "title": "Home",
+    "lastFed": "Last fed {{ago}} ago",
+    "neverFed": "No feeds logged yet",
+    "nextDue": "Next feed due {{time}}",
+    "overdue": "Feed overdue by {{ago}}",
+    "lastDiaper": "Last diaper {{ago}} ago",
+    "noDiaper": "No diapers logged yet",
+    "by": "by {{name}}",
+    "todayFeeds": "Feeds today: {{count}}",
+    "todayDiapers": "Diapers today: {{wet}} wet · {{dirty}} dirty · {{both}} both",
+    "feed": "Feed",
+    "diaper": "Diaper",
+    "saveFeed": "Save feed",
+    "time": "Time",
+    "duration": "Duration (min)",
+    "amount": "Amount (ml)",
+    "note": "Note",
+    "feedType": "Feed type",
+    "undo": "Undo",
+    "logged": "Logged",
+    "alsoLogged": "{{name}} also logged this a moment ago",
+    "close": "Close",
+    "diaperTitle": "What kind of diaper?",
+    "saveError": "Couldn't save. Check the time and try again."
+  },
+  "roles": {
+    "admin": "Admin",
+    "caregiver": "Caregiver",
+    "viewer": "Viewer"
+  },
   "members": {
     "title": "Family",
     "pending": "Invited",
@@ -35,5 +77,17 @@
     "save": "Save",
     "saved": "Saved",
     "adminOnly": "Only the admin can change these."
+  },
+  "feedTypes": {
+    "breast_left": "Breast · left",
+    "breast_right": "Breast · right",
+    "breast_both": "Breast · both",
+    "expressed": "Expressed milk",
+    "formula": "Formula"
+  },
+  "diaperKinds": {
+    "wet": "Wet",
+    "dirty": "Dirty",
+    "both": "Both"
   }
 }
