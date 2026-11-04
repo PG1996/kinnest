@@ -3,12 +3,14 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { I18nextProvider } from 'react-i18next'
 import { BrowserRouter } from 'react-router-dom'
+import { registerSW } from 'virtual:pwa-register'
 import App from './App'
 import { applySavedTheme } from './components/ThemeToggle'
 import i18n from './i18n'
 import './index.css'
 
 applySavedTheme()
+registerSW({ immediate: true })
 const client = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: true } } })
 
 createRoot(document.getElementById('root')!).render(
