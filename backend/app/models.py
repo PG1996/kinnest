@@ -171,3 +171,13 @@ class NotificationPref(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), primary_key=True)
     kind: Mapped[str] = mapped_column(String(20), primary_key=True)
     enabled: Mapped[bool] = mapped_column(default=True)
+
+
+class MagicToken(Base):
+    __tablename__ = "magic_tokens"
+    id: Mapped[uuid.UUID] = _pk()
+    email: Mapped[str] = mapped_column(String(320))
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = _created()
