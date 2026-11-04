@@ -49,7 +49,8 @@
     "alsoLogged": "{{name}} also logged this a moment ago",
     "close": "Close",
     "diaperTitle": "What kind of diaper?",
-    "saveError": "Couldn't save. Check the time and try again."
+    "saveError": "Couldn't save. Check the time and try again.",
+    "queued": "Saved on this phone. It will sync when you're back online."
   },
   "roles": {
     "admin": "Admin",
@@ -89,5 +90,11 @@
     "wet": "Wet",
     "dirty": "Dirty",
     "both": "Both"
+  },
+  "offline": {
+    "banner": "Can't reach the server. Reminders may be delayed.",
+    "pending": "{{count}} waiting to sync",
+    "rejected": "{{count}} entries couldn't be saved",
+    "dismiss": "Dismiss"
   }
 }
