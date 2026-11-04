@@ -3,7 +3,7 @@ import { Home, Settings, Users } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
-import { cn } from '../lib'
+import { cn } from '../lib/cn'
 import ThemeToggle from './ThemeToggle'
 import { Button } from './ui/button'
 
