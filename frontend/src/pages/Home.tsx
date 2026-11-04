@@ -1,8 +1,10 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useSearchParams } from 'react-router-dom'
 import { useMe, useSummary, type DiaperKind } from '../api/hooks'
 import DiaperSheet from '../components/DiaperSheet'
 import FeedSheet from '../components/FeedSheet'
+import PushPrompt from '../components/PushPrompt'
 import LastDiaperCard from '../components/LastDiaperCard'
 import LastFeedCard from '../components/LastFeedCard'
 import Toast, { type ToastData } from '../components/Toast'
@@ -17,13 +19,22 @@ import { Card } from '../components/ui/card'
 export default function Home() {
   const { t } = useTranslation()
   const me = useMe().data
-  const canLog = me?.role !== 'viewer'
+  const canLog = me ? me.role !== 'viewer' : false
   const serverSummary = useSummary().data
   const { pending, rejected } = useQueue()
   const summary = serverSummary && mergePending(serverSummary, pending, me?.user.name ?? '')
   const now = useNow()
   const [sheet, setSheet] = useState<'feed' | 'diaper' | null>(null)
   const [toast, setToast] = useState<ToastData | null>(null)
+  const [params, setParams] = useSearchParams()
+  useEffect(() => {
+    // a tapped notification opens the app at /?log=feed or /?log=diaper
+    const want = params.get('log')
+    if (canLog && (want === 'feed' || want === 'diaper')) {
+      setSheet(want)
+      setParams({}, { replace: true })
+    }
+  }, [canLog, params, setParams])
   const closeToast = useCallback(() => setToast(null), [])
   const logFeed = useLogFeed()
   const logDiaper = useLogDiaper()
@@ -67,6 +78,7 @@ export default function Home() {
 
   return (
     <>
+      {canLog && <PushPrompt />}
       {pending.length > 0 && <Card className="text-sm">{t('offline.pending', { count: pending.length })}</Card>}
       {rejected.length > 0 && (
         <Card className="flex items-center justify-between gap-3 text-sm text-danger">

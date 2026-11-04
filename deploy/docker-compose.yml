@@ -25,7 +25,7 @@ services:
     build: ../backend
     env_file: ../.env
     volumes: ["../backend:/app"]
-    command: python -c "import time; print('worker stub'); time.sleep(10**9)"
+    command: python -m app.worker.main
     depends_on:
       db: {condition: service_healthy}
 
