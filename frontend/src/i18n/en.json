@@ -77,7 +77,10 @@
     "diaperAlert": "Diaper alert after (minutes)",
     "save": "Save",
     "saved": "Saved",
-    "adminOnly": "Only the admin can change these."
+    "adminOnly": "Only the admin can change these.",
+    "notifications": "Notifications",
+    "feedReminders": "Feed reminders",
+    "diaperAlerts": "Diaper alerts"
   },
   "feedTypes": {
     "breast_left": "Breast · left",
@@ -96,5 +99,15 @@
     "pending": "{{count}} waiting to sync",
     "rejected": "{{count}} entries couldn't be saved",
     "dismiss": "Dismiss"
+  },
+  "push": {
+    "enable": "Turn on reminders",
+    "on": "Reminders are on for this phone",
+    "off": "Turn off",
+    "denied": "Notifications are blocked. Allow them in your browser or phone settings, then reload.",
+    "iosInstall": "On iPhone: tap Share, choose 'Add to Home Screen', open Kinnest from the home screen, then turn on reminders.",
+    "unsupported": "This browser can't receive reminders.",
+    "error": "Couldn't turn on reminders. Please try again.",
+    "title": "Feed and diaper reminders"
   }
 }
