@@ -1,0 +1,42 @@
+/* Theme tokens. A per-baby theme (v3) only has to override these variables. */
+:root {
+  --app: #fbf7f4;
+  --surface: #ffffff;
+  --ink: #3b3446;
+  --muted: #877f93;
+  --line: #ebe3ee;
+  --primary: #8e7cc3;
+  --primary-ink: #ffffff;
+  --accent: #f4b6c2;
+  --mint: #bfe3d0;
+  --danger: #c0564f;
+  --radius: 1.25rem;
+}
+
+:root[data-theme='dark'] {
+  --app: #14121a;
+  --surface: #1d1a25;
+  --ink: #d6d0e0;
+  --muted: #8d869a;
+  --line: #2c2837;
+  --primary: #9d8bd1;
+  --primary-ink: #14121a;
+  --accent: #b9778a;
+  --mint: #6f9b88;
+  --danger: #d9807a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']):not([data-theme='dark']) {
+    --app: #14121a;
+    --surface: #1d1a25;
+    --ink: #d6d0e0;
+    --muted: #8d869a;
+    --line: #2c2837;
+    --primary: #9d8bd1;
+    --primary-ink: #14121a;
+    --accent: #b9778a;
+    --mint: #6f9b88;
+    --danger: #d9807a;
+  }
+}

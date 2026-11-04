@@ -1,10 +1,24 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { I18nextProvider } from 'react-i18next'
+import { BrowserRouter } from 'react-router-dom'
+import App from './App'
+import { applySavedTheme } from './components/ThemeToggle'
+import i18n from './i18n'
 import './index.css'
-import App from './App.tsx'
+
+applySavedTheme()
+const client = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: true } } })
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <QueryClientProvider client={client}>
+      <I18nextProvider i18n={i18n}>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </I18nextProvider>
+    </QueryClientProvider>
   </StrictMode>,
 )
