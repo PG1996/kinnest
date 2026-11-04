@@ -11,6 +11,7 @@ from app.models import PushSubscription
 log = logging.getLogger(__name__)
 
 Status = Literal["ok", "gone", "error"]
+PUSH_TIMEOUT_SECONDS = 10
 
 
 def send(sub: PushSubscription, title_key: str, body_params: dict, urgency: str = "normal", url: str = "/") -> Status:
@@ -28,6 +29,7 @@ def send(sub: PushSubscription, title_key: str, body_params: dict, urgency: str 
             vapid_claims={"sub": settings.vapid_subject},
             headers={"Urgency": urgency},
             ttl=3600,
+            timeout=PUSH_TIMEOUT_SECONDS,  # a stalled push service must not freeze the reminder loop
         )
         return "ok"
     except WebPushException as e:

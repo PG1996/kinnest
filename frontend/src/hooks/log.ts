@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '../api/client'
+import { ApiError, api } from '../api/client'
 import type { DiaperKind, FeedType } from '../api/hooks'
 import { enqueue } from '../offline/queue'
 
@@ -19,12 +19,17 @@ export type LogResult = {
   queued?: boolean
 }
 
-/** POST an entry; with no connection (fetch throws TypeError) save it in the offline queue instead. */
+/**
+ * POST an entry. With no connection (fetch throws TypeError) or a server that is down (any 5xx, including the
+ * 502/503/530 a tunnel answers while the Mac is asleep) save it in the offline queue instead. The client id makes the
+ * later re-send safe.
+ */
 async function post(kind: 'feed' | 'diaper', path: string, body: FeedInput | DiaperInput): Promise<LogResult> {
   try {
     return await api<LogResult>(path, { json: body })
   } catch (e) {
-    if (!(e instanceof TypeError)) throw e
+    const serverDown = e instanceof ApiError && e.status >= 500
+    if (!(e instanceof TypeError) && !serverDown) throw e
     await enqueue({ kind, id: body.id, payload: body })
     return { id: body.id, recent_other: null, queued: true }
   }

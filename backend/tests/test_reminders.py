@@ -173,3 +173,41 @@ def test_diaper_alert_once_per_anchor(world):
     s.sent.clear()
     tick(world.db, BASE + timedelta(minutes=300), s)
     assert s.sent == []
+
+
+def test_old_reminder_state_is_kept_so_a_stale_chain_does_not_storm(world):
+    add_feed(world, BASE)
+    add_diaper(world, BASE)
+    s = FakeSender()
+    late = BASE + timedelta(days=10)  # nothing logged for 10 days
+    for m in range(3):
+        tick(world.db, late + timedelta(minutes=m), s)
+    assert sorted({x[1] for x in s.sent}) == ["diaper_alert", "feed_due", "feed_due_again", "feed_overdue_admin"]
+    s.sent.clear()
+    for m in range(3, 9):
+        tick(world.db, late + timedelta(minutes=m), s)
+    assert s.sent == []
+
+
+def test_state_is_committed_per_chain_so_a_later_failure_cannot_cause_resends(world, monkeypatch):
+    from app.worker import reminders
+
+    add_feed(world, BASE)
+    monkeypatch.setattr(reminders, "_diaper_alert", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
+    with pytest.raises(RuntimeError):
+        tick(world.db, DUE, FakeSender())
+    world.db.rollback()
+    assert world.db.query(ReminderState).filter_by(kind="feed").one().level == 0
+
+
+def test_a_crashing_sender_counts_as_a_failed_send_not_a_crashed_tick(world):
+    add_feed(world, BASE)
+
+    def sender(sub, title_key, body_params, urgency, url="/"):
+        if sub.endpoint.endswith("/mom"):
+            raise ConnectionError("push service down")
+        return "ok"
+
+    sent = tick(world.db, DUE, sender)
+    assert {s.user_id for s in sent} == ids(world, "owner")
+    assert world.db.query(ReminderState).filter_by(kind="feed").one().level == 0

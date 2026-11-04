@@ -120,3 +120,42 @@ test('saving a feed with no connection queues it and shows it as pending', async
   expect((await list())[0]).toMatchObject({ kind: 'feed' })
   expect(await screen.findByText(en.offline.pending.replace('{{count}}', '1'))).toBeInTheDocument()
 })
+
+
+function stubServer(postStatus: number) {
+  const summary = { last_feed: null, next_feed_due_at: null, last_diaper: null, feeds_today: 0, diapers_today: { wet: 0, dirty: 0, both: 0 } }
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'POST') return json(postStatus, { detail: 'down' })
+      return json(200, String(input).includes('/api/me') ? ME_ADMIN : summary)
+    }),
+  )
+}
+
+test('a 503 from the server (Mac asleep, tunnel up) queues a feed instead of losing it', async () => {
+  stubServer(503)
+  renderApp(<Home />)
+  await userEvent.click(await screen.findByRole('button', { name: en.home.feed }))
+  await userEvent.click(screen.getByRole('button', { name: en.home.saveFeed }))
+  expect(await screen.findByText(en.home.queued)).toBeInTheDocument()
+  await waitFor(async () => expect(await list()).toHaveLength(1))
+})
+
+test('a 503 queues a diaper too, so it is not silently lost', async () => {
+  stubServer(503)
+  renderApp(<Home />)
+  await userEvent.click(await screen.findByRole('button', { name: en.home.diaper }))
+  await userEvent.click(screen.getByRole('button', { name: en.diaperKinds.wet }))
+  expect(await screen.findByText(en.home.queued)).toBeInTheDocument()
+  expect((await list())[0]).toMatchObject({ kind: 'diaper' })
+})
+
+test('a rejected diaper (422) tells the caregiver instead of failing silently', async () => {
+  stubServer(422)
+  renderApp(<Home />)
+  await userEvent.click(await screen.findByRole('button', { name: en.home.diaper }))
+  await userEvent.click(screen.getByRole('button', { name: en.diaperKinds.wet }))
+  expect(await screen.findByText(en.home.saveError)).toBeInTheDocument()
+  expect(await list()).toEqual([])
+})

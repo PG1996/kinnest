@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.models import Diaper, Feed, Kid, Membership, NotificationPref, PushSubscription, ReminderState, User
@@ -55,7 +55,11 @@ def _deliver(db, sender, recipients, key, params, urgency, url, kind, level, sen
     ok = errors = 0
     for user, subs in recipients:
         for sub in subs:
-            status = sender(sub, key, params, urgency, url)
+            try:
+                status = sender(sub, key, params, urgency, url)
+            except Exception:
+                log.exception("sender crashed for subscription %s", sub.id)
+                status = "error"
             if status == "ok":
                 ok += 1
                 sent.append(Sent(user.id, kind, level, key, urgency))
@@ -118,12 +122,34 @@ def _diaper_alert(db: Session, kid: Kid, now: datetime, sender: Sender, tz: str,
         db.add(ReminderState(kid_id=kid.id, kind="diaper", anchor_at=anchor, level=0, last_sent_at=now))
 
 
+def _purge_old_state(db: Session, now: datetime) -> None:
+    """Drop old chains, but never a kid's newest one: deleting it would make a stale chain start over every minute."""
+    for kid_id, kind in db.execute(select(ReminderState.kid_id, ReminderState.kind).distinct()).all():
+        newest = db.scalar(
+            select(func.max(ReminderState.anchor_at)).where(ReminderState.kid_id == kid_id, ReminderState.kind == kind)
+        )
+        db.execute(
+            delete(ReminderState).where(
+                ReminderState.kid_id == kid_id,
+                ReminderState.kind == kind,
+                ReminderState.anchor_at < now - KEEP_STATE,
+                ReminderState.anchor_at != newest,
+            )
+        )
+
+
 def tick(db: Session, now: datetime, sender: Sender, tz: str = "Asia/Kolkata") -> list[Sent]:
-    """One pass of the reminder worker. All state lives in the database, so a restart never resends or loses one."""
+    """One pass of the reminder worker. All state lives in the database, so a restart never resends or loses one.
+
+    State is committed right after each chain's sends, so a crash or restart later in the pass cannot
+    make the notifications that already went out be sent again.
+    """
     sent: list[Sent] = []
     for kid in db.scalars(select(Kid)).all():
         _feed_chain(db, kid, now, sender, tz, sent)
+        db.commit()
         _diaper_alert(db, kid, now, sender, tz, sent)
-    db.execute(delete(ReminderState).where(ReminderState.anchor_at < now - KEEP_STATE))
+        db.commit()
+    _purge_old_state(db, now)
     db.commit()
     return sent

@@ -46,7 +46,7 @@
     "feedType": "Feed type",
     "undo": "Undo",
     "logged": "Logged",
-    "alsoLogged": "{{name}} also logged this a moment ago",
+    "alsoLogged": "{{name}} also logged this at {{time}}",
     "close": "Close",
     "diaperTitle": "What kind of diaper?",
     "saveError": "Couldn't save. Check the time and try again.",
