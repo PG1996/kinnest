@@ -81,3 +81,26 @@ def login(client, outbox, email: str):
     assert client.post("/api/auth/magic/request", json={"email": email}).status_code == 200
     token = outbox[-1].body.split("token=")[1].split()[0]
     return client.get(f"/api/auth/magic/verify?token={token}", follow_redirects=False)
+
+
+@pytest.fixture
+def family(make_client, outbox, db_session):
+    """Owner (admin), mom (caregiver), aunt (viewer), each with a logged-in client."""
+    from types import SimpleNamespace
+
+    from app.models import Family, Invite
+
+    owner = make_client()
+    login(owner, outbox, OWNER)
+    fam = db_session.query(Family).one()
+    db_session.add_all(
+        [
+            Invite(family_id=fam.id, email="mom@x.com", role="caregiver"),
+            Invite(family_id=fam.id, email="aunt@x.com", role="viewer"),
+        ]
+    )
+    db_session.flush()
+    mom, aunt = make_client(), make_client()
+    login(mom, outbox, "mom@x.com")
+    login(aunt, outbox, "aunt@x.com")
+    return SimpleNamespace(owner=owner, mom=mom, aunt=aunt)
