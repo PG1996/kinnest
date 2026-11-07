@@ -14,6 +14,18 @@ MESSAGES: dict[str, dict[str, dict[str, str]]] = {
             "title": "{kid}: feed overdue {mins} min",
             "body": "Nobody has logged a feed since {time}. Please check.",
         },
+        "med_due": {
+            "title": "{kid}: {medicine} due",
+            "body": "{dose} at {time}.",
+        },
+        "med_due_again": {
+            "title": "{kid}: {medicine} still not given",
+            "body": "Due since {time}. Please give it and tick it off.",
+        },
+        "med_overdue_admin": {
+            "title": "{kid}: {medicine} overdue {mins} min",
+            "body": "Nobody has marked the {time} dose. Please check.",
+        },
         "diaper_alert": {
             "title": "{kid}: diaper check",
             "body": "No diaper logged since {time}.",

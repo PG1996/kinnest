@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Membership, User
+from app.models import Membership, MedicineDose, User
 
 MAX_FUTURE = timedelta(minutes=5)
 RECENT_OTHER_WINDOW = timedelta(minutes=2)
@@ -44,3 +44,15 @@ def ensure_family_member(db: Session, family_id: uuid.UUID, user_id: uuid.UUID) 
     """A fed-by / changed-by user must belong to the caller's family (otherwise the FK would 500, or name an outsider)."""
     if db.scalar(select(Membership.id).where(Membership.family_id == family_id, Membership.user_id == user_id)) is None:
         raise HTTPException(422, "unknown user")
+
+
+def recent_doses(db: Session, medicine_id: uuid.UUID) -> list[MedicineDose]:
+    """The most recent live doses of a medicine, newest first: enough for slot, next-due and last-dose calculations."""
+    return list(
+        db.scalars(
+            select(MedicineDose)
+            .where(MedicineDose.medicine_id == medicine_id, MedicineDose.deleted_at.is_(None))
+            .order_by(MedicineDose.given_at.desc())
+            .limit(60)
+        )
+    )
