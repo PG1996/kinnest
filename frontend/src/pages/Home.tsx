@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
-import { useMe, useSummary, type DiaperKind } from '../api/hooks'
+import { useMe, useMedicines, useSummary, type DiaperKind } from '../api/hooks'
 import DiaperSheet from '../components/DiaperSheet'
 import FeedSheet from '../components/FeedSheet'
 import PushPrompt from '../components/PushPrompt'
 import LastDiaperCard from '../components/LastDiaperCard'
 import LastFeedCard from '../components/LastFeedCard'
+import MedicinesToday from '../components/MedicinesToday'
 import SleepCard from '../components/SleepCard'
 import Toast, { type ToastData } from '../components/Toast'
 import Today from '../components/Today'
@@ -24,6 +25,9 @@ export default function Home() {
   const canLog = me ? me.role !== 'viewer' : false
   const serverSummary = useSummary().data
   const { pending, rejected } = useQueue()
+  const medicines = useMedicines().data ?? []
+  const medsRef = useRef<HTMLDivElement>(null)
+  const [scrollToMeds, setScrollToMeds] = useState(false)
   const summary = serverSummary && mergePending(serverSummary, pending, me?.user.name ?? '')
   const now = useNow()
   const [sheet, setSheet] = useState<'feed' | 'diaper' | null>(null)
@@ -32,7 +36,10 @@ export default function Home() {
   useEffect(() => {
     // a tapped notification opens the app at /?log=feed or /?log=diaper
     const want = params.get('log')
-    if (canLog && (want === 'feed' || want === 'diaper')) {
+    if (want === 'medicine') {
+      setScrollToMeds(true)
+      setParams({}, { replace: true })
+    } else if (canLog && (want === 'feed' || want === 'diaper')) {
       setSheet(want)
       setParams({}, { replace: true })
     }
@@ -41,6 +48,13 @@ export default function Home() {
   const logFeed = useLogFeed()
   const logDiaper = useLogDiaper()
   const undoDiaper = useUndoDiaper()
+
+  useEffect(() => {
+    if (scrollToMeds && medsRef.current) {
+      medsRef.current.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+      setScrollToMeds(false)
+    }
+  }, [scrollToMeds, medicines.length])
 
   const saveFeed = (body: FeedInput) =>
     logFeed.mutate(body, {
@@ -97,6 +111,18 @@ export default function Home() {
           <LastDiaperCard summary={summary} now={now} />
           <SleepCard sleep={summary.sleep} now={now} canLog={canLog} onToast={setToast} />
           <Today summary={summary} />
+          {medicines.length > 0 && (
+            <div ref={medsRef} className="space-y-4">
+              <MedicinesToday
+                medicines={medicines}
+                pending={pending}
+                canLog={canLog}
+                myName={me?.user.name ?? ''}
+                now={now}
+                onToast={setToast}
+              />
+            </div>
+          )}
         </>
       )}
       {canLog && (

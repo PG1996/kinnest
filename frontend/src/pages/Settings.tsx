@@ -8,7 +8,7 @@ import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/field'
 import PushPrompt from '../components/PushPrompt'
 
-type Prefs = { feed: boolean; diaper: boolean }
+type Prefs = { feed: boolean; diaper: boolean; medicine?: boolean }
 
 type Kid = {
   id: string
@@ -94,9 +94,9 @@ export default function Settings() {
       <h2 className="font-medium">{t('settings.notifications')}</h2>
       <PushPrompt alwaysShow />
       <Card className="space-y-2">
-        {(['feed', 'diaper'] as const).map((k) => (
+        {(['feed', 'diaper', 'medicine'] as const).map((k) => (
           <label key={k} className="flex min-h-12 items-center justify-between gap-3">
-            <span>{t(k === 'feed' ? 'settings.feedReminders' : 'settings.diaperAlerts')}</span>
+            <span>{t(`settings.${k === 'feed' ? 'feedReminders' : k === 'diaper' ? 'diaperAlerts' : 'medicineReminders'}`)}</span>
             <input
               type="checkbox"
               className="size-6 accent-primary"

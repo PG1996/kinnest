@@ -105,3 +105,19 @@ export function useQueue(): { pending: QueueEntry[]; rejected: Rejected[] } {
   }, [])
   return state
 }
+
+/** Key that identifies a medicine slot, so queued doses can be matched to the slots listed by the server. */
+export const slotKey = (medicineId: string, scheduledFor: string) => `${medicineId}|${Date.parse(scheduledFor)}`
+
+/** Slots that have a dose waiting to sync. */
+export function queuedDoseSlots(pending: QueueEntry[]): Set<string> {
+  return new Set(
+    pending
+      .filter((p) => p.kind === 'dose' && p.payload.scheduled_for)
+      .map((p) => slotKey(String(p.payload.medicine_id), String(p.payload.scheduled_for))),
+  )
+}
+
+/** As-needed doses waiting to sync for one medicine. */
+export const queuedAsNeeded = (pending: QueueEntry[], medicineId: string) =>
+  pending.filter((p) => p.kind === 'dose' && p.payload.medicine_id === medicineId && !p.payload.scheduled_for).length
