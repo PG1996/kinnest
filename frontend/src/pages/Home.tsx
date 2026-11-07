@@ -7,6 +7,7 @@ import FeedSheet from '../components/FeedSheet'
 import PushPrompt from '../components/PushPrompt'
 import LastDiaperCard from '../components/LastDiaperCard'
 import LastFeedCard from '../components/LastFeedCard'
+import SleepCard from '../components/SleepCard'
 import Toast, { type ToastData } from '../components/Toast'
 import Today from '../components/Today'
 import { Button } from '../components/ui/button'
@@ -94,6 +95,7 @@ export default function Home() {
         <>
           <LastFeedCard summary={summary} now={now} />
           <LastDiaperCard summary={summary} now={now} />
+          <SleepCard sleep={summary.sleep} now={now} canLog={canLog} onToast={setToast} />
           <Today summary={summary} />
         </>
       )}

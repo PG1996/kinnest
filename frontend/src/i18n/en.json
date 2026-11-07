@@ -109,5 +109,14 @@
     "unsupported": "This browser can't receive reminders.",
     "error": "Couldn't turn on reminders. Please try again.",
     "title": "Feed and diaper reminders"
+  },
+  "sleep": {
+    "asleepSince": "Asleep since {{time}} ({{ago}})",
+    "lastSleep": "Slept {{duration}}, woke {{ago}} ago",
+    "none": "No sleep logged yet",
+    "start": "Sleep",
+    "end": "Wake up",
+    "alreadyAsleep": "{{name}} already started this sleep",
+    "alreadyEnded": "This sleep was already ended"
   }
 }
