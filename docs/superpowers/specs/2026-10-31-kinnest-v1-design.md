@@ -98,8 +98,17 @@ Defaults (my call, owner may override): timezone Asia/Kolkata, metric units (ml,
 - Daily/weekly logging cadence is the user's choice; no reminder in v1 (my call).
 
 ### 4.7 Vaccinations
-- **No preloaded schedule.** Admin/caregiver enters the schedule given by the hospital/doctor:
-  vaccine name, dose number, due date. Mark done with given date, place, notes.
+- **Schedule templates (owner decision, 2026-11-07).** A small registry of templates, starting with **India IAP** and the
+  **India government UIP**. The first time a parent opens Vaccines they pick one; the list is filled with due dates
+  computed from the birth date. Templates are written from the official published schedules and checked against the
+  owner's hospital sheet. A template is only a starting point.
+- **The list is always editable** from the Vaccines screen / settings: add a vaccine (special or optional ones), change a
+  date, skip or delete one, and mark it done with given date, place and notes. Fields: vaccine name, dose number, due date.
+- **Scan the hospital schedule (owner decision, 2026-11-07).** Photo or PDF goes to a Claude vision model, which returns a
+  draft list in a fixed structure (vaccine, dose, due age). The parent reviews and edits the draft; nothing is saved
+  until they confirm. Needs an Anthropic API key. The photo is sent to the Anthropic API (the screen says so and suggests
+  cropping out the child's name). Model choice is left to the builder (Sonnet-class by default).
+- Reminders follow the schedule the family entered; the app states that the doctor's advice comes first.
 - Attach a photo of the vaccine card per entry (my call).
 - Reminders: the evening before and the morning of the due date (my call).
 
@@ -197,12 +206,12 @@ move to a hosted VM with a domain afterwards. Backups exist from the first day o
    health banner, a real-use stack that runs on the owner's Mac behind an HTTPS tunnel, and database backups to a local folder.
    Hosting on an Oracle VM (DuckDNS + Caddy, backups to Object Storage) is the stage after slice 1 has been tested on the Mac.
 2. Medicines (all three schedule kinds) with reminders and escalation; sleep.
-3. Growth with WHO charts; vaccines; doctor visits with files.
+3. Growth with WHO charts; vaccines (template registry + editable list + scan-to-draft); doctor visits with files.
 4. Photos, cry clips, timeline view, supplies stock.
 
 ## 9. Later (out of v1)
 - Phase 2: cry-analysis AI (audio + log context, trained on tagged clips; per-kid fine-tuning);
-  AI vaccine-card extraction; cross-app shopping tracker.
+  cross-app shopping tracker. (Vaccine-schedule scanning moved into slice 3.)
 - Separate project: AI photo search, albums, photobooks, posters.
 - v2: paid AWS hosting, own domain; Alexa / Google speaker reminder announcements.
 - v3: multi-family signup, multiple kids, profile setup, per-baby themes; school-age entry types
