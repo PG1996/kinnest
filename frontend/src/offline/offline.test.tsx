@@ -74,6 +74,7 @@ test('mergePending shows the newest pending feed as last fed with a due time', (
     last_diaper: null,
     feeds_today: 1,
     diapers_today: { wet: 0, dirty: 0, both: 0 },
+    sleep: { open: null, last: null },
   }
   const pending = [{ ...entry('feed', 'p1'), queuedAt: 1, seq: 1, payload: { id: 'p1', type: 'breast_left', started_at: '2026-11-04T09:00:00Z', duration_min: 10 } }]
   const merged = mergePending(summary, pending, 'Me')
@@ -158,4 +159,53 @@ test('a rejected diaper (422) tells the caregiver instead of failing silently', 
   await userEvent.click(screen.getByRole('button', { name: en.diaperKinds.wet }))
   expect(await screen.findByText(en.home.saveError)).toBeInTheDocument()
   expect(await list()).toEqual([])
+})
+
+const dosePayload = (id: string, medicine = 'med1') => ({ id, medicine_id: medicine, status: 'given', scheduled_for: '2026-11-08T03:30:00Z', given_at: '2026-11-08T03:35:00Z' })
+
+test('flush sends dose and sleep entries to their own endpoints in order', async () => {
+  await enqueue({ kind: 'sleep_start', id: 's1', payload: { id: 's1', started_at: '2026-11-08T01:00:00Z' } })
+  await enqueue({ kind: 'sleep_end', id: 'e1', payload: { id: 's1', ended_at: '2026-11-08T02:00:00Z' } })
+  await enqueue({ kind: 'dose', id: 'd1', payload: dosePayload('d1', 'med9') })
+  const fetchMock = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => json(201))
+  vi.stubGlobal('fetch', fetchMock)
+  expect(await flush()).toEqual({ sent: 3, failed: 0 })
+  expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/sleep', '/api/sleep/s1/end', '/api/medicines/med9/doses'])
+  expect(await list()).toEqual([])
+})
+
+test('a 409 on a queued dose or sleep start lands in the rejected list with the reason', async () => {
+  await enqueue({ kind: 'dose', id: 'd1', payload: dosePayload('d1') })
+  await enqueue({ kind: 'sleep_start', id: 's1', payload: { id: 's1', started_at: '2026-11-08T01:00:00Z' } })
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(json(409, { detail: 'that dose is not due' })).mockResolvedValueOnce(json(409, { detail: 'already asleep' })))
+  expect(await flush()).toEqual({ sent: 0, failed: 2 })
+  expect(await list()).toEqual([])
+  expect((await listRejected()).map((r) => r.reason).sort()).toEqual(['already asleep', 'that dose is not due'])
+})
+
+const emptySummary = (sleep: Summary['sleep'] = { open: null, last: null }): Summary => ({
+  last_feed: null, next_feed_due_at: null, last_diaper: null, feeds_today: 0, diapers_today: { wet: 0, dirty: 0, both: 0 }, sleep,
+})
+const queued = (kind: 'sleep_start' | 'sleep_end', id: string, payload: Record<string, unknown>, seq: number) => ({ kind, id, payload, queuedAt: seq, seq })
+
+test('mergePending shows a queued sleep start as asleep', () => {
+  const merged = mergePending(emptySummary(), [queued('sleep_start', 's1', { id: 's1', started_at: '2026-11-08T01:00:00Z' }, 1)], 'Me')
+  expect(merged.sleep.open).toMatchObject({ id: 's1', started_at: '2026-11-08T01:00:00Z', ended_at: null, started_by_name: 'Me' })
+})
+
+test('mergePending closes the session again when an end is queued behind the start', () => {
+  const pending = [
+    queued('sleep_start', 's1', { id: 's1', started_at: '2026-11-08T01:00:00Z' }, 1),
+    queued('sleep_end', 'e1', { id: 's1', ended_at: '2026-11-08T02:30:00Z' }, 2),
+  ]
+  const merged = mergePending(emptySummary(), pending, 'Me')
+  expect(merged.sleep.open).toBeNull()
+  expect(merged.sleep.last).toMatchObject({ id: 's1', duration_min: 90, ended_by_name: 'Me' })
+})
+
+test('mergePending closes a session the server already has open', () => {
+  const open = { id: 's9', started_at: '2026-11-08T01:00:00Z', ended_at: null, started_by_name: 'Mom', ended_by_name: null, duration_min: null, note: '' }
+  const merged = mergePending(emptySummary({ open, last: null }), [queued('sleep_end', 'e1', { id: 's9', ended_at: '2026-11-08T01:45:00Z' }, 1)], 'Me')
+  expect(merged.sleep.open).toBeNull()
+  expect(merged.sleep.last).toMatchObject({ id: 's9', duration_min: 45, started_by_name: 'Mom' })
 })

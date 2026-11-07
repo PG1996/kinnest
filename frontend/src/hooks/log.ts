@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ApiError, api } from '../api/client'
 import type { DiaperKind, FeedType } from '../api/hooks'
-import { enqueue } from '../offline/queue'
+import { enqueue, type QueueEntry } from '../offline/queue'
 
 export type FeedInput = {
   id: string
@@ -24,13 +24,18 @@ export type LogResult = {
  * 502/503/530 a tunnel answers while the Mac is asleep) save it in the offline queue instead. The client id makes the
  * later re-send safe.
  */
-async function post(kind: 'feed' | 'diaper', path: string, body: FeedInput | DiaperInput): Promise<LogResult> {
+async function post<T extends { id: string }>(
+  kind: QueueEntry['kind'],
+  path: string,
+  body: T,
+  queueId: string = body.id,
+): Promise<LogResult> {
   try {
     return await api<LogResult>(path, { json: body })
   } catch (e) {
     const serverDown = e instanceof ApiError && e.status >= 500
     if (!(e instanceof TypeError) && !serverDown) throw e
-    await enqueue({ kind, id: body.id, payload: body })
+    await enqueue({ kind, id: queueId, payload: { ...body } })
     return { id: body.id, recent_other: null, queued: true }
   }
 }
@@ -55,6 +60,56 @@ export function useUndoDiaper() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => api(`/api/diapers/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['summary'] }),
+  })
+}
+
+export type DoseInput = {
+  id: string
+  medicine_id: string
+  status: 'given' | 'skipped'
+  /** The slot being ticked (scheduled medicines); absent for as-needed doses. */
+  scheduled_for?: string
+  given_at?: string
+  note?: string
+}
+export type DoseResult = LogResult & { by_name?: string; gap_warning?: { last_given_at: string } | null }
+
+const refreshMedicines = (qc: ReturnType<typeof useQueryClient>) => {
+  qc.invalidateQueries({ queryKey: ['medicines'] })
+  qc.invalidateQueries({ queryKey: ['summary'] })
+}
+
+export function useGiveDose() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (b: DoseInput) => post('dose', `/api/medicines/${b.medicine_id}/doses`, b) as Promise<DoseResult>,
+    onSuccess: () => refreshMedicines(qc),
+  })
+}
+
+export function useUndoDose() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (v: { medicineId: string; doseId: string }) =>
+      api(`/api/medicines/${v.medicineId}/doses/${v.doseId}`, { method: 'DELETE' }),
+    onSuccess: () => refreshMedicines(qc),
+  })
+}
+
+export function useStartSleep() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (b: { id: string; started_at: string; note?: string }) => post('sleep_start', '/api/sleep', b),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['summary'] }),
+  })
+}
+
+export function useEndSleep() {
+  const qc = useQueryClient()
+  return useMutation({
+    // `id` is the session being ended (the queue builds the URL from it); the queue key must differ from the start's
+    mutationFn: (b: { id: string; ended_at: string }) => post('sleep_end', `/api/sleep/${b.id}/end`, b, `${b.id}:end`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['summary'] }),
   })
 }
