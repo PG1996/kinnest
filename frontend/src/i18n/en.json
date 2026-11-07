@@ -80,7 +80,8 @@
     "adminOnly": "Only the admin can change these.",
     "notifications": "Notifications",
     "feedReminders": "Feed reminders",
-    "diaperAlerts": "Diaper alerts"
+    "diaperAlerts": "Diaper alerts",
+    "medicineReminders": "Medicine reminders"
   },
   "feedTypes": {
     "breast_left": "Breast · left",
@@ -118,5 +119,27 @@
     "end": "Wake up",
     "alreadyAsleep": "{{name}} already started this sleep",
     "alreadyEnded": "This sleep was already ended"
+  },
+  "medicines": {
+    "title": "Medicines",
+    "given": "Given",
+    "skip": "Skip",
+    "undo": "Undo",
+    "overdue": "Overdue by {{ago}}",
+    "dueAt": "Due {{time}}",
+    "yesterday": "yesterday",
+    "givenBy": "Given by {{name}} at {{time}}",
+    "skippedBy": "Skipped by {{name}} at {{time}}",
+    "waiting": "Waiting to sync",
+    "giveNow": "Give now",
+    "lastGiven": "Last given {{ago}} ago by {{name}}",
+    "neverGiven": "Not given yet",
+    "gapTitle": "Given recently",
+    "gapConfirm": "The last dose was {{ago}} ago and the minimum gap is {{hours}} hours. Give another dose now?",
+    "giveAnyway": "Give anyway",
+    "cancel": "Cancel",
+    "alreadyGave": "{{name}} already gave this dose",
+    "gapWarned": "Saved. The previous dose was at {{time}}.",
+    "notDue": "This dose is no longer due. The list has been refreshed."
   }
 }
