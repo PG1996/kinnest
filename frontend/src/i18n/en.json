@@ -14,7 +14,8 @@
   "nav": {
     "home": "Home",
     "members": "Family",
-    "settings": "Settings"
+    "settings": "Settings",
+    "medicines": "Medicines"
   },
   "login": {
     "title": "Welcome to Kinnest",
@@ -140,6 +141,44 @@
     "cancel": "Cancel",
     "alreadyGave": "{{name}} already gave this dose",
     "gapWarned": "Saved. The previous dose was at {{time}}.",
-    "notDue": "This dose is no longer due. The list has been refreshed."
+    "notDue": "This dose is no longer due. The list has been refreshed.",
+    "page": {
+      "title": "Medicines",
+      "add": "Add medicine",
+      "edit": "Edit",
+      "delete": "Delete",
+      "confirmDelete": "Yes, delete",
+      "past": "Past medicines",
+      "empty": "No medicines yet",
+      "fixed": "Every day at {{times}}",
+      "interval": "Every {{hours}} hours",
+      "asNeeded": "Only when needed",
+      "asNeededGap": "Only when needed, at least {{hours}} hours apart",
+      "from": "From {{date}}",
+      "until": "until {{date}}",
+      "readOnly": "Only the admin can change medicines."
+    },
+    "form": {
+      "name": "Medicine name",
+      "dose": "Dose (for example 5 drops)",
+      "kindLabel": "How is it given?",
+      "kind": {
+        "fixed": "Same times every day",
+        "interval": "Every few hours",
+        "as_needed": "Only when needed"
+      },
+      "timeN": "Time {{n}}",
+      "addTime": "Add a time",
+      "removeTime": "Remove time {{n}}",
+      "intervalHours": "Hours between doses",
+      "firstDose": "First dose",
+      "minGap": "Minimum hours between doses (optional)",
+      "startDate": "Start date",
+      "endDate": "End date (optional)",
+      "notes": "Notes",
+      "save": "Save",
+      "cancel": "Cancel",
+      "invalid": "Please check the name, times and dates."
+    }
   }
 }
