@@ -102,3 +102,15 @@ test('Settings toggles save notification preferences', async () => {
     expect(calls.find((c) => c.key === 'PUT /api/notification-prefs')?.body).toEqual({ feed: false, diaper: true }),
   )
 })
+
+test('a browser push failure is logged with its real reason and shown as an error', async () => {
+  const fake = fakePushSupport()
+  fake.pushManager.subscribe.mockRejectedValue(new DOMException('Registration failed - push service error', 'AbortError'))
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+  mockApi({ 'GET /api/push/public-key': { body: { public_key: 'AQID' } } })
+  renderApp(<PushPrompt alwaysShow />)
+  await userEvent.click(await screen.findByRole('button', { name: en.push.enable }))
+  expect(await screen.findByText(en.push.error)).toBeInTheDocument()
+  expect(log).toHaveBeenCalledWith('enablePush failed', expect.objectContaining({ name: 'AbortError' }))
+  log.mockRestore()
+})

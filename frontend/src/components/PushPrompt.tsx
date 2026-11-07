@@ -24,7 +24,8 @@ export default function PushPrompt({ alwaysShow = false }: { alwaysShow?: boolea
     setFailed(false)
     try {
       setState(await action())
-    } catch {
+    } catch (e) {
+      console.error('enablePush failed', e) // the browser's reason (e.g. AbortError: push service error) is the only clue
       setFailed(true)
     } finally {
       setBusy(false)
