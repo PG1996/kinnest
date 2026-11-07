@@ -103,3 +103,20 @@ def test_history_newest_first_with_range(family):
     rows = family.aunt.get("/api/sleep").json()
     assert len(rows) == 2 and rows[0]["started_at"] > rows[1]["started_at"]
     assert len(family.aunt.get("/api/sleep", params={"from": ago(400)}).json()) == 1
+
+
+def test_reopening_an_ended_session_while_another_is_open_is_409_not_500(family, db_session):
+    _, a = start(family.mom, 120)
+    family.mom.post(f"/api/sleep/{a['id']}/end", json={"ended_at": ago(90)})
+    _, b = start(family.mom, 10)  # b is open now
+    r = family.owner.patch(f"/api/sleep/{a['id']}", json={"ended_at": None})
+    assert r.status_code == 409 and r.json()["open"]["id"] == b["id"]
+    assert db_session.get(SleepSession, uuid.UUID(a["id"])).ended_at is not None  # unchanged
+
+
+def test_reopening_clears_who_ended_it_when_nothing_else_is_open(family):
+    _, a = start(family.mom, 120)
+    family.mom.post(f"/api/sleep/{a['id']}/end", json={"ended_at": ago(90)})
+    r = family.owner.patch(f"/api/sleep/{a['id']}", json={"ended_at": None})
+    assert r.status_code == 200 and r.json()["ended_at"] is None and r.json()["ended_by_name"] is None
+    assert family.aunt.get("/api/summary").json()["sleep"]["open"]["id"] == a["id"]

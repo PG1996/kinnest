@@ -1,8 +1,9 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { list } from '../offline/queue'
 import { ApiError, api } from '../api/client'
+import { createQueryClient } from '../queryClient'
 import { useEndSleep, useGiveDose, useStartSleep } from './log'
 
 const wrapper = ({ children }: { children: ReactNode }) => (
@@ -65,4 +66,44 @@ test('ApiError keeps the response body so callers can read the open sleep sessio
   await expect(api('/api/sleep', { json: { id: 'x' } })).rejects.toSatisfy(
     (e: unknown) => e instanceof ApiError && e.status === 409 && (e.body as { open: { id: string } }).open.id === 's9',
   )
+})
+
+test('a dose carries the time it was given, so a queued one keeps it after syncing later', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')))
+  const before = Date.now()
+  const { result } = renderHook(() => useGiveDose(), { wrapper })
+  await act(async () => {
+    await result.current.mutateAsync({ id: 'dose-with-time', medicine_id: 'm1', status: 'given' })
+  })
+  const [entry] = await list()
+  const stamped = Date.parse(String(entry.payload.given_at))
+  expect(stamped).toBeGreaterThanOrEqual(before)
+  expect(stamped).toBeLessThanOrEqual(Date.now())
+})
+
+test('an explicit given_at is kept as is', async () => {
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')))
+  const { result } = renderHook(() => useGiveDose(), { wrapper })
+  await act(async () => {
+    await result.current.mutateAsync({ id: 'explicit', medicine_id: 'm1', status: 'given', given_at: '2026-11-08T03:35:00Z' })
+  })
+  expect((await list())[0].payload.given_at).toBe('2026-11-08T03:35:00Z')
+})
+
+describe('airplane mode', () => {
+  afterEach(() => onlineManager.setOnline(true))
+
+  test('the real app query client does not pause mutations while offline, so they reach the queue', async () => {
+    onlineManager.setOnline(false)
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')))
+    const client = createQueryClient()
+    const offlineWrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    const { result } = renderHook(() => useGiveDose(), { wrapper: offlineWrapper })
+    let out: { queued?: boolean } | undefined
+    await act(async () => {
+      out = await result.current.mutateAsync({ id: 'airplane', medicine_id: 'm1', status: 'given' })
+    })
+    expect(out?.queued).toBe(true)
+    expect(await list()).toHaveLength(1)
+  })
 })

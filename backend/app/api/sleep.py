@@ -118,7 +118,7 @@ def end_sleep(
 @router.patch("/sleep/{sleep_id}")
 def patch_sleep(
     sleep_id: uuid.UUID, body: SleepPatch, member: Member = Depends(require_caregiver), db: Session = Depends(get_session)
-) -> dict:
+):
     s = _one(db, member, sleep_id)
     data = body.model_dump(exclude_unset=True)
     started = data.get("started_at") or s.started_at
@@ -128,13 +128,26 @@ def patch_sleep(
             reject_future(ts)
     if ended is not None and ended < started:
         raise HTTPException(422, "cannot end before it started")
+    if ended is None and s.ended_at is not None:  # reopening: only one session may be open at a time
+        other = _open_session(db, member.kid_id)
+        if other is not None and other.id != s.id:
+            return _already_asleep(db, other)
     s.started_at, s.ended_at = started, ended
-    if "ended_at" in data and ended is not None and s.ended_by_user_id is None:
+    if ended is None:
+        s.ended_by_user_id = None
+    elif "ended_at" in data and s.ended_by_user_id is None:
         s.ended_by_user_id = member.user.id
     if data.get("note") is not None:
         s.note = data["note"]
     s.updated_by = member.user.id
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:  # another phone opened a session in the meantime
+        db.rollback()
+        other = _open_session(db, member.kid_id)
+        if other is None:
+            raise
+        return _already_asleep(db, other)
     return _render(db, s)
 
 
