@@ -5,12 +5,13 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import AwareDatetime, BaseModel, Field
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth.deps import Member, current_member, require_caregiver
 from app.db import get_session
 from app.models import Diaper
-from app.services.entries import recent_other, reject_future, user_names
+from app.services.entries import ensure_family_member, recent_other, reject_future, user_names
 
 router = APIRouter(prefix="/api")
 
@@ -63,13 +64,23 @@ def create_diaper(
         return {**diaper_json(existing, user_names(db, {existing.changed_by_user_id})), "recent_other": None}
     reject_future(body.at)
     me = member.user.id
+    if body.changed_by_user_id:
+        ensure_family_member(db, member.family_id, body.changed_by_user_id)
     diaper = Diaper(
         id=body.id, family_id=member.family_id, kid_id=member.kid_id, kind=body.kind, at=body.at,
         note=body.note, changed_by_user_id=body.changed_by_user_id or me, created_by=me, updated_by=me,
     )
     warning = recent_other(db, Diaper, member.kid_id, me, body.id)
     db.add(diaper)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:  # another request stored this id between our lookup and insert
+        db.rollback()
+        existing = db.get(Diaper, body.id)
+        if existing is None or existing.family_id != member.family_id:
+            raise HTTPException(409, "id already used")
+        response.status_code = 200
+        return {**diaper_json(existing, user_names(db, {existing.changed_by_user_id})), "recent_other": None}
     return {**diaper_json(diaper, user_names(db, {diaper.changed_by_user_id})), "recent_other": warning}
 
 
@@ -98,6 +109,8 @@ def patch_diaper(
     data = body.model_dump(exclude_none=True)
     if "at" in data:
         reject_future(data["at"])
+    if data.get("changed_by_user_id"):
+        ensure_family_member(db, member.family_id, data["changed_by_user_id"])
     for k, v in data.items():
         setattr(diaper, k, v)
     diaper.updated_by = member.user.id

@@ -3,28 +3,12 @@ import userEvent from '@testing-library/user-event'
 import en from '../i18n/en.json'
 import Home from '../pages/Home'
 import Settings from '../pages/Settings'
+import { fakePushSupport } from '../test/push'
 import { ME_ADMIN, ME_VIEWER, mockApi, renderApp } from '../test/utils'
 import PushPrompt from '../components/PushPrompt'
 import { urlBase64ToUint8Array } from './subscribe'
 
 const SUMMARY = { last_feed: null, next_feed_due_at: null, last_diaper: null, feeds_today: 0, diapers_today: { wet: 0, dirty: 0, both: 0 } }
-
-function fakePushSupport(opts: { permission?: NotificationPermission; subscribed?: boolean } = {}) {
-  const subscription = {
-    endpoint: 'https://push.test/1',
-    toJSON: () => ({ endpoint: 'https://push.test/1', keys: { p256dh: 'P', auth: 'A' } }),
-    unsubscribe: vi.fn(async () => true),
-  }
-  const pushManager = {
-    getSubscription: vi.fn(async () => (opts.subscribed ? subscription : null)),
-    subscribe: vi.fn(async () => subscription),
-  }
-  const requestPermission = vi.fn(async () => 'granted' as NotificationPermission)
-  vi.stubGlobal('Notification', { permission: opts.permission ?? 'default', requestPermission })
-  vi.stubGlobal('PushManager', class {})
-  Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: { ready: Promise.resolve({ pushManager }) } })
-  return { pushManager, requestPermission, subscription }
-}
 
 afterEach(() => {
   // @ts-expect-error cleanup of the stubbed property

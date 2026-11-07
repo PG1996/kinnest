@@ -5,12 +5,13 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import AwareDatetime, BaseModel, Field
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth.deps import Member, current_member, require_caregiver
 from app.db import get_session
 from app.models import Feed
-from app.services.entries import recent_other, reject_future, user_names
+from app.services.entries import ensure_family_member, recent_other, reject_future, user_names
 
 router = APIRouter(prefix="/api")
 
@@ -69,6 +70,8 @@ def create_feed(
         return {**feed_json(existing, user_names(db, {existing.fed_by_user_id})), "recent_other": None}
     reject_future(body.started_at)
     me = member.user.id
+    if body.fed_by_user_id:
+        ensure_family_member(db, member.family_id, body.fed_by_user_id)
     feed = Feed(
         id=body.id, family_id=member.family_id, kid_id=member.kid_id, type=body.type,
         started_at=body.started_at, duration_min=body.duration_min, quantity_ml=body.quantity_ml,
@@ -76,7 +79,15 @@ def create_feed(
     )
     warning = recent_other(db, Feed, member.kid_id, me, body.id)
     db.add(feed)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:  # another request stored this id between our lookup and insert
+        db.rollback()
+        existing = db.get(Feed, body.id)
+        if existing is None or existing.family_id != member.family_id:
+            raise HTTPException(409, "id already used")
+        response.status_code = 200
+        return {**feed_json(existing, user_names(db, {existing.fed_by_user_id})), "recent_other": None}
     return {**feed_json(feed, user_names(db, {feed.fed_by_user_id})), "recent_other": warning}
 
 
@@ -105,6 +116,8 @@ def patch_feed(
     data = body.model_dump(exclude_unset=True)
     if "started_at" in data and data["started_at"]:
         reject_future(data["started_at"])
+    if data.get("fed_by_user_id"):
+        ensure_family_member(db, member.family_id, data["fed_by_user_id"])
     for k, v in data.items():
         if v is not None or k in ("duration_min", "quantity_ml"):
             setattr(feed, k, v)

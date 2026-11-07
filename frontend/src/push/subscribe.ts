@@ -49,3 +49,9 @@ export async function disablePush(): Promise<PushState> {
   }
   return 'default'
 }
+
+/** Best effort, used when signing out so a shared phone stops getting this account's reminders. Never throws or hangs. */
+export async function unsubscribeQuietly(timeoutMs = 2000): Promise<void> {
+  const giveUp = new Promise<void>((resolve) => setTimeout(resolve, timeoutMs))
+  await Promise.race([disablePush().then(() => undefined), giveUp]).catch(() => undefined)
+}

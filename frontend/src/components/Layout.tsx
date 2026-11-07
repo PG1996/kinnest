@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { cn } from '../lib/cn'
+import { unsubscribeQuietly } from '../push/subscribe'
 import { useSync } from '../offline/useSync'
 import OfflineBanner from './OfflineBanner'
 import ThemeToggle from './ThemeToggle'
@@ -15,6 +16,7 @@ export default function Layout() {
   const navigate = useNavigate()
   useSync()
   const signOut = async () => {
+    await unsubscribeQuietly()
     await api('/api/auth/logout', { method: 'POST' }).catch(() => undefined)
     qc.clear()
     navigate('/login')
