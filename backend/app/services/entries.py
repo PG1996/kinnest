@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import User
+from app.models import Membership, User
 
 MAX_FUTURE = timedelta(minutes=5)
 RECENT_OTHER_WINDOW = timedelta(minutes=2)
@@ -38,3 +38,9 @@ def user_names(db: Session, ids: set[uuid.UUID]) -> dict[uuid.UUID, str]:
     if not ids:
         return {}
     return {u.id: u.name for u in db.scalars(select(User).where(User.id.in_(ids)))}
+
+
+def ensure_family_member(db: Session, family_id: uuid.UUID, user_id: uuid.UUID) -> None:
+    """A fed-by / changed-by user must belong to the caller's family (otherwise the FK would 500, or name an outsider)."""
+    if db.scalar(select(Membership.id).where(Membership.family_id == family_id, Membership.user_id == user_id)) is None:
+        raise HTTPException(422, "unknown user")
