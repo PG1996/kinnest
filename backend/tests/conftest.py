@@ -1,4 +1,5 @@
 import pytest
+from datetime import UTC, datetime
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
@@ -104,3 +105,26 @@ def family(make_client, outbox, db_session):
     login(mom, outbox, "mom@x.com")
     login(aunt, outbox, "aunt@x.com")
     return SimpleNamespace(owner=owner, mom=mom, aunt=aunt)
+
+
+@pytest.fixture
+def clock(app_overrides):
+    """Pin the API clock to 10:00 Kolkata yesterday: deterministic slot times, and never in the future."""
+    from datetime import date, time, timedelta
+    from types import SimpleNamespace
+    from zoneinfo import ZoneInfo
+
+    from app.clock import get_now
+
+    ist = ZoneInfo("Asia/Kolkata")
+    day = datetime.now(ist).date() - timedelta(days=1)
+    state = SimpleNamespace(now=datetime.combine(day, time(10, 0), tzinfo=ist).astimezone(UTC), day=day)
+    app_overrides.dependency_overrides[get_now] = lambda: state.now
+
+    def at(hh: int, mm: int = 0, days: int = 0):
+        """Kolkata wall-clock time on the pinned day (plus `days`), as an aware datetime."""
+        return datetime.combine(state.day + timedelta(days=days), time(hh, mm), tzinfo=ist).astimezone(UTC)
+
+    state.at = at
+    state.date = date
+    return state
