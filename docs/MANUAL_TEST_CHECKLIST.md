@@ -38,6 +38,29 @@ phones before they rely on it. Use at least one iPhone and one Android phone, an
 - [ ] Revoke one phone's notification permission: the worker keeps running and the others still get theirs.
 - [ ] Set the diaper alert to 5 minutes and log nothing: exactly one "diaper check" arrives.
 
+## Medicines (slice 2)
+Use at least two phones logged in as different people (Admin and Caregiver), plus the Viewer.
+- [ ] Medicines screen: only the Admin sees Add, Edit and Delete. The Caregiver and Viewer see the list read-only. Delete asks a second time.
+- [ ] Add a **fixed-time** medicine with two times (set the first about 3 minutes from now). Today's slots appear on Home on every phone.
+- [ ] At the due time the Admin and Caregiver phones get "<medicine> due" (the Viewer does not). Tapping the notification opens Home at the medicines card.
+- [ ] Tap **Given** on one phone: the slot shows "Given by <name>" on the other phone within about 30 seconds and the reminder sequence stops.
+- [ ] Leave one dose alone: a second "still not given" arrives after 15 minutes, and after 30 minutes only the Admin gets the high-priority one.
+- [ ] **Skip** a dose: the slot says "Skipped by <name>" and reminders stop. **Undo** reopens the slot.
+- [ ] Both phones tap Given for the same dose at about the same moment: one dose is recorded, and the second person sees "<name> already gave this dose".
+- [ ] Add an **every-N-hours** medicine (first dose a few minutes away, N = 1 for testing). Give the first dose late: the next due time is that moment plus N hours, not the original schedule.
+- [ ] Add an **as-needed** medicine with a 6-hour minimum gap. **Give now** twice in a row: the second time asks "Give anyway?" and still saves when confirmed. It never sends reminders.
+- [ ] Set an end date of yesterday on a medicine: it moves to "Past medicines" and stops reminding. Delete a medicine: it disappears but old doses are kept (check via the history route if curious).
+- [ ] Settings: turn **Medicine reminders** off for one person. That person gets feed reminders but no medicine ones.
+- [ ] Airplane mode: tap Given. It shows "Waiting to sync", then syncs on reconnect with the original time.
+- [ ] Add a medicine just after one of its times has passed: you are **not** reminded about the earlier time. If the Mac slept through a dose, you get no burst of old reminders when it wakes (the dose stays listed as overdue).
+
+## Sleep (slice 2)
+- [ ] Tap **Sleep**: Home shows "Asleep since <time>" and the button becomes **Wake up**. Another phone shows it within about 30 seconds.
+- [ ] Both phones tap Sleep at once: one session exists, and the other phone is told who already started it.
+- [ ] **Wake up** shows "Slept <length>, woke <time> ago". Starting again afterwards works.
+- [ ] Airplane mode: Sleep then Wake up. Both sync in order on reconnect and the session has the right length.
+- [ ] The Viewer sees the sleep card without buttons.
+
 ## Real-use stack on the Mac
 - [ ] `curl localhost:8080/api/health` returns ok through Caddy, and the tunnel address opens the app.
 - [ ] Reboot the Mac: OrbStack and the four containers come back, and reminders still fire.
