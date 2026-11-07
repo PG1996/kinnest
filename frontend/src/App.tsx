@@ -5,6 +5,7 @@ import Layout from './components/Layout'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Members from './pages/Members'
+import MedicinesPage from './pages/Medicines'
 import Settings from './pages/Settings'
 
 function RequireAuth() {
@@ -22,6 +23,7 @@ export default function App() {
       <Route element={<RequireAuth />}>
         <Route index element={<Home />} />
         <Route path="members" element={<Members />} />
+        <Route path="medicines" element={<MedicinesPage />} />
         <Route path="settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

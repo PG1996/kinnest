@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Home, Settings, Users } from 'lucide-react'
+import { Home, Pill, Settings, Users } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
@@ -42,6 +42,10 @@ export default function Layout() {
         <NavLink to="/" end className={link}>
           <Home size={22} />
           {t('nav.home')}
+        </NavLink>
+        <NavLink to="/medicines" className={link}>
+          <Pill size={22} />
+          {t('nav.medicines')}
         </NavLink>
         <NavLink to="/members" className={link}>
           <Users size={22} />
