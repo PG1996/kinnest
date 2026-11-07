@@ -1,6 +1,20 @@
 import { list, reject, remove, type QueueEntry } from './queue'
 
-const PATH: Record<QueueEntry['kind'], string> = { feed: '/api/feeds', diaper: '/api/diapers' }
+/** Where each kind of queued entry is sent. The id in a sleep_end payload is the session being ended. */
+const pathFor = (e: QueueEntry): string => {
+  switch (e.kind) {
+    case 'feed':
+      return '/api/feeds'
+    case 'diaper':
+      return '/api/diapers'
+    case 'dose':
+      return `/api/medicines/${e.payload.medicine_id}/doses`
+    case 'sleep_start':
+      return '/api/sleep'
+    case 'sleep_end':
+      return `/api/sleep/${e.payload.id}/end`
+  }
+}
 
 async function reasonFrom(res: Response): Promise<string> {
   const detail = await res.json().then((d) => d?.detail).catch(() => undefined)
@@ -13,7 +27,7 @@ async function run(): Promise<{ sent: number; failed: number }> {
   for (const entry of await list()) {
     let res: Response
     try {
-      res = await fetch(PATH[entry.kind], {
+      res = await fetch(pathFor(entry), {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },

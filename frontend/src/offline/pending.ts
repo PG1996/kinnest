@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { DiaperKind, FeedType, Summary } from '../api/hooks'
+import type { DiaperKind, FeedType, Sleep, Summary } from '../api/hooks'
 import { list, listRejected, subscribe, type QueueEntry, type Rejected } from './queue'
 
 const DEFAULT_INTERVAL_MS = 180 * 60_000
@@ -49,7 +49,42 @@ export function mergePending(summary: Summary, pending: QueueEntry[], myName: st
       }
     }
   }
+
+  mergePendingSleep(out, summary, pending, myName)
   return out
+}
+
+function mergePendingSleep(out: Summary, summary: Summary, pending: QueueEntry[], myName: string): void {
+  const starts = pending.filter((p) => p.kind === 'sleep_start')
+  const ends = pending.filter((p) => p.kind === 'sleep_end')
+  if (!starts.length && !ends.length) return
+  const sleep = { open: summary.sleep?.open ?? null, last: summary.sleep?.last ?? null }
+  const close = (s: Sleep, endedAt: string): Sleep => ({
+    ...s,
+    ended_at: endedAt,
+    ended_by_name: myName,
+    duration_min: Math.max(0, Math.floor((Date.parse(endedAt) - Date.parse(s.started_at)) / 60_000)),
+  })
+  if (!sleep.open) {
+    const newest = starts.sort((a, b) => Date.parse(String(b.payload.started_at)) - Date.parse(String(a.payload.started_at)))[0]
+    if (newest) {
+      sleep.open = {
+        id: String(newest.payload.id),
+        started_at: String(newest.payload.started_at),
+        ended_at: null,
+        started_by_name: myName,
+        ended_by_name: null,
+        duration_min: null,
+        note: '',
+      }
+    }
+  }
+  const end = sleep.open && ends.find((e) => e.payload.id === sleep.open!.id)
+  if (sleep.open && end) {
+    sleep.last = close(sleep.open, String(end.payload.ended_at))
+    sleep.open = null
+  }
+  out.sleep = sleep
 }
 
 /** Live view of the offline queue: entries waiting to sync and entries the server refused. */

@@ -37,18 +37,61 @@ export type Feed = {
   fed_by_name: string
 }
 export type Diaper = { id: string; kind: DiaperKind; at: string; changed_by_name: string }
+export type Sleep = {
+  id: string
+  started_at: string
+  ended_at: string | null
+  started_by_name: string
+  ended_by_name: string | null
+  duration_min: number | null
+  note: string
+}
+export type SummarySleep = { open: Sleep | null; last: Sleep | null }
+export type ScheduleKind = 'fixed' | 'interval' | 'as_needed'
+export type Slot = {
+  due_at: string
+  status: 'pending' | 'given' | 'skipped'
+  dose_id: string | null
+  given_at: string | null
+  by_name: string | null
+}
+export type Medicine = {
+  id: string
+  name: string
+  dose: string
+  schedule_kind: ScheduleKind
+  times: string[]
+  interval_hours: number | null
+  first_dose_at: string | null
+  min_gap_hours: number | null
+  start_date: string
+  end_date: string | null
+  notes: string
+  ended: boolean
+  slots: Slot[]
+  last_dose: { id: string; status: 'given' | 'skipped'; given_at: string; by_name: string } | null
+}
 export type Summary = {
   last_feed: Feed | null
   next_feed_due_at: string | null
   last_diaper: Diaper | null
   feeds_today: number
   diapers_today: Record<DiaperKind, number>
+  sleep: SummarySleep
 }
 
 export function useSummary() {
   return useQuery({
     queryKey: ['summary'],
     queryFn: () => api<Summary>('/api/summary'),
+    refetchInterval: 30_000,
+  })
+}
+
+export function useMedicines(includeEnded = false) {
+  return useQuery({
+    queryKey: ['medicines', includeEnded],
+    queryFn: () => api<Medicine[]>(`/api/medicines${includeEnded ? '?include_ended=true' : ''}`),
     refetchInterval: 30_000,
   })
 }

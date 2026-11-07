@@ -1,8 +1,11 @@
 export class ApiError extends Error {
   status: number
-  constructor(status: number, message: string) {
+  /** The parsed response body, e.g. a 409 on sleep start carries the session that is already open. */
+  body?: unknown
+  constructor(status: number, message: string, body?: unknown) {
     super(message)
     this.status = status
+    this.body = body
   }
 }
 
@@ -16,8 +19,9 @@ export async function api<T = unknown>(path: string, init: RequestInit & { json?
     body: json !== undefined ? JSON.stringify(json) : rest.body,
   })
   if (!res.ok) {
-    const detail = await res.json().then((d) => d?.detail).catch(() => undefined)
-    throw new ApiError(res.status, typeof detail === 'string' ? detail : res.statusText)
+    const body = await res.json().catch(() => undefined)
+    const detail = body?.detail
+    throw new ApiError(res.status, typeof detail === 'string' ? detail : res.statusText, body)
   }
   return (await res.json()) as T
 }
