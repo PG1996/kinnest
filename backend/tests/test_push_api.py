@@ -33,8 +33,14 @@ def test_viewer_can_subscribe_but_requires_login(family, make_client):
 
 
 def test_notification_prefs_default_on_and_persist(family, db_session):
-    assert family.mom.get("/api/notification-prefs").json() == {"feed": True, "diaper": True}
-    assert family.mom.put("/api/notification-prefs", json={"feed": False, "diaper": True}).status_code == 200
-    assert family.mom.get("/api/notification-prefs").json() == {"feed": False, "diaper": True}
-    assert family.owner.get("/api/notification-prefs").json() == {"feed": True, "diaper": True}
-    assert db_session.query(NotificationPref).count() == 2  # mom's two rows
+    assert family.mom.get("/api/notification-prefs").json() == {"feed": True, "diaper": True, "medicine": True}
+    assert family.mom.put("/api/notification-prefs", json={"feed": False, "diaper": True, "medicine": False}).status_code == 200
+    assert family.mom.get("/api/notification-prefs").json() == {"feed": False, "diaper": True, "medicine": False}
+    assert family.owner.get("/api/notification-prefs").json() == {"feed": True, "diaper": True, "medicine": True}
+    assert db_session.query(NotificationPref).count() == 3  # mom's three rows
+
+
+def test_older_client_without_medicine_key_keeps_it_on(family):
+    assert family.mom.put("/api/notification-prefs", json={"feed": False, "diaper": True}).json() == {
+        "feed": False, "diaper": True, "medicine": True,
+    }

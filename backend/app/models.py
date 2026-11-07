@@ -2,14 +2,17 @@ import uuid
 from datetime import UTC, date, datetime
 
 from sqlalchemy import (
+    JSON,
     CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, validates
 
@@ -157,10 +160,17 @@ class PushSubscription(Base):
 
 class ReminderState(Base):
     __tablename__ = "reminder_states"
-    __table_args__ = (UniqueConstraint("kid_id", "kind", "anchor_at"),)
+    # subject_id tells chains of the same kind apart (one per medicine); NULL for feed and diaper chains,
+    # and NULLS NOT DISTINCT keeps those unique too.
+    __table_args__ = (
+        UniqueConstraint(
+            "kid_id", "kind", "subject_id", "anchor_at", name="uq_reminder_state_chain", postgresql_nulls_not_distinct=True
+        ),
+    )
     id: Mapped[uuid.UUID] = _pk()
     kid_id: Mapped[uuid.UUID] = _fk("kids")
     kind: Mapped[str] = mapped_column(String(20))
+    subject_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
     anchor_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     level: Mapped[int] = mapped_column(Integer, default=0)
     last_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -181,3 +191,76 @@ class MagicToken(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = _created()
+
+
+class Medicine(Base):
+    __tablename__ = "medicines"
+    __table_args__ = (
+        CheckConstraint("schedule_kind in ('fixed','interval','as_needed')", name="ck_medicine_kind"),
+    )
+    id: Mapped[uuid.UUID] = _pk()
+    family_id: Mapped[uuid.UUID] = _fk("families")
+    kid_id: Mapped[uuid.UUID] = _fk("kids")
+    name: Mapped[str] = mapped_column(String(120))
+    dose: Mapped[str] = mapped_column(String(120), default="")
+    schedule_kind: Mapped[str] = mapped_column(String(20))
+    times: Mapped[list[str]] = mapped_column(JSON, default=list)  # "HH:MM" in the family timezone, fixed only
+    interval_hours: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    first_dose_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    min_gap_hours: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    start_date: Mapped[date] = mapped_column(Date)
+    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    notes: Mapped[str] = mapped_column(Text, default="")
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    updated_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _created()
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class MedicineDose(Base):
+    __tablename__ = "medicine_doses"
+    __table_args__ = (
+        CheckConstraint("status in ('given','skipped')", name="ck_dose_status"),
+        # one live dose per scheduled slot; an undone (soft-deleted) dose frees the slot, as-needed doses (NULL slot) repeat freely
+        Index(
+            "uq_dose_per_slot", "medicine_id", "scheduled_for", unique=True, postgresql_where=text("deleted_at IS NULL")
+        ),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True)  # client-supplied
+    family_id: Mapped[uuid.UUID] = _fk("families")
+    kid_id: Mapped[uuid.UUID] = _fk("kids")
+    medicine_id: Mapped[uuid.UUID] = _fk("medicines")
+    status: Mapped[str] = mapped_column(String(10))
+    scheduled_for: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    given_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    by_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    note: Mapped[str] = mapped_column(Text, default="")
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    updated_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _created()
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class SleepSession(Base):
+    __tablename__ = "sleep_sessions"
+    __table_args__ = (
+        # at most one open session per kid
+        Index(
+            "uq_one_open_sleep", "kid_id", unique=True, postgresql_where=text("ended_at IS NULL AND deleted_at IS NULL")
+        ),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True)  # client-supplied
+    family_id: Mapped[uuid.UUID] = _fk("families")
+    kid_id: Mapped[uuid.UUID] = _fk("kids")
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    started_by_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    ended_by_user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    note: Mapped[str] = mapped_column(Text, default="")
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    updated_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _created()
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
