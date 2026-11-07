@@ -69,3 +69,29 @@ def test_summary_today_boundary_uses_kolkata_midnight(family, db_session):
     s = build_summary(db_session, kid, now)
     assert s.feeds_today == 1
     assert s.diapers_today == {"wet": 1, "dirty": 0, "both": 1}
+
+
+def test_summary_has_open_and_last_sleep(family):
+    empty = family.aunt.get("/api/summary").json()["sleep"]
+    assert empty == {"open": None, "last": None}
+    def ago(m):
+        return (datetime.now(UTC) - timedelta(minutes=m)).isoformat()
+
+    a = {"id": str(uuid.uuid4()), "started_at": ago(300)}
+    family.mom.post("/api/sleep", json=a)
+    family.mom.post(f"/api/sleep/{a['id']}/end", json={"ended_at": ago(240)})
+    b = {"id": str(uuid.uuid4()), "started_at": ago(20)}
+    family.owner.post("/api/sleep", json=b)
+    sleep = family.aunt.get("/api/summary").json()["sleep"]
+    assert sleep["open"]["id"] == b["id"] and sleep["open"]["started_by_name"] == "owner"
+    assert sleep["last"]["id"] == a["id"] and sleep["last"]["duration_min"] == 60
+
+
+def test_deleted_sleep_ignored_in_summary(family):
+    def ago(m):
+        return (datetime.now(UTC) - timedelta(minutes=m)).isoformat()
+
+    a = {"id": str(uuid.uuid4()), "started_at": ago(20)}
+    family.mom.post("/api/sleep", json=a)
+    family.mom.delete(f"/api/sleep/{a['id']}")
+    assert family.aunt.get("/api/summary").json()["sleep"] == {"open": None, "last": None}

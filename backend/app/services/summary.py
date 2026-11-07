@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Diaper, Feed, Kid
+from app.models import Diaper, Feed, Kid, SleepSession
 
 
 @dataclass
@@ -15,6 +15,8 @@ class Summary:
     last_diaper: Diaper | None
     feeds_today: int
     diapers_today: dict[str, int] = field(default_factory=dict)
+    open_sleep: SleepSession | None = None
+    last_sleep: SleepSession | None = None
 
 
 def build_summary(db: Session, kid: Kid, now: datetime, tz: str = "Asia/Kolkata") -> Summary:
@@ -27,6 +29,17 @@ def build_summary(db: Session, kid: Kid, now: datetime, tz: str = "Asia/Kolkata"
     diapers = db.scalars(
         select(Diaper).where(Diaper.kid_id == kid.id, Diaper.deleted_at.is_(None)).order_by(Diaper.at.desc())
     ).all()
+    open_sleep = db.scalar(
+        select(SleepSession).where(
+            SleepSession.kid_id == kid.id, SleepSession.ended_at.is_(None), SleepSession.deleted_at.is_(None)
+        )
+    )
+    last_sleep = db.scalar(
+        select(SleepSession)
+        .where(SleepSession.kid_id == kid.id, SleepSession.ended_at.is_not(None), SleepSession.deleted_at.is_(None))
+        .order_by(SleepSession.ended_at.desc())
+        .limit(1)
+    )
     last_feed = feeds[0] if feeds else None
     counts = {"wet": 0, "dirty": 0, "both": 0}
     for d in diapers:
@@ -40,4 +53,6 @@ def build_summary(db: Session, kid: Kid, now: datetime, tz: str = "Asia/Kolkata"
         last_diaper=diapers[0] if diapers else None,
         feeds_today=sum(1 for f in feeds if f.started_at >= day_start),
         diapers_today=counts,
+        open_sleep=open_sleep,
+        last_sleep=last_sleep,
     )
