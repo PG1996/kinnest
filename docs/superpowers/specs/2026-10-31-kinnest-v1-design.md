@@ -84,13 +84,31 @@ Defaults (my call, owner may override): timezone Asia/Kolkata, metric units (ml,
 - Start/end, by whom. Start and stop from the home screen.
 
 ### 4.5 Medicines
-- A medicine has: name, dose, start date, end date (or ongoing), notes, and one of three schedule kinds:
+- A medicine has: name, **dose as an amount plus a unit** (see "Structured doses" below), start date, end date (or ongoing), notes, and one of three schedule kinds:
   - **Fixed clock times**: e.g. 09:00 and 21:00 daily.
   - **Every N hours**: next due = last dose given + N hours (anchored like feeds). The first dose time is set when the medicine is added.
   - **As needed**: no schedule and no reminders. Log "given" and show "last given X ago". Optional minimum gap
     (e.g. 6h for paracetamol): the app warns before a dose is logged inside that gap (my call).
 - Scheduled doses (fixed and interval) appear in Today's list; caregivers tick "given" (records who/when) or "skipped".
 - Fixed and interval doses get reminders with escalation (4.10).
+
+**Structured doses and partial dosing (owner decision, 2026-11-08; slice 2b).**
+- The dose is a number (up to 2 decimals, e.g. 0.25) plus a unit from a fixed list: ml, drops, mg, mcg, g, IU, tablet, puff.
+  It replaces the free-text dose box. Medicines saved before this keep working; the admin is asked to set a proper dose when
+  editing them.
+- When ticking a dose the caregiver chooses **full dose** (everything still remaining) or **partial dose** (an amount they type).
+  One scheduled dose can therefore be given in pieces, for example 1 ml as 4 x 0.25 ml or 2 x 0.5 ml, by one or several people.
+- A scheduled slot is complete when the pieces add up to the dose. Home shows progress ("0.50 of 1 ml given, 0.50 left").
+  Skipping closes the slot and leaves the rest ungiven.
+- **Safety:** the server refuses any piece that would take a slot above its prescribed amount (409, saying how much is left),
+  so two phones tapping at once can never record a double dose.
+- **Reminders continue until the slot is complete** (same escalation as before), and say how much is left.
+- After a partial dose the caregiver can set a **temporary reminder** ("remind me in 5, 10, 15, 30 or 60 minutes") for the
+  remaining amount. It goes to all caregivers with medicine reminders on, once, and is cancelled automatically if the slot is
+  completed or skipped first (my call: to all caregivers, so the person who started can hand over).
+- As-needed medicines: "Give now" also asks full or partial amount; there is no remaining-amount tracking for them.
+- Interval medicines: the next due time counts from when the slot was completed.
+- Photo of the medicine, label reading and a medicine registry move to slice 3 with the vaccine-schedule scan.
 
 ### 4.6 Growth
 - Entries: date, weight (kg), height (cm), head circumference (cm); any subset.
@@ -206,7 +224,7 @@ move to a hosted VM with a domain afterwards. Backups exist from the first day o
    health banner, a real-use stack that runs on the owner's Mac behind an HTTPS tunnel, and database backups to a local folder.
    Hosting on an Oracle VM (DuckDNS + Caddy, backups to Object Storage) is the stage after slice 1 has been tested on the Mac.
 2. Medicines (all three schedule kinds) with reminders and escalation; sleep.
-3. Growth with WHO charts; vaccines (template registry + editable list + scan-to-draft); doctor visits with files.
+3. Growth with WHO charts; vaccines (template registry + editable list + scan-to-draft); medicine photos and label reading (registry details); doctor visits with files.
 4. Photos, cry clips, timeline view, supplies stock.
 
 ## 9. Later (out of v1)
