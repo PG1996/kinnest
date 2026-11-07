@@ -7,14 +7,30 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from app.models import Diaper, Feed, Kid, Membership, NotificationPref, PushSubscription, ReminderState, User
+from app.models import (
+    Diaper,
+    Feed,
+    Kid,
+    Medicine,
+    Membership,
+    NotificationPref,
+    PushSubscription,
+    ReminderState,
+    User,
+)
+from app.services import schedule
+from app.services.entries import recent_doses
 
 log = logging.getLogger(__name__)
 
 # Escalation: due, +15 min, +30 min after the feed was due. The last level goes to admins only, high urgency.
 OFFSETS = (timedelta(0), timedelta(minutes=15), timedelta(minutes=30))
 TITLE_KEYS = ("feed_due", "feed_due_again", "feed_overdue_admin")
+MED_TITLE_KEYS = ("med_due", "med_due_again", "med_overdue_admin")
 KEEP_STATE = timedelta(days=7)
+# A medicine chain may only start this soon after its slot. A slot found much later (the worker or the Mac was off)
+# is not reminded about: it stays open and overdue in the app, but a burst of old reminders helps nobody.
+START_WINDOW = OFFSETS[-1] + timedelta(minutes=15)
 
 # sender(subscription, title_key, body_params, urgency, url) -> "ok" | "gone" | "error"
 Sender = Callable[..., str]
@@ -70,10 +86,17 @@ def _deliver(db, sender, recipients, key, params, urgency, url, kind, level, sen
     return not (ok == 0 and errors > 0)
 
 
-def _state(db: Session, kid: Kid, kind: str, anchor: datetime) -> ReminderState | None:
+def _subject_clause(subject_id):
+    return ReminderState.subject_id.is_(None) if subject_id is None else ReminderState.subject_id == subject_id
+
+
+def _state(db: Session, kid: Kid, kind: str, anchor: datetime, subject_id=None) -> ReminderState | None:
     return db.scalar(
         select(ReminderState).where(
-            ReminderState.kid_id == kid.id, ReminderState.kind == kind, ReminderState.anchor_at == anchor
+            ReminderState.kid_id == kid.id,
+            ReminderState.kind == kind,
+            _subject_clause(subject_id),
+            ReminderState.anchor_at == anchor,
         )
     )
 
@@ -122,20 +145,51 @@ def _diaper_alert(db: Session, kid: Kid, now: datetime, sender: Sender, tz: str,
         db.add(ReminderState(kid_id=kid.id, kind="diaper", anchor_at=anchor, level=0, last_sent_at=now))
 
 
+def _medicine_chain(db: Session, kid: Kid, med: Medicine, anchor: datetime, now: datetime, sender: Sender, tz: str, sent: list[Sent]) -> None:
+    if anchor < med.created_at:
+        return  # the slot was before the medicine was added
+    state = _state(db, kid, "medicine", anchor, med.id)
+    if state is None and now > anchor + START_WINDOW:
+        return
+    level = 0 if state is None else state.level + 1  # lowest level not yet sent
+    if level >= len(OFFSETS) or now < anchor + OFFSETS[level]:
+        return
+    params = {
+        "kid": kid.name,
+        "medicine": med.name,
+        "dose": med.dose,
+        "time": _clock(anchor, tz),
+        "mins": int((now - anchor).total_seconds() // 60),
+    }
+    urgency = "high" if level == 2 else "normal"
+    recipients = _recipients(db, kid, "medicine", admins_only=level == 2)
+    if not _deliver(db, sender, recipients, MED_TITLE_KEYS[level], params, urgency, "/?log=medicine", "medicine", level, sent):
+        return  # try the same level again next tick
+    if state is None:
+        db.add(ReminderState(kid_id=kid.id, kind="medicine", subject_id=med.id, anchor_at=anchor, level=level, last_sent_at=now))
+    else:
+        state.level, state.last_sent_at = level, now
+
+
+def _medicine_chains(db: Session, kid: Kid, now: datetime, sender: Sender, tz: str, sent: list[Sent]) -> None:
+    meds = db.scalars(
+        select(Medicine).where(
+            Medicine.kid_id == kid.id, Medicine.deleted_at.is_(None), Medicine.schedule_kind != "as_needed"
+        )
+    ).all()
+    for med in meds:
+        for anchor in schedule.unresolved_due_slots(med, recent_doses(db, med.id), now, tz):
+            _medicine_chain(db, kid, med, anchor, now, sender, tz, sent)
+            db.commit()  # right after the sends, as for feeds
+
+
 def _purge_old_state(db: Session, now: datetime) -> None:
-    """Drop old chains, but never a kid's newest one: deleting it would make a stale chain start over every minute."""
-    for kid_id, kind in db.execute(select(ReminderState.kid_id, ReminderState.kind).distinct()).all():
-        newest = db.scalar(
-            select(func.max(ReminderState.anchor_at)).where(ReminderState.kid_id == kid_id, ReminderState.kind == kind)
-        )
-        db.execute(
-            delete(ReminderState).where(
-                ReminderState.kid_id == kid_id,
-                ReminderState.kind == kind,
-                ReminderState.anchor_at < now - KEEP_STATE,
-                ReminderState.anchor_at != newest,
-            )
-        )
+    """Drop old chains, but never the newest one of each (kid, kind, subject): deleting it would restart a stale chain."""
+    groups = db.execute(select(ReminderState.kid_id, ReminderState.kind, ReminderState.subject_id).distinct()).all()
+    for kid_id, kind, subject_id in groups:
+        same = (ReminderState.kid_id == kid_id, ReminderState.kind == kind, _subject_clause(subject_id))
+        newest = db.scalar(select(func.max(ReminderState.anchor_at)).where(*same))
+        db.execute(delete(ReminderState).where(*same, ReminderState.anchor_at < now - KEEP_STATE, ReminderState.anchor_at != newest))
 
 
 def tick(db: Session, now: datetime, sender: Sender, tz: str = "Asia/Kolkata") -> list[Sent]:
@@ -150,6 +204,7 @@ def tick(db: Session, now: datetime, sender: Sender, tz: str = "Asia/Kolkata") -
         db.commit()
         _diaper_alert(db, kid, now, sender, tz, sent)
         db.commit()
+        _medicine_chains(db, kid, now, sender, tz, sent)
     _purge_old_state(db, now)
     db.commit()
     return sent

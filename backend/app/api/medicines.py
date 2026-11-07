@@ -17,7 +17,7 @@ from app.config import Settings, get_settings
 from app.db import get_session
 from app.models import Medicine, MedicineDose
 from app.services import schedule
-from app.services.entries import reject_future, user_names
+from app.services.entries import recent_doses, reject_future, user_names
 
 router = APIRouter(prefix="/api")
 
@@ -87,17 +87,6 @@ def _validated(data: dict) -> MedicineIn:
         raise HTTPException(422, detail=jsonable_encoder(e.errors(include_url=False, include_context=False, include_input=False)))
 
 
-def _recent_doses(db: Session, medicine_id: uuid.UUID) -> list[MedicineDose]:
-    return list(
-        db.scalars(
-            select(MedicineDose)
-            .where(MedicineDose.medicine_id == medicine_id, MedicineDose.deleted_at.is_(None))
-            .order_by(MedicineDose.given_at.desc())
-            .limit(60)
-        )
-    )
-
-
 def _iso(ts: datetime | None) -> str | None:
     return ts.isoformat() if ts else None
 
@@ -157,7 +146,7 @@ def medicine_json(m: Medicine, doses: list[MedicineDose], names: dict, now: date
 
 
 def _render(db: Session, m: Medicine, now: datetime, tz: str) -> dict:
-    doses = _recent_doses(db, m.id)
+    doses = recent_doses(db, m.id)
     return medicine_json(m, doses, user_names(db, {d.by_user_id for d in doses}), now, tz)
 
 
@@ -284,7 +273,7 @@ def give_dose(
         taken = _slot_dose(db, med.id, body.scheduled_for)
         if taken is not None:  # someone else ticked this slot first
             return _existing_response(db, taken, response)
-        if not schedule.valid_slot(med, _recent_doses(db, med.id), body.scheduled_for, now, settings.app_timezone):
+        if not schedule.valid_slot(med, recent_doses(db, med.id), body.scheduled_for, now, settings.app_timezone):
             raise HTTPException(409, "that dose is not due")
 
     me = member.user.id
