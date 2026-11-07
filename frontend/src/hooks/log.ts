@@ -83,7 +83,11 @@ const refreshMedicines = (qc: ReturnType<typeof useQueryClient>) => {
 export function useGiveDose() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (b: DoseInput) => post('dose', `/api/medicines/${b.medicine_id}/doses`, b) as Promise<DoseResult>,
+    // Stamp the time now: a dose queued while offline must keep when it was given, not when it syncs.
+    mutationFn: (b: DoseInput) => {
+      const body = { ...b, given_at: b.given_at ?? new Date().toISOString() }
+      return post('dose', `/api/medicines/${b.medicine_id}/doses`, body) as Promise<DoseResult>
+    },
     onSuccess: () => refreshMedicines(qc),
   })
 }
