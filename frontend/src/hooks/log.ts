@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ApiError, api } from '../api/client'
-import type { DiaperKind, FeedType } from '../api/hooks'
+import type { DiaperKind, FeedType, Vaccination, VitalInput, Visit } from '../api/hooks'
 import { enqueue, type QueueEntry } from '../offline/queue'
 
 export type FeedInput = {
@@ -142,5 +142,125 @@ export function useCancelNudge() {
     mutationFn: (v: { medicineId: string; nudgeId: string }) =>
       api(`/api/medicines/${v.medicineId}/nudges/${v.nudgeId}`, { method: 'DELETE' }),
     onSuccess: () => refreshMedicines(qc),
+  })
+}
+
+const refreshVitals = (qc: ReturnType<typeof useQueryClient>) => {
+  qc.invalidateQueries({ queryKey: ['vitals'] })
+  qc.invalidateQueries({ queryKey: ['growth'] })
+  qc.invalidateQueries({ queryKey: ['summary'] })
+}
+
+/** Add a vitals entry. Queued offline like feeds (the client id makes a re-send safe). */
+export function useCreateVital() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (b: VitalInput) => post('vital', '/api/vitals', b),
+    onSuccess: () => refreshVitals(qc),
+  })
+}
+
+export function useUpdateVital() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...body }: Partial<VitalInput> & { id: string }) => api(`/api/vitals/${id}`, { method: 'PATCH', json: body }),
+    onSuccess: () => refreshVitals(qc),
+  })
+}
+
+export function useDeleteVital() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api(`/api/vitals/${id}`, { method: 'DELETE' }),
+    onSuccess: () => refreshVitals(qc),
+  })
+}
+
+/** A bulk save that the server refused; `rowErrors` maps the row index to its message. */
+export class BulkError extends ApiError {
+  rowErrors: Record<number, string>
+  constructor(e: ApiError) {
+    super(e.status, e.message, e.body)
+    const rows = (e.body as { errors?: { index: number; detail: string }[] } | undefined)?.errors ?? []
+    this.rowErrors = Object.fromEntries(rows.map((r) => [r.index, r.detail]))
+  }
+}
+
+/** Save many past readings at once (online only: all or nothing). */
+export function useBulkVitals() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (entries: VitalInput[]) => {
+      try {
+        return await api<{ created: number; existing: number }>('/api/vitals/bulk', { json: { entries } })
+      } catch (e) {
+        throw e instanceof ApiError ? new BulkError(e) : e
+      }
+    },
+    onSuccess: () => refreshVitals(qc),
+  })
+}
+
+const refreshVaccines = (qc: ReturnType<typeof useQueryClient>) => qc.invalidateQueries({ queryKey: ['vaccines'] })
+
+export function useApplyTemplate() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (b: { template_id: string; mode: 'fill' | 'add_missing' }) =>
+      api<{ created: number }>('/api/vaccines/apply-template', { json: b }),
+    onSuccess: () => refreshVaccines(qc),
+  })
+}
+
+export type VaccineInput = Partial<Omit<Vaccination, 'id' | 'source' | 'overdue' | 'days_until'>>
+
+export function useCreateVaccine() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (b: VaccineInput) => api<Vaccination>('/api/vaccines', { json: b }),
+    onSuccess: () => refreshVaccines(qc),
+  })
+}
+
+export function useUpdateVaccine() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...b }: VaccineInput & { id: string }) => api<Vaccination>(`/api/vaccines/${id}`, { method: 'PATCH', json: b }),
+    onSuccess: () => refreshVaccines(qc),
+  })
+}
+
+export function useDeleteVaccine() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api(`/api/vaccines/${id}`, { method: 'DELETE' }),
+    onSuccess: () => refreshVaccines(qc),
+  })
+}
+
+export type VisitInput = Partial<Omit<Visit, 'id'>>
+const refreshVisits = (qc: ReturnType<typeof useQueryClient>) => qc.invalidateQueries({ queryKey: ['visits'] })
+
+export function useCreateVisit() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (b: VisitInput) => api<Visit>('/api/visits', { json: b }),
+    onSuccess: () => refreshVisits(qc),
+  })
+}
+
+export function useUpdateVisit() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...b }: VisitInput & { id: string }) => api<Visit>(`/api/visits/${id}`, { method: 'PATCH', json: b }),
+    onSuccess: () => refreshVisits(qc),
+  })
+}
+
+export function useDeleteVisit() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api(`/api/visits/${id}`, { method: 'DELETE' }),
+    onSuccess: () => refreshVisits(qc),
   })
 }

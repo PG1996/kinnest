@@ -15,7 +15,8 @@
     "home": "Home",
     "members": "Family",
     "settings": "Settings",
-    "medicines": "Medicines"
+    "medicines": "Medicines",
+    "health": "Health"
   },
   "login": {
     "title": "Welcome to Kinnest",
@@ -82,7 +83,10 @@
     "notifications": "Notifications",
     "feedReminders": "Feed reminders",
     "diaperAlerts": "Diaper alerts",
-    "medicineReminders": "Medicine reminders"
+    "medicineReminders": "Medicine reminders",
+    "birthDateHint": "Growth charts and the vaccine schedule need the birth date.",
+    "vaccineReminders": "Vaccine reminders",
+    "visitReminders": "Doctor visit reminders"
   },
   "feedTypes": {
     "breast_left": "Breast · left",
@@ -215,5 +219,46 @@
     "tablet_other": "tablets",
     "puff_one": "puff",
     "puff_other": "puffs"
+  },
+  "health": {
+    "title": "Health",
+    "tabs": {
+      "vitals": "Vitals",
+      "vaccines": "Vaccines",
+      "visits": "Visits"
+    }
+  },
+  "vitals": {
+    "measurements": {
+      "weight_kg": "Weight",
+      "height_cm": "Height",
+      "head_cm": "Head",
+      "temperature_c": "Temperature",
+      "heart_rate": "Heart rate",
+      "resp_rate": "Breathing rate",
+      "spo2": "SpO2"
+    },
+    "units": {
+      "weight_kg": "kg",
+      "height_cm": "cm",
+      "head_cm": "cm",
+      "temperature_c": "°C",
+      "heart_rate": "bpm",
+      "resp_rate": "/min",
+      "spo2": "%"
+    },
+    "errors": {
+      "range": "{{label}} must be {{min}} to {{max}} {{unit}}",
+      "fahrenheit": "{{value}} looks like Fahrenheit (about {{celsius}} °C). Enter °C.",
+      "none": "Add at least one measurement",
+      "future": "That time is in the future",
+      "number": "Enter a number"
+    },
+    "places": {
+      "home": "Home",
+      "hospital": "Hospital",
+      "clinic": "Clinic",
+      "other": "Other"
+    }
   }
 }
