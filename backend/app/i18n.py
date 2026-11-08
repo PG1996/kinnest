@@ -30,6 +30,22 @@ MESSAGES: dict[str, dict[str, dict[str, str]]] = {
             "title": "{kid}: {medicine} still to give",
             "body": "{left} left of {dose}.",
         },
+        "vaccine_eve": {
+            "title": "{kid}: vaccines due tomorrow",
+            "body": "{vaccines}. The doctor's advice comes first.",
+        },
+        "vaccine_today": {
+            "title": "{kid}: vaccines due today",
+            "body": "{vaccines}. The doctor's advice comes first.",
+        },
+        "visit_eve": {
+            "title": "{kid}: doctor visit tomorrow",
+            "body": "{time} {what}",
+        },
+        "visit_soon": {
+            "title": "{kid}: doctor visit at {time}",
+            "body": "{what}",
+        },
         "diaper_alert": {
             "title": "{kid}: diaper check",
             "body": "No diaper logged since {time}.",

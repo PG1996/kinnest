@@ -1,7 +1,7 @@
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import delete, func, select
@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.models import (
     Diaper,
+    DoctorVisit,
     Feed,
     Kid,
     Medicine,
@@ -18,6 +19,7 @@ from app.models import (
     PushSubscription,
     ReminderState,
     User,
+    Vaccination,
 )
 from app.services import schedule
 from app.services.entries import recent_doses
@@ -232,6 +234,88 @@ def _fire_nudges(db: Session, kid: Kid, now: datetime, sender: Sender, tz: str, 
         db.commit()
 
 
+# Vaccine and visit reminders: a moment is sent only within this long after it, so a Mac that slept sends nothing stale.
+MOMENT_LATE = timedelta(hours=3)
+EVENING = time(18, 0)
+MORNING = time(8, 0)
+VISIT_SOON = timedelta(hours=1)
+VISIT_MIN_GAP = timedelta(hours=2)
+
+
+def _local(d: date, t: time, tz: str) -> datetime:
+    return datetime.combine(d, t, tzinfo=ZoneInfo(tz))
+
+
+def _moment_open(moment: datetime, now: datetime) -> bool:
+    return moment <= now <= moment + MOMENT_LATE
+
+
+def _vaccine_label(v: Vaccination) -> str:
+    return f"{v.name} {v.dose_label}".strip()
+
+
+def _vaccine_reminders(db: Session, kid: Kid, now: datetime, sender: Sender, tz: str, sent: list[Sent]) -> None:
+    """Evening before (18:00) and morning of (08:00) the due date, one message per moment listing that day's vaccines."""
+    today = now.astimezone(ZoneInfo(tz)).date()
+    pending = db.scalars(
+        select(Vaccination)
+        .where(
+            Vaccination.kid_id == kid.id,
+            Vaccination.deleted_at.is_(None),
+            Vaccination.status == "pending",
+            Vaccination.due_date.between(today, today + timedelta(days=1)),
+        )
+        .order_by(Vaccination.due_date, Vaccination.created_at)
+    ).all()
+    by_moment: dict[tuple[datetime, str], list[Vaccination]] = {}
+    for v in pending:
+        for moment, key in (
+            (_local(v.due_date - timedelta(days=1), EVENING, tz), "vaccine_eve"),
+            (_local(v.due_date, MORNING, tz), "vaccine_today"),
+        ):
+            if _moment_open(moment, now) and v.created_at < moment and _state(db, kid, "vaccine", moment, v.id) is None:
+                by_moment.setdefault((moment, key), []).append(v)
+    for (moment, key), items in by_moment.items():
+        params = {"kid": kid.name, "vaccines": ", ".join(_vaccine_label(v) for v in items), "count": len(items)}
+        recipients = _recipients(db, kid, "vaccine", admins_only=False)
+        if _deliver(db, sender, recipients, key, params, "normal", "/?log=vaccine", "vaccine", 0, sent):
+            for v in items:
+                db.add(ReminderState(kid_id=kid.id, kind="vaccine", subject_id=v.id, anchor_at=moment, level=0, last_sent_at=now))
+        db.commit()
+
+
+def _visit_reminders(db: Session, kid: Kid, now: datetime, sender: Sender, tz: str, sent: list[Sent]) -> None:
+    """The evening before (18:00) and one hour before an upcoming visit."""
+    visits = db.scalars(
+        select(DoctorVisit).where(
+            DoctorVisit.kid_id == kid.id,
+            DoctorVisit.deleted_at.is_(None),
+            DoctorVisit.status == "upcoming",
+            DoctorVisit.scheduled_at > now,
+            DoctorVisit.scheduled_at <= now + timedelta(days=2),
+        )
+    ).all()
+    for v in visits:
+        local = v.scheduled_at.astimezone(ZoneInfo(tz))
+        eve = _local(local.date() - timedelta(days=1), EVENING, tz)
+        soon = v.scheduled_at - VISIT_SOON
+        moments = [(eve, "visit_eve")]
+        if soon >= eve + VISIT_MIN_GAP:
+            moments.append((soon, "visit_soon"))
+        for moment, key in moments:
+            if not _moment_open(moment, now) or v.created_at >= moment or _state(db, kid, "visit", moment, v.id):
+                continue
+            params = {
+                "kid": kid.name,
+                "time": _clock(v.scheduled_at, tz),
+                "what": " · ".join(x for x in (v.doctor, v.place, v.reason) if x),
+            }
+            recipients = _recipients(db, kid, "visit", admins_only=False)
+            if _deliver(db, sender, recipients, key, params, "normal", "/?log=visit", "visit", 0, sent):
+                db.add(ReminderState(kid_id=kid.id, kind="visit", subject_id=v.id, anchor_at=moment, level=0, last_sent_at=now))
+            db.commit()
+
+
 def _purge_old_state(db: Session, now: datetime) -> None:
     """Drop old chains, but never the newest one of each (kid, kind, subject): deleting it would restart a stale chain."""
     groups = db.execute(select(ReminderState.kid_id, ReminderState.kind, ReminderState.subject_id).distinct()).all()
@@ -255,6 +339,8 @@ def tick(db: Session, now: datetime, sender: Sender, tz: str = "Asia/Kolkata") -
         db.commit()
         _medicine_chains(db, kid, now, sender, tz, sent)
         _fire_nudges(db, kid, now, sender, tz, sent)
+        _vaccine_reminders(db, kid, now, sender, tz, sent)
+        _visit_reminders(db, kid, now, sender, tz, sent)
     _purge_old_state(db, now)
     db.commit()
     return sent
