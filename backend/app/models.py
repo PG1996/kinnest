@@ -368,3 +368,26 @@ class Vaccination(Base):
     created_at: Mapped[datetime] = _created()
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class DoctorVisit(Base):
+    __tablename__ = "doctor_visits"
+    __table_args__ = (
+        CheckConstraint("status in ('upcoming','done','cancelled')", name="ck_visit_status"),
+        Index("ix_visit_kid_scheduled", "kid_id", "scheduled_at"),
+    )
+    id: Mapped[uuid.UUID] = _pk()
+    family_id: Mapped[uuid.UUID] = _fk("families")
+    kid_id: Mapped[uuid.UUID] = _fk("kids")
+    scheduled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    doctor: Mapped[str] = mapped_column(String(120), default="")
+    place: Mapped[str] = mapped_column(String(120), default="")
+    reason: Mapped[str] = mapped_column(String(500), default="")
+    status: Mapped[str] = mapped_column(String(10), default="upcoming")
+    notes: Mapped[str] = mapped_column(Text, default="")
+    prescription_notes: Mapped[str] = mapped_column(Text, default="")
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    updated_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _created()
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
