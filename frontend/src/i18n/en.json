@@ -290,6 +290,41 @@
     "card": {
       "title": "Latest vitals",
       "empty": "No vitals yet"
+    },
+    "charts": {
+      "title": "Charts",
+      "list": "List",
+      "growth": {
+        "weight": "Weight for age",
+        "height": "Length/height for age",
+        "head": "Head circumference for age"
+      },
+      "months": "Age (months)",
+      "percentile": "{{value}}th percentile",
+      "percentileLine": "P{{p}}",
+      "source": "Source: {{name}}, retrieved {{date}}",
+      "info": "Percentile lines are information, not medical advice.",
+      "noBirthDate": "Growth charts need the birth date.",
+      "noBirthDateLink": "Add it in Settings",
+      "feverLine": "38.0 °C fever line (information, not medical advice)",
+      "noData": "No readings yet",
+      "showPlaces": "Show readings from",
+      "range": "Date range"
+    },
+    "bulk": {
+      "title": "Add past readings",
+      "open": "Add history",
+      "date": "Date",
+      "time": "Time",
+      "place": "Place",
+      "addRow": "Add row",
+      "removeRow": "Remove row {{n}}",
+      "save": "Save all",
+      "saved": "Saved {{created}} new, {{existing}} already there",
+      "pasteHere": "Paste rows from a spreadsheet here",
+      "pasteHint": "Columns: date, time, place, weight, height, head, temperature, heart rate, breathing rate, SpO2",
+      "row": "Row {{n}}",
+      "fixRows": "Nothing was saved. Fix the rows marked below."
     }
   }
 }
