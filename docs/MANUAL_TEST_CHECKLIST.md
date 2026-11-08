@@ -78,6 +78,44 @@ Use two phones as different people (Admin and Caregiver) so you can test who gav
 - [ ] Airplane mode: Sleep then Wake up. Both sync in order on reconnect and the session has the right length.
 - [ ] The Viewer sees the sleep card without buttons.
 
+## Vitals and growth (slice 3a)
+- [ ] Settings: set the birth date. The box under it says charts and the vaccine schedule need it.
+- [ ] **At home**: Health > Vitals > **Add vitals**, pick Weight and Temperature, enter 3.42 and 36.8, place Home. The list shows "3.42 kg · 36.8 °C", Home, and "entered by <you>". Home's **Latest vitals** card shows it with the date and place.
+- [ ] **At the hospital**: add Weight, Height and Head with place Hospital, place name "City Hospital", measured by "Nurse", backdated to yesterday. The list shows the hospital name and "measured by Nurse"; the Home card now shows each value with its own date and place.
+- [ ] **Fahrenheit refused**: type 98.6 for temperature. The form shows "Temperature must be 30 to 45 °C" and says it looks like Fahrenheit (about 37.0 °C). Nothing is saved.
+- [ ] Other refusals: 62 kg, 0 kg, an entry with nothing picked, a time later today. Each shows a message and saves nothing.
+- [ ] **Edit** an entry (change the weight, drop the temperature) and **Delete** it (asks a second time). It disappears from the list, the charts and the Home card.
+- [ ] Place filter and date range on the list work.
+- [ ] **Bulk history**: **Add history**, fill three rows from the hospital record book (or paste rows copied from a spreadsheet: date, time, place, weight, height, head, temperature, heart rate, breathing rate, SpO2). Put 98.6 in one row: the row is marked and **Save all** saves nothing. Fix it and save: all rows appear. Tap **Save all** again quickly: nothing is duplicated ("0 new, 3 already there").
+- [ ] A row dated before the birth date comes back marked by the server and nothing is saved.
+- [ ] **Charts**: Vitals > Charts shows weight, length/height and head against five WHO lines (3rd, 15th, 50th, 85th, 97th) with the WHO source and date under each. Dots are coloured by place, tapping one shows date, value, percentile and place. Turning off **Hospital** hides hospital readings on every chart.
+- [ ] Temperature chart shows a dashed 38.0 °C line labelled as information; heart rate, breathing rate and SpO2 are plain lines.
+- [ ] Clear the birth date: each growth chart says it needs the birth date and links to Settings (no crash). Set it again afterwards.
+- [ ] **Offline vital**: in airplane mode add a weight. It shows "Waiting to sync" at the top of the list and syncs once online, once only.
+
+## Vaccines (slice 3a)
+- [ ] Health > Vaccines with no schedule lists **India IAP (2025)** and **India UIP (government)** with the number of vaccines, the source link and its date. Open each source link.
+- [ ] **Check the template against the hospital sheet** before relying on it (names, doses, due ages). Note any difference for the owner.
+- [ ] Pick one: the list fills with due dates from the birth date (6 weeks after birth, 9 months on the same day of the month, and so on), grouped into Overdue, Due in the next 30 days, Later and Done. The note says the doctor's advice comes first.
+- [ ] Pick a template again from a second phone at the same time: only one schedule is created; the other phone says a schedule already exists.
+- [ ] **Mark given** (date defaults to today; a date after today is refused), with place and notes. It moves to Done and shows the date and place.
+- [ ] **Skip**, **Edit** (change a due date or name), **Delete** (asks twice), and **Add vaccine** for a special one.
+- [ ] **Add missing from a template** adds only vaccines that are not in the list (a deleted one comes back) and never changes given ones.
+- [ ] The Viewer sees the list only, no buttons.
+
+## Doctor visits (slice 3a)
+- [ ] Health > Visits > **Add visit** with date and time, doctor, place and reason. It is under Upcoming, soonest first. Home's **Coming up** card lists visits and vaccines in the next 7 days and overdue vaccines; tapping one opens the right tab.
+- [ ] **Mark done** with notes and prescription notes; it moves to Past with them. On a done visit the Admin sees **Add medicine**, which opens Medicines with the add form open.
+- [ ] **Cancel visit** and **Delete** (asks twice). A past visit can be added and marked done afterwards.
+- [ ] The Viewer sees the lists only.
+
+## Vaccine and visit reminders (slice 3a)
+- [ ] A vaccine due tomorrow: at 18:00 the caregivers and the Admin get "vaccines due tomorrow" listing that day's vaccines (one message, not one per vaccine); at 08:00 on the day, "vaccines due today". Each arrives once.
+- [ ] A visit tomorrow at 11:00: "doctor visit tomorrow" at 18:00 today and "doctor visit at 11:00" at 10:00 tomorrow. Tapping the notification opens Health > Visits (or Vaccines).
+- [ ] Mark the vaccine given (or the visit cancelled) before its reminder time: no reminder arrives.
+- [ ] Settings: turn off **Vaccine reminders** on one phone: that phone gets no vaccine reminders, the others still do. Same for **Doctor visit reminders**. The Viewer never gets them.
+- [ ] Let the Mac sleep through an 18:00 reminder: when it wakes more than 3 hours later, the old reminder is not sent.
+
 ## Real-use stack on the Mac
 - [ ] `curl localhost:8080/api/health` returns ok through Caddy, and the tunnel address opens the app.
 - [ ] Reboot the Mac: OrbStack and the four containers come back, and reminders still fire.
