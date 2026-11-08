@@ -182,7 +182,26 @@
       "doseAmount": "Dose amount",
       "doseUnit": "Dose unit",
       "chooseUnit": "Choose a unit"
-    }
+    },
+    "giveFull": "Give full dose",
+    "givePartial": "Partial dose",
+    "progress": "{{given}} of {{total}} given, {{left}} left",
+    "pieceBy": "{{name}} gave {{amount}} at {{time}}",
+    "amountLabel": "Amount to give now",
+    "giveAmount": "Give",
+    "partialTitle": "Give part of the dose",
+    "amountInvalid": "Enter an amount above 0, no more than what is left, with up to 2 decimals.",
+    "nudgeTitle": "Remind me about the rest",
+    "nudgeText": "{{left}} left to give. Remind everyone in:",
+    "nudgeIn": "{{minutes}} min",
+    "nudgeNo": "No thanks",
+    "reminderAt": "Reminder at {{time}}",
+    "cancelReminder": "Cancel reminder",
+    "reminderSet": "Reminder set for {{time}}",
+    "onlyLeft": "Only {{left}} left. The list has been refreshed.",
+    "alreadyComplete": "This dose was already given in full.",
+    "slotSkipped": "This dose was skipped.",
+    "waitingAmount": "{{amount}} waiting to sync"
   },
   "units": {
     "ml": "ml",
