@@ -304,19 +304,20 @@ def give_dose(
     reject_future(given_at)
     has_amount = med.dose_amount is not None
     amount = body.amount if body.status == "given" else None
-    if body.status == "given" and has_amount and amount is not None and amount > med.dose_amount:
-        raise HTTPException(422, "amount is more than the dose")
 
     # Serialise dose writes per medicine: the over-dose check below reads the slot's total, and two phones tapping at
     # the same moment must not both pass it. The lock is released when this request commits or rolls back.
     db.execute(select(Medicine.id).where(Medicine.id == med.id).with_for_update())
 
     gap_warning = None
+    slot = None
     if med.schedule_kind == "as_needed":
         if body.scheduled_for is not None or body.status != "given":
             raise HTTPException(422, "as-needed doses are only ever given, and have no scheduled time")
         if has_amount and amount is None:
             amount = med.dose_amount  # "give now" without an amount means the whole dose
+        if has_amount and amount > med.dose_amount:
+            raise HTTPException(422, "amount is more than the dose")
         if med.min_gap_hours:
             last = db.scalar(
                 select(MedicineDose)
@@ -329,8 +330,6 @@ def give_dose(
     else:
         if body.scheduled_for is None:
             raise HTTPException(422, "scheduled_for is required for a scheduled medicine")
-        if body.status == "given" and has_amount and amount is None:
-            raise HTTPException(422, "amount is required")
         doses = recent_doses(db, med.id)
         if not schedule.valid_slot(med, doses, body.scheduled_for, now, settings.app_timezone):
             raise HTTPException(409, "that dose is not due")
@@ -339,14 +338,18 @@ def give_dose(
             return _refused("that dose was skipped", slot.remaining)
         if slot.status == "given":
             return _refused("that dose was already given in full", slot.remaining or Decimal("0"))
-        if body.status == "given" and has_amount and slot.given_amount + amount > med.dose_amount:
-            return _refused(f"only {format(slot.remaining.normalize(), 'f')} left to give", slot.remaining)
+        if body.status == "given" and slot.target is not None:
+            if amount is None:
+                amount = slot.remaining  # no amount (an older app version, or a queued tick) means the rest of the dose
+            elif amount > slot.remaining:
+                return _refused(f"only {format(slot.remaining.normalize(), 'f')} left to give", slot.remaining)
 
     me = member.user.id
+    prescribed = slot.target if slot is not None else med.dose_amount
     dose = MedicineDose(
         id=body.id, family_id=member.family_id, kid_id=member.kid_id, medicine_id=med.id, status=body.status,
-        scheduled_for=body.scheduled_for, given_at=given_at, amount=amount, by_user_id=me, note=body.note,
-        created_by=me, updated_by=me,
+        scheduled_for=body.scheduled_for, given_at=given_at, amount=amount, prescribed_amount=prescribed,
+        prescribed_unit=med.dose_unit, by_user_id=me, note=body.note, created_by=me, updated_by=me,
     )
     db.add(dose)
     try:

@@ -27,6 +27,8 @@ def parse_legacy_dose(text: str) -> tuple[Decimal, str] | None:
     if unit is None:
         return None
     raw = m.group(1).replace(" ", "")
+    if "/" not in raw and len(re.split(r"[.,]", raw)[-1]) > 2 and re.search(r"[.,]", raw):
+        return None  # "1,000" or "0.500": a thousands separator or too many decimals; never guess at a dose
     try:
         if "/" in raw:
             top, bottom = raw.split("/")

@@ -9,7 +9,44 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from app.units import parse_legacy_dose
+import re
+from decimal import Decimal, InvalidOperation
+
+# A frozen copy of the legacy-dose parser as it was when this migration was written, so later edits to app/units.py
+# cannot change what this historical migration does.
+_SYNONYMS = {
+    "ml": "ml", "milliliter": "ml", "milliliters": "ml", "millilitre": "ml", "millilitres": "ml",
+    "drop": "drops", "drops": "drops", "gtt": "drops",
+    "mg": "mg", "mcg": "mcg", "\u00b5g": "mcg", "ug": "mcg",
+    "g": "g", "gm": "g", "gram": "g", "grams": "g",
+    "iu": "IU",
+    "tab": "tablet", "tabs": "tablet", "tablet": "tablet", "tablets": "tablet",
+    "puff": "puff", "puffs": "puff",
+}
+_PATTERN = re.compile(r"^\s*(\d+(?:[.,]\d+)?|\d+\s*/\s*\d+)\s*([A-Za-z\u00b5]+)\s*$")
+
+
+def parse_legacy_dose(text):
+    m = _PATTERN.match(text or "")
+    if not m:
+        return None
+    unit = _SYNONYMS.get(m.group(2).lower())
+    if unit is None:
+        return None
+    raw = m.group(1).replace(" ", "")
+    if "/" not in raw and re.search(r"[.,]", raw) and len(re.split(r"[.,]", raw)[-1]) > 2:
+        return None  # "1,000" or "0.500": a thousands separator or too many decimals; never guess at a dose
+    try:
+        if "/" in raw:
+            top, bottom = raw.split("/")
+            amount = Decimal(top) / Decimal(bottom)
+        else:
+            amount = Decimal(raw.replace(",", "."))
+    except (InvalidOperation, ZeroDivisionError):
+        return None
+    if amount != amount.quantize(Decimal("0.01")) or not 0 < amount <= Decimal("10000"):
+        return None
+    return amount.quantize(Decimal("0.01")).normalize(), unit
 
 
 # revision identifiers, used by Alembic.
@@ -61,18 +98,20 @@ def upgrade() -> None:
     # Convert the old free-text doses. What cannot be understood is kept in the notes for the admin to fix.
     conn = op.get_bind()
     for med_id, dose, notes in conn.execute(sa.text("select id, dose, notes from medicines")).all():
-        parsed = parse_legacy_dose(dose or '')
+        text = (dose or '').strip()
+        if not text:
+            continue
+        parsed = parse_legacy_dose(text)
         if parsed:
             conn.execute(
                 sa.text("update medicines set dose_amount = :a, dose_unit = :u where id = :id"),
                 {"a": parsed[0], "u": parsed[1], "id": med_id},
             )
-        elif (dose or '').strip():
-            note = f"Previous dose text: {dose.strip()}"
-            conn.execute(
-                sa.text("update medicines set notes = :n where id = :id"),
-                {"n": f"{notes}\n{note}".strip(), "id": med_id},
-            )
+        # the original text is always kept in the notes, converted or not, so nothing the admin typed is lost
+        conn.execute(
+            sa.text("update medicines set notes = :n where id = :id"),
+            {"n": f"{notes}\nPrevious dose text: {text}".strip(), "id": med_id},
+        )
 
 
 def downgrade() -> None:

@@ -29,13 +29,19 @@ def test_the_unit_list_is_exactly_the_spec_list():
         ("2 puffs", (Decimal("2"), "puff")),
         ("1.5 gm", (Decimal("1.5"), "g")),
         ("  3 g ", (Decimal("3"), "g")),
+        ("2.50 ml", (Decimal("2.5"), "ml")),
+        ("0,25 ml", (Decimal("0.25"), "ml")),
     ],
 )
 def test_parse_legacy_dose(text, expected):
     assert parse_legacy_dose(text) == expected
 
 
-@pytest.mark.parametrize("text", ["", "a little", "5", "two drops", "0 ml", "0.125 ml", "20000 mg", "1/0 tablet", "5 spoons"])
+@pytest.mark.parametrize(
+    "text",
+    ["", "a little", "5", "two drops", "0 ml", "0.125 ml", "20000 mg", "1/0 tablet", "5 spoons",
+     "1,000 IU", "1.000 mg", "0.500 ml", "2,500 mcg", "10.000 IU"],  # thousands separators and 3+ written decimals
+)
 def test_unparseable_legacy_dose_is_none(text):
     assert parse_legacy_dose(text) is None
 
