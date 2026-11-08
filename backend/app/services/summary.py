@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Diaper, Feed, Kid, SleepSession
+from app.models import Diaper, Feed, Kid, SleepSession, VitalEntry
 
 
 @dataclass
@@ -56,3 +56,20 @@ def build_summary(db: Session, kid: Kid, now: datetime, tz: str = "Asia/Kolkata"
         open_sleep=open_sleep,
         last_sleep=last_sleep,
     )
+
+
+LATEST_VITALS = ("weight_kg", "height_cm", "head_cm", "temperature_c")
+
+
+def latest_vitals(db: Session, kid_id) -> dict[str, VitalEntry | None]:
+    """For each headline measurement, the newest live entry that has it (its date and place travel with it)."""
+    out: dict[str, VitalEntry | None] = {}
+    for key in LATEST_VITALS:
+        col = getattr(VitalEntry, key)
+        out[key] = db.scalar(
+            select(VitalEntry)
+            .where(VitalEntry.kid_id == kid_id, VitalEntry.deleted_at.is_(None), col.is_not(None))
+            .order_by(VitalEntry.measured_at.desc())
+            .limit(1)
+        )
+    return out
