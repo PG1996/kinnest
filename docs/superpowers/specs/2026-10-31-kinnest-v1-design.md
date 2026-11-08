@@ -110,10 +110,26 @@ Defaults (my call, owner may override): timezone Asia/Kolkata, metric units (ml,
 - Interval medicines: the next due time counts from when the slot was completed.
 - Photo of the medicine, label reading and a medicine registry move to slice 3 with the vaccine-schedule scan.
 
-### 4.6 Growth
-- Entries: date, weight (kg), height (cm), head circumference (cm); any subset.
-- Charts against **WHO Child Growth Standards** percentiles for girls, 0–5 years (bundle WHO tables in the repo).
-- Daily/weekly logging cadence is the user's choice; no reminder in v1 (my call).
+### 4.6 Vitals and growth (owner decision, 2026-11-09)
+- **Measurements:** weight (kg), height/length (cm), head circumference (cm), temperature (°C), heart rate (beats per minute),
+  breathing rate (breaths per minute), oxygen saturation SpO2 (%). Any subset can be recorded together in one entry.
+- **Each reading has:** when it was measured (defaults to now, can be backdated), **where** (home, hospital, clinic or other,
+  plus an optional place name such as the hospital), who entered it, who measured it if different (free text, e.g. "Nurse"),
+  and a note. Place and time make hospital readings and home readings easy to tell apart (my call on the field names).
+- **Entering:** one quick form with the chosen measurements; a bulk-history entry screen for adding many past readings in a
+  table. Caregivers and the Admin add, edit and delete; Viewers read. Entries work offline like the others.
+- **Graphs:**
+  - weight, height and head circumference against the **WHO Child Growth Standards** percentile curves for girls, 0-5 years
+    (age in months; WHO tables bundled in the repo);
+  - temperature history with a fever line at 38.0 °C, shown as information and not as medical advice (my call);
+  - heart rate, breathing rate and SpO2 as plain trend lines with no reference bands, since normal ranges depend on age and
+    on whether the child is asleep or crying (my call);
+  - a date range filter, and a way to show or hide readings by place.
+- **Photo import (later, not in the first release):** photograph a page of the hospital record book, or a sheet written by a
+  nurse; a vision model drafts the rows (date, measurement, value, place); the parent reviews and edits them and nothing is
+  saved until confirmed; the photo stays attached to the entries as their source. It shares the storage and vision step with
+  the vaccine-schedule scan and the medicine-label scan, and needs an Anthropic API key (the photo is sent to the API).
+- No reminders for taking measurements in the first release (my call).
 
 ### 4.7 Vaccinations
 - **Schedule templates (owner decision, 2026-11-07).** A small registry of templates, starting with **India IAP** and the
@@ -224,7 +240,7 @@ move to a hosted VM with a domain afterwards. Backups exist from the first day o
    health banner, a real-use stack that runs on the owner's Mac behind an HTTPS tunnel, and database backups to a local folder.
    Hosting on an Oracle VM (DuckDNS + Caddy, backups to Object Storage) is the stage after slice 1 has been tested on the Mac.
 2. Medicines (all three schedule kinds) with reminders and escalation; sleep.
-3. Growth with WHO charts; vaccines (template registry + editable list + scan-to-draft); medicine photos and label reading (registry details); doctor visits with files.
+3. Vitals and growth (manual entry with place, bulk history entry, graphs including WHO percentiles); vaccines (template registry + editable list); doctor visits with files. Then the shared scanning feature: photo import for vitals records, vaccine schedule scan-to-draft, medicine photos and label reading.
 4. Photos, cry clips, timeline view, supplies stock.
 
 ## 9. Later (out of v1)
