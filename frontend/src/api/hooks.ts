@@ -69,8 +69,6 @@ export type Medicine = {
   /** null for medicines saved before structured doses: the admin is asked to set one. */
   dose_amount: number | null
   dose_unit: string | null
-  /** Temporary shim until the medicine form stops using it (Task 6). */
-  dose?: string
   schedule_kind: ScheduleKind
   times: string[]
   interval_hours: number | null

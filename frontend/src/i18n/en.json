@@ -156,11 +156,11 @@
       "asNeededGap": "Only when needed, at least {{hours}} hours apart",
       "from": "From {{date}}",
       "until": "until {{date}}",
-      "readOnly": "Only the admin can change medicines."
+      "readOnly": "Only the admin can change medicines.",
+      "setDose": "Set a proper dose for this medicine"
     },
     "form": {
       "name": "Medicine name",
-      "dose": "Dose (for example 5 drops)",
       "kindLabel": "How is it given?",
       "kind": {
         "fixed": "Same times every day",
@@ -178,7 +178,10 @@
       "notes": "Notes",
       "save": "Save",
       "cancel": "Cancel",
-      "invalid": "Please check the name, times and dates."
+      "invalid": "Please check the name, times and dates.",
+      "doseAmount": "Dose amount",
+      "doseUnit": "Dose unit",
+      "chooseUnit": "Choose a unit"
     }
   },
   "units": {

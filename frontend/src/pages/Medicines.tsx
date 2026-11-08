@@ -6,6 +6,7 @@ import { useMe, useMedicines, type Medicine } from '../api/hooks'
 import MedicineForm from '../components/MedicineForm'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
+import { formatDose } from '../lib/units'
 
 export default function MedicinesPage() {
   const { t } = useTranslation()
@@ -47,9 +48,8 @@ export default function MedicinesPage() {
 
   const card = (m: Medicine) => (
     <Card key={m.id} className="space-y-2">
-      <p className="text-lg font-medium">
-        {m.name} · {m.dose}
-      </p>
+      <p className="text-lg font-medium">{m.dose_amount != null && m.dose_unit ? `${m.name} · ${formatDose(m.dose_amount, m.dose_unit, t)}` : m.name}</p>
+      {isAdmin && m.dose_amount == null && <p className="text-sm text-danger">{t('medicines.page.setDose')}</p>}
       <p className="text-sm text-muted">{describe(m)}</p>
       <p className="text-sm text-muted">
         {t('medicines.page.from', { date: m.start_date })}
