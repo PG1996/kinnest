@@ -308,8 +308,63 @@ def test_dose_amount_validation_422(family, clock):
     slot = clock.at(9)
     for bad in (0, -1, 0.001, 1.005):
         assert give(family.mom, med, piece(bad, slot)).status_code == 422, bad
-    assert give(family.mom, med, dose(scheduled_for=slot.isoformat())).status_code == 422  # amount missing
-    assert give(family.mom, med, piece(1.01, slot)).status_code == 422  # more than the whole dose
+
+
+def test_a_piece_larger_than_the_whole_dose_is_409_with_what_is_left(family, clock, db_session):
+    med = make(family.owner, syrup(clock))
+    r = give(family.mom, med, piece(1.01, clock.at(9)))
+    assert r.status_code == 409 and r.json()["remaining"] == 1
+    assert db_session.query(MedicineDose).count() == 0
+
+
+def test_a_missing_amount_means_the_rest_of_the_dose(family, clock):
+    """Entries queued by an older app version carry no amount: they give whatever is left, never more."""
+    med = make(family.owner, syrup(clock))
+    slot = clock.at(9)
+    assert give(family.mom, med, piece(0.25, slot)).status_code == 201
+    r = give(family.owner, med, dose(scheduled_for=slot.isoformat()))
+    assert r.status_code == 201 and r.json()["amount"] == 0.75
+    assert slot_at(family.mom, slot)["status"] == "given"
+    assert give(family.owner, med, dose(scheduled_for=slot.isoformat())).status_code == 409  # nothing left to give
+
+
+def test_pieces_remember_the_dose_they_were_given_under(family, clock, db_session):
+    med = make(family.owner, syrup(clock))
+    give(family.mom, med, piece(0.25, clock.at(9)))
+    row = db_session.query(MedicineDose).one()
+    assert (row.prescribed_amount, row.prescribed_unit) == (Decimal("1.00"), "ml")
+
+
+def test_raising_the_dose_does_not_reopen_a_slot_that_was_already_given(family, clock):
+    med = make(family.owner, fixed(clock, name="Syrup", dose_amount=1, dose_unit="ml"))  # 09:00 and 21:00
+    slot = clock.at(9)
+    assert give(family.mom, med, piece(1, slot)).status_code == 201
+    assert family.owner.patch(f"/api/medicines/{med['id']}", json={"dose_amount": 5}).status_code == 200
+    s = slot_at(family.mom, slot)
+    assert (s["status"], s["given_amount"], s["remaining"]) == ("given", 1, 0)
+    assert give(family.mom, med, piece(1, slot)).status_code == 409  # no extra 4 ml for a slot that is done
+    tonight = slot_at(family.mom, clock.at(21))
+    assert tonight["remaining"] == 5  # slots with nothing given yet use the new dose
+
+
+def test_lowering_the_dose_keeps_the_rest_of_a_started_slot_at_the_old_amount(family, clock):
+    med = make(family.owner, fixed(clock, name="Syrup", dose_amount=5, dose_unit="ml", times=["09:00"]))
+    slot = clock.at(9)
+    give(family.mom, med, piece(1, slot))
+    family.owner.patch(f"/api/medicines/{med['id']}", json={"dose_amount": 2.5})
+    s = slot_at(family.mom, slot)
+    assert (s["status"], s["remaining"]) == ("partial", 4)
+    assert give(family.mom, med, piece(4, slot)).status_code == 201  # more than the new 2.5, but exactly what was left
+    assert slot_at(family.mom, slot)["status"] == "given"
+
+
+def test_changing_the_unit_closes_the_slots_given_in_the_old_unit(family, clock):
+    med = make(family.owner, syrup(clock))
+    slot = clock.at(9)
+    give(family.mom, med, piece(0.5, slot))
+    family.owner.patch(f"/api/medicines/{med['id']}", json={"dose_amount": 5, "dose_unit": "drops"})
+    assert slot_at(family.mom, slot)["status"] == "given"
+    assert give(family.mom, med, piece(1, slot)).status_code == 409
 
 
 def test_medicine_validation_errors_422(family, clock):

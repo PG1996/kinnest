@@ -23,11 +23,12 @@ def med(kind="fixed", **kw):
     return Medicine(**base)
 
 
-def dose(m, scheduled_for, status="given", given_at=None, deleted_at=None, amount=None):
+def dose(m, scheduled_for, status="given", given_at=None, deleted_at=None, amount=None, prescribed=None, unit=None):
     return MedicineDose(
         id=uuid.uuid4(), medicine_id=m.id, status=status, scheduled_for=scheduled_for,
         given_at=given_at or scheduled_for or NOW, deleted_at=deleted_at,
         amount=Decimal(amount) if amount is not None else None,
+        prescribed_amount=Decimal(prescribed) if prescribed is not None else None, prescribed_unit=unit,
     )
 
 
@@ -131,7 +132,11 @@ def test_valid_slot_rejects_unknown_time():
 
 
 def one_ml(kind="fixed", **kw):
-    return med(kind, dose_amount=Decimal("1.00"), dose_unit="ml", **({"times": ["09:00"]} if kind == "fixed" else {}), **kw)
+    data = {"dose_amount": Decimal("1.00"), "dose_unit": "ml"}
+    if kind == "fixed":
+        data["times"] = ["09:00"]
+    data.update(kw)
+    return med(kind, **data)
 
 
 def slot_of(m, doses):
@@ -201,3 +206,42 @@ def test_interval_with_a_skip_after_pieces_anchors_to_the_scheduled_time():
     m = one_ml("interval", interval_hours=8, first_dose_at=ist(8, 8))
     piece, skip = dose(m, ist(8, 8), amount="0.25", given_at=ist(8, 8, 5)), dose(m, ist(8, 8), status="skipped", given_at=ist(8, 9))
     assert schedule.next_interval_due(m, [piece, skip]) == ist(8, 16)
+
+
+# --- editing the dose must not reinterpret slots that already have pieces -------------------------------------------
+
+
+def test_a_completed_slot_stays_complete_after_the_dose_is_raised():
+    m = one_ml(dose_amount=Decimal("5.00"))  # the doctor raised 2.5 ml to 5 ml after this slot was given
+    done = dose(m, ist(8, 9), amount="2.5", prescribed="2.5", unit="ml")
+    s = slot_of(m, [done])
+    assert (s.status, s.given_amount, s.remaining, s.target) == ("given", Decimal("2.50"), Decimal("0.00"), Decimal("2.50"))
+    assert ist(8, 9) not in schedule.unresolved_due_slots(m, [done], NOW, TZ)
+
+
+def test_a_partly_given_slot_keeps_the_dose_it_was_started_under():
+    m = one_ml(dose_amount=Decimal("2.50"))  # lowered from 5 ml after the first piece
+    first = dose(m, ist(8, 9), amount="1", prescribed="5", unit="ml")
+    s = slot_of(m, [first])
+    assert (s.status, s.remaining, s.target) == ("partial", Decimal("4.00"), Decimal("5.00"))
+
+
+def test_a_slot_with_no_pieces_uses_the_current_dose():
+    assert slot_of(one_ml(dose_amount=Decimal("5.00")), []).remaining == Decimal("5.00")
+
+
+def test_pieces_without_a_snapshot_use_the_current_dose():
+    m = one_ml()
+    assert slot_of(m, [dose(m, ist(8, 9), amount="0.25")]).target == Decimal("1.00")
+
+
+def test_changing_the_unit_closes_slots_that_were_given_in_the_old_unit():
+    m = med(times=["09:00"], dose_amount=Decimal("5"), dose_unit="drops")  # was ml
+    s = slot_of(m, [dose(m, ist(8, 9), amount="0.5", prescribed="1", unit="ml")])
+    assert (s.status, s.remaining) == ("given", Decimal("0.00"))
+
+
+def test_interval_next_due_does_not_move_when_the_dose_is_raised():
+    m = one_ml("interval", interval_hours=8, first_dose_at=ist(8, 8), dose_amount=Decimal("5.00"))
+    done = dose(m, ist(8, 8), amount="1", prescribed="1", unit="ml", given_at=ist(8, 8, 30))
+    assert schedule.next_interval_due(m, [done]) == ist(8, 16, 30)

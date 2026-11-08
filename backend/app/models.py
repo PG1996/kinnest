@@ -244,6 +244,9 @@ class MedicineDose(Base):
     scheduled_for: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     given_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     amount: Mapped[Decimal | None] = mapped_column(Numeric(8, 2), nullable=True)  # None: legacy dose, counts as a full one
+    # the dose this slot was prescribed when the piece was given, so editing the medicine later cannot reinterpret it
+    prescribed_amount: Mapped[Decimal | None] = mapped_column(Numeric(8, 2), nullable=True)
+    prescribed_unit: Mapped[str | None] = mapped_column(String(10), nullable=True)
     by_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     note: Mapped[str] = mapped_column(Text, default="")
     created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))

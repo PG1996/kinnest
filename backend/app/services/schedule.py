@@ -29,6 +29,7 @@ class SlotState:
     doses: list[MedicineDose] = field(default_factory=list)  # live pieces, oldest first
     given_amount: Decimal = ZERO
     remaining: Decimal | None = None  # None for medicines without a dose amount
+    target: Decimal | None = None  # the dose this slot is judged against (see slot_progress)
 
     @property
     def dose(self) -> MedicineDose | None:
@@ -53,21 +54,31 @@ def _by_slot(doses: list[MedicineDose]) -> dict[datetime, list[MedicineDose]]:
 
 
 def slot_progress(m: Medicine, due_at: datetime, slot_doses: list[MedicineDose]) -> SlotState:
+    """Progress of one slot against the dose it was prescribed under.
+
+    A slot that already has pieces is judged against the dose recorded on its first piece, so editing the medicine's
+    dose later cannot reopen a finished slot or change what is left of a started one. A slot with no pieces yet uses the
+    medicine's current dose. If the unit was changed since the pieces were given, amounts cannot be compared and the
+    slot is treated as closed.
+    """
     pieces = sorted(_live(slot_doses), key=lambda d: d.given_at)
     given = [d for d in pieces if d.status == "given"]
-    legacy = m.dose_amount is None
+    snapshot = next((d for d in pieces if d.prescribed_amount is not None), None)
+    target = snapshot.prescribed_amount if snapshot else m.dose_amount
+    unit_changed = snapshot is not None and snapshot.prescribed_unit is not None and snapshot.prescribed_unit != m.dose_unit
+    legacy = target is None
     # a piece logged before the dose had an amount was a whole dose
-    total = sum((d.amount if d.amount is not None else (m.dose_amount or ZERO) for d in given), ZERO)
+    total = sum((d.amount if d.amount is not None else (target or ZERO) for d in given), ZERO)
     if any(d.status == "skipped" for d in pieces):
         status = "skipped"
     elif legacy:
         status = "given" if given else "pending"
-    elif total >= m.dose_amount:
+    elif unit_changed or total >= target:
         status = "given"
     else:
         status = "partial" if total > 0 else "pending"
-    remaining = None if legacy else max(m.dose_amount - total, ZERO)
-    return SlotState(due_at, status, pieces, total if not legacy else ZERO, remaining)
+    remaining = None if legacy else (ZERO if unit_changed else max(target - total, ZERO))
+    return SlotState(due_at, status, pieces, total if not legacy else ZERO, remaining, target)
 
 
 def slot_state(m: Medicine, doses: list[MedicineDose], due_at: datetime) -> SlotState:
