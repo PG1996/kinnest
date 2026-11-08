@@ -8,7 +8,15 @@ import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/field'
 import PushPrompt from '../components/PushPrompt'
 
-type Prefs = { feed: boolean; diaper: boolean; medicine?: boolean }
+type Prefs = { feed: boolean; diaper: boolean; medicine?: boolean; vaccine?: boolean; visit?: boolean }
+
+const PREF_LABELS = [
+  ['feed', 'settings.feedReminders'],
+  ['diaper', 'settings.diaperAlerts'],
+  ['medicine', 'settings.medicineReminders'],
+  ['vaccine', 'settings.vaccineReminders'],
+  ['visit', 'settings.visitReminders'],
+] as const
 
 type Kid = {
   id: string
@@ -77,7 +85,10 @@ export default function Settings() {
       <Card>
         <form onSubmit={submit} className="space-y-3">
           {field('kid-name', t('settings.kidName'), 'name')}
-          {field('kid-birth', t('settings.birthDate'), 'birth_date', 'date')}
+          <div className="rounded-2xl border border-primary/40 p-3">
+            {field('kid-birth', t('settings.birthDate'), 'birth_date', 'date')}
+            <p className="mt-1 text-sm text-muted">{t('settings.birthDateHint')}</p>
+          </div>
           {field('kid-feed', t('settings.feedInterval'), 'feed', 'number')}
           {field('kid-diaper', t('settings.diaperAlert'), 'diaper', 'number')}
           {isAdmin ? (
@@ -94,9 +105,9 @@ export default function Settings() {
       <h2 className="font-medium">{t('settings.notifications')}</h2>
       <PushPrompt alwaysShow />
       <Card className="space-y-2">
-        {(['feed', 'diaper', 'medicine'] as const).map((k) => (
+        {PREF_LABELS.map(([k, label]) => (
           <label key={k} className="flex min-h-12 items-center justify-between gap-3">
-            <span>{t(`settings.${k === 'feed' ? 'feedReminders' : k === 'diaper' ? 'diaperAlerts' : 'medicineReminders'}`)}</span>
+            <span>{t(label)}</span>
             <input
               type="checkbox"
               className="size-6 accent-primary"

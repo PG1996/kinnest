@@ -88,6 +88,7 @@ export type Summary = {
   feeds_today: number
   diapers_today: Record<DiaperKind, number>
   sleep: SummarySleep
+  vitals?: { latest: Partial<Record<'weight_kg' | 'height_cm' | 'head_cm' | 'temperature_c', Vital | null>> }
 }
 
 export function useSummary() {
@@ -104,4 +105,118 @@ export function useMedicines(includeEnded = false) {
     queryFn: () => api<Medicine[]>(`/api/medicines${includeEnded ? '?include_ended=true' : ''}`),
     refetchInterval: 30_000,
   })
+}
+
+export type PlaceKind = 'home' | 'hospital' | 'clinic' | 'other'
+export type VitalValues = {
+  weight_kg?: number | null
+  height_cm?: number | null
+  head_cm?: number | null
+  temperature_c?: number | null
+  heart_rate?: number | null
+  resp_rate?: number | null
+  spo2?: number | null
+}
+export type VitalInput = VitalValues & {
+  id: string
+  measured_at: string
+  place_kind: PlaceKind
+  place_name?: string
+  measured_by?: string
+  note?: string
+}
+export type Vital = Required<VitalValues> & {
+  id: string
+  measured_at: string
+  place_kind: PlaceKind
+  place_name: string
+  measured_by: string
+  note: string
+  entered_by_name: string
+}
+export type GrowthKind = 'weight' | 'height' | 'head'
+export type GrowthCurves = {
+  birth_date: string
+  source: { name: string; url: string; retrieved_on: string }
+  curves: Record<'3' | '15' | '50' | '85' | '97', [number, number][]>
+  points: { id: string; measured_at: string; age_months: number; value: number; percentile: number; place_kind: PlaceKind }[]
+}
+export type VaccineStatus = 'pending' | 'given' | 'skipped'
+export type Vaccination = {
+  id: string
+  name: string
+  dose_label: string
+  due_date: string
+  given_on: string | null
+  status: VaccineStatus
+  place: string
+  notes: string
+  source: 'iap' | 'uip' | 'manual'
+  overdue: boolean
+  days_until: number
+}
+export type VaccineTemplate = {
+  id: string
+  name: string
+  description: string
+  source_url: string
+  source_title: string
+  source_date: string
+  retrieved_on: string
+  count: number
+}
+export type VisitStatus = 'upcoming' | 'done' | 'cancelled'
+export type Visit = {
+  id: string
+  scheduled_at: string
+  doctor: string
+  place: string
+  reason: string
+  status: VisitStatus
+  notes: string
+  prescription_notes: string
+}
+export type VitalFilters = { from?: string; to?: string; place_kind?: PlaceKind }
+
+const qs = (params: Record<string, string | undefined>) => {
+  const p = new URLSearchParams(Object.entries(params).filter((e): e is [string, string] => !!e[1]))
+  return p.size ? `?${p}` : ''
+}
+
+export function useVitals(filters: VitalFilters = {}) {
+  return useQuery({
+    queryKey: ['vitals', filters],
+    queryFn: () => api<Vital[]>(`/api/vitals${qs(filters)}`),
+  })
+}
+
+/** Growth curves and points; `data` is null when the birth date is not set (the server answers 409). */
+export function useGrowth(kind: GrowthKind) {
+  return useQuery({
+    queryKey: ['growth', kind],
+    queryFn: async () => {
+      try {
+        return await api<GrowthCurves>(`/api/vitals/growth/${kind}`)
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 409) return null
+        throw e
+      }
+    },
+  })
+}
+
+export function useVaccines() {
+  return useQuery({ queryKey: ['vaccines'], queryFn: () => api<Vaccination[]>('/api/vaccines') })
+}
+
+export function useVaccineTemplates() {
+  return useQuery({
+    queryKey: ['vaccine-templates'],
+    queryFn: () => api<VaccineTemplate[]>('/api/vaccines/templates'),
+    staleTime: Infinity,
+  })
+}
+
+export function useVisits() {
+  return useQuery({ queryKey: ['visits'], queryFn: () => api<Visit[]>('/api/visits') })
 }

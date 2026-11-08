@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useMe } from './api/hooks'
 import Layout from './components/Layout'
+import Health from './pages/Health'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Members from './pages/Members'
@@ -24,6 +25,7 @@ export default function App() {
         <Route index element={<Home />} />
         <Route path="members" element={<Members />} />
         <Route path="medicines" element={<MedicinesPage />} />
+        <Route path="health" element={<Health />} />
         <Route path="settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

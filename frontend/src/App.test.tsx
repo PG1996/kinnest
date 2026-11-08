@@ -17,6 +17,23 @@ test('signed-in member sees the app navigation', async () => {
   expect(await screen.findByRole('link', { name: en.nav.members })).toBeInTheDocument()
 })
 
+test('nav has Health and the old tabs still work', async () => {
+  mockApi({
+    'GET /api/me': { body: ME_ADMIN },
+    'GET /api/vitals': { body: [] },
+    'GET /api/summary': { status: 500 },
+  })
+  renderApp(<App />, '/')
+  for (const name of [en.nav.home, en.nav.medicines, en.nav.health, en.nav.members, en.nav.settings])
+    expect(await screen.findByRole('link', { name })).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('link', { name: en.nav.health }))
+  expect(await screen.findByRole('heading', { name: en.health.title })).toBeInTheDocument()
+  for (const name of [en.health.tabs.vitals, en.health.tabs.vaccines, en.health.tabs.visits])
+    expect(screen.getByRole('tab', { name })).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('link', { name: en.nav.medicines }))
+  expect(await screen.findByRole('heading', { name: en.medicines.page.title })).toBeInTheDocument()
+})
+
 test('theme toggle switches the data-theme attribute', async () => {
   mockApi({ 'GET /api/me': { body: ME_ADMIN } })
   renderApp(<App />, '/')
