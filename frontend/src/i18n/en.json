@@ -326,5 +326,57 @@
       "row": "Row {{n}}",
       "fixRows": "Nothing was saved. Fix the rows marked below."
     }
+  },
+  "vaccines": {
+    "doctorFirst": "This schedule is a starting point. The hospital or your doctor's advice comes first.",
+    "noBirthDate": "The vaccine schedule needs the birth date.",
+    "groups": {
+      "overdue": "Overdue",
+      "soon": "Due in the next 30 days",
+      "later": "Later",
+      "done": "Done"
+    },
+    "status": {
+      "pending": "Due",
+      "given": "Given",
+      "skipped": "Skipped",
+      "overdue": "Overdue"
+    },
+    "due": "Due {{date}}",
+    "givenOn": "Given {{date}}",
+    "at": "at {{place}}",
+    "markGiven": "Mark given",
+    "skip": "Skip",
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirmDelete": "Yes, delete",
+    "cancel": "Cancel",
+    "add": "Add vaccine",
+    "addMissing": "Add missing from a template",
+    "empty": "No vaccines in the list yet",
+    "picker": {
+      "title": "Pick a vaccination schedule",
+      "intro": "Due dates are worked out from the birth date. You can change, skip or add vaccines afterwards.",
+      "count": "{{count}} vaccines",
+      "source": "Source: {{date}}",
+      "use": "Use this schedule",
+      "empty": "Start with an empty list",
+      "exists": "A schedule already exists. Use \"Add missing from a template\" instead.",
+      "added": "Added {{count}} vaccines"
+    },
+    "form": {
+      "addTitle": "Add vaccine",
+      "editTitle": "Edit vaccine",
+      "givenTitle": "Mark given",
+      "name": "Vaccine",
+      "dose": "Dose",
+      "dueDate": "Due date",
+      "givenOn": "Given on",
+      "place": "Place",
+      "notes": "Notes",
+      "save": "Save",
+      "futureGiven": "The given date cannot be in the future",
+      "required": "Enter the vaccine name and due date"
+    }
   }
 }
