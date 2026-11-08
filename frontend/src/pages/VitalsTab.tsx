@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import { useMe, useVitals, type PlaceKind, type Vital, type VitalFilters } from '../api/hooks'
+import BulkVitals from '../components/BulkVitals'
 import Sheet from '../components/Sheet'
 import VitalForm from '../components/VitalForm'
 import VitalList, { type VitalRow } from '../components/VitalList'
@@ -11,6 +12,9 @@ import { useCreateVital, useDeleteVital, useUpdateVital } from '../hooks/log'
 import { PLACES } from '../lib/vitalsFormat'
 import { useQueue } from '../offline/pending'
 import type { QueueEntry } from '../offline/queue'
+
+// the charts library is large: load it only when the charts are opened
+const VitalsCharts = lazy(() => import('./VitalsCharts'))
 
 /** A queued (not yet synced) entry shown like a saved one. */
 const fromQueue = (e: QueueEntry): VitalRow => ({
@@ -26,7 +30,7 @@ const fromQueue = (e: QueueEntry): VitalRow => ({
 const dayStart = (d: string) => (d ? new Date(`${d}T00:00:00`).toISOString() : undefined)
 const dayEnd = (d: string) => (d ? new Date(`${d}T23:59:59.999`).toISOString() : undefined)
 
-export default function VitalsTab({ extra }: { extra?: React.ReactNode }) {
+export default function VitalsTab() {
   const { t } = useTranslation()
   const canEdit = (useMe().data?.role ?? 'viewer') !== 'viewer'
   const [params, setParams] = useSearchParams()
@@ -37,6 +41,8 @@ export default function VitalsTab({ extra }: { extra?: React.ReactNode }) {
   const vitals = useVitals(filters).data ?? []
   const waiting = useQueue().pending.filter((p) => p.kind === 'vital').map(fromQueue)
   const [editing, setEditing] = useState<Vital | 'new' | null>(null)
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const [view, setView] = useState<'list' | 'charts'>('list')
   const create = useCreateVital()
   const update = useUpdateVital()
   const remove = useDeleteVital()
@@ -58,9 +64,24 @@ export default function VitalsTab({ extra }: { extra?: React.ReactNode }) {
       {canEdit && (
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => setEditing('new')}>{t('vitals.add')}</Button>
-          {extra}
+          <Button variant="soft" onClick={() => setBulkOpen(true)}>
+            {t('vitals.bulk.open')}
+          </Button>
         </div>
       )}
+      <div className="flex gap-2">
+        {(['list', 'charts'] as const).map((v) => (
+          <Button key={v} variant={view === v ? 'primary' : 'ghost'} aria-pressed={view === v} onClick={() => setView(v)}>
+            {t(`vitals.charts.${v === 'list' ? 'list' : 'title'}`)}
+          </Button>
+        ))}
+      </div>
+      {view === 'charts' ? (
+        <Suspense fallback={<p className="text-sm text-muted">{t('common.loading')}</p>}>
+          <VitalsCharts />
+        </Suspense>
+      ) : (
+        <>
       <div className="grid grid-cols-3 gap-2">
         <div>
           <label htmlFor="vitals-place" className="block text-xs text-muted">
@@ -94,6 +115,13 @@ export default function VitalsTab({ extra }: { extra?: React.ReactNode }) {
         onEdit={(v) => setEditing(v)}
         onDelete={(id) => remove.mutate(id)}
       />
+        </>
+      )}
+      {bulkOpen && (
+        <Sheet title={t('vitals.bulk.title')} onClose={() => setBulkOpen(false)}>
+          <BulkVitals />
+        </Sheet>
+      )}
       {editing && (
         <Sheet title={t(editing === 'new' ? 'vitals.form.title' : 'vitals.form.editTitle')} onClose={() => setEditing(null)}>
           <VitalForm
