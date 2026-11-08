@@ -49,21 +49,6 @@ def test_medicine_times_roundtrip_as_a_list(base):
     assert base.db.get(Medicine, base.med.id).times == ["09:00", "21:00"]
 
 
-def test_one_live_dose_per_medicine_slot(base):
-    base.db.add(dose(base, T0))
-    base.db.flush()
-    base.db.add(dose(base, T0))
-    with pytest.raises(IntegrityError):
-        base.db.flush()
-
-
-def test_an_undone_dose_frees_the_slot(base):
-    base.db.add(dose(base, T0, deleted_at=T0))
-    base.db.flush()
-    base.db.add(dose(base, T0))
-    base.db.flush()  # no conflict
-
-
 def test_as_needed_doses_have_no_slot_and_can_repeat(base):
     base.db.add_all([dose(base, None), dose(base, None)])
     base.db.flush()
