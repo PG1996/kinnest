@@ -190,3 +190,21 @@ def test_viewer_read_only_and_cross_family_404(family, clock, make_client, db_se
     assert client.get("/api/vaccines").json() == []
     assert client.patch(f"/api/vaccines/{v['id']}", json={"notes": "x"}).status_code == 404
     assert client.delete(f"/api/vaccines/{v['id']}").status_code == 404
+
+
+def test_changing_the_birth_date_moves_pending_template_dates_but_not_edited_or_given_ones(family, clock):
+    set_birth(family, date(2026, 5, 1))
+    family.mom.post("/api/vaccines/apply-template", json={"template_id": "uip", "mode": "fill"})
+    rows = {(v["name"], v["dose_label"]): v for v in family.mom.get("/api/vaccines").json()}
+    bcg, penta, mr = rows[("BCG", "Birth")], rows[("Pentavalent", "1")], rows[("Measles & Rubella (MR)", "1")]
+    family.mom.patch(f"/api/vaccines/{bcg['id']}", json={"status": "given", "given_on": "2026-06-01"})
+    family.mom.patch(f"/api/vaccines/{mr['id']}", json={"due_date": "2027-03-15"})  # moved by hand: keep it
+    custom = manual(family, due_date="2026-08-01")
+    set_birth(family, date(2026, 6, 1))
+    after = {v["id"]: v for v in family.mom.get("/api/vaccines").json()}
+    assert after[penta["id"]]["due_date"] == "2026-07-13"  # 6 weeks after the new birth date
+    assert after[bcg["id"]]["due_date"] == "2026-05-01" and after[bcg["id"]]["status"] == "given"
+    assert after[mr["id"]]["due_date"] == "2027-03-15"
+    assert after[custom["id"]]["due_date"] == "2026-08-01"
+    opv3 = next(v for v in after.values() if v["name"] == "OPV" and v["dose_label"] == "3")
+    assert opv3["due_date"] == "2026-09-07"  # 14 weeks

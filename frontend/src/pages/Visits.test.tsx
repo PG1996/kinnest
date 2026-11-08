@@ -143,3 +143,11 @@ test('viewer sees no buttons', async () => {
     expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
   expect(screen.queryByRole('link', { name: en.visits.addMedicine })).not.toBeInTheDocument()
 })
+
+test('a cancelled visit can be put back to upcoming', async () => {
+  const calls = mockApi({ ...routes([VISIT('soon', { status: 'cancelled' })]) })
+  renderApp(<VisitsTab />)
+  await screen.findByText(/Dr soon/)
+  await userEvent.click(within(item('Dr soon')).getByRole('button', { name: en.visits.restore }))
+  await waitFor(() => expect(calls.find((c) => c.key === 'PATCH /api/visits/soon')?.body).toEqual({ status: 'upcoming' }))
+})

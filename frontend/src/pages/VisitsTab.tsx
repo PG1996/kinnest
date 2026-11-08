@@ -61,6 +61,11 @@ export default function VisitsTab() {
                     </Button>
                   </>
                 )}
+                {v.status === 'cancelled' && (
+                  <Button variant="soft" onClick={() => update.mutate({ id: v.id, status: 'upcoming' })}>
+                    {t('visits.restore')}
+                  </Button>
+                )}
                 {v.status === 'done' && role === 'admin' && (
                   <Link to="/medicines?add=1" className={linkButtonClass('soft')}>
                     {t('visits.addMedicine')}

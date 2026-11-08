@@ -38,3 +38,32 @@ def load_templates() -> dict[str, dict]:
 
 def entry_key(name: str, dose_label: str) -> tuple[str, str]:
     return (" ".join(name.lower().split()), " ".join(dose_label.lower().split()))
+
+
+def follow_birth_date(db, kid_id, old: date, new: date) -> int:
+    """After the birth date changes, move pending template entries whose due date nobody edited (it still equals the
+    date computed from the old birth date). Given, skipped, manual and hand-moved entries keep their dates."""
+    from sqlalchemy import select
+
+    from app.models import Vaccination
+
+    templates = load_templates()
+    moved = 0
+    rows = db.scalars(
+        select(Vaccination).where(
+            Vaccination.kid_id == kid_id, Vaccination.deleted_at.is_(None), Vaccination.status == "pending"
+        )
+    )
+    for v in rows:
+        template = templates.get(v.source)
+        if template is None:
+            continue
+        entry = next(
+            (e for e in template["entries"] if entry_key(e["name"], e["dose_label"]) == entry_key(v.name, v.dose_label)),
+            None,
+        )
+        if entry is None or v.due_date != due_date_for(old, entry["due_after"]):
+            continue
+        v.due_date = due_date_for(new, entry["due_after"])
+        moved += 1
+    return moved
