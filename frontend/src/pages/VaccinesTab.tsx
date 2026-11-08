@@ -138,13 +138,18 @@ export default function VaccinesTab() {
                           </>
                         ) : (
                           <>
-                            {v.status === 'pending' && (
-                              <>
-                                <Button onClick={() => setForm({ mode: 'given', v })}>{t('vaccines.markGiven')}</Button>
-                                <Button variant="soft" onClick={() => update.mutate({ id: v.id, status: 'skipped' })}>
-                                  {t('vaccines.skip')}
-                                </Button>
-                              </>
+                            {v.status !== 'given' && (
+                              <Button onClick={() => setForm({ mode: 'given', v })}>{t('vaccines.markGiven')}</Button>
+                            )}
+                            {v.status === 'pending' ? (
+                              <Button variant="soft" onClick={() => update.mutate({ id: v.id, status: 'skipped' })}>
+                                {t('vaccines.skip')}
+                              </Button>
+                            ) : (
+                              // a mis-tapped Skip (or a wrong "given") can be put back on the schedule
+                              <Button variant="soft" onClick={() => update.mutate({ id: v.id, status: 'pending' })}>
+                                {t('vaccines.restore')}
+                              </Button>
                             )}
                             <Button variant="ghost" onClick={() => setForm({ mode: 'edit', v })}>
                               {t('vaccines.edit')}

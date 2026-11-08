@@ -12,6 +12,7 @@ from app.config import Settings, get_settings
 from app.db import get_session
 from app.models import Invite, Kid, Membership, User
 from app.services.email import send_email
+from app.services.vaccines import follow_birth_date
 
 router = APIRouter(prefix="/api")
 
@@ -155,7 +156,11 @@ def patch_kid(
     body: KidPatch, member: Member = Depends(require_admin), db: Session = Depends(get_session)
 ) -> dict:
     kid = db.get(Kid, member.kid_id)
+    old_birth = kid.birth_date
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(kid, field, value)
+    if old_birth and kid.birth_date and kid.birth_date != old_birth:
+        # a corrected birth date carries the vaccine schedule (and so its reminders) with it
+        follow_birth_date(db, kid.id, old_birth, kid.birth_date)
     db.commit()
     return _kid_json(kid)

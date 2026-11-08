@@ -155,3 +155,15 @@ test('pasting tab-separated rows fills the table', async () => {
   expect(cell(1, en.vitals.measurements.temperature_c)).toHaveValue(36.9)
   expect(cell(1, en.vitals.measurements.spo2)).toHaveValue(98)
 })
+
+test('bulk shows a message when the whole request is refused or there is no connection', async () => {
+  mockApi({ 'POST /api/vitals/bulk': { status: 422, body: { detail: 'at most 200 rows at a time' } } })
+  renderApp(<BulkVitals />)
+  await userEvent.type(cell(0, en.vitals.bulk.date), '2026-10-30')
+  await userEvent.type(cell(0, en.vitals.measurements.weight_kg), '3.1')
+  await userEvent.click(screen.getByRole('button', { name: en.vitals.bulk.save }))
+  expect(await screen.findByText('at most 200 rows at a time')).toBeInTheDocument()
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')))
+  await userEvent.click(screen.getByRole('button', { name: en.vitals.bulk.save }))
+  expect(await screen.findByText(en.vitals.bulk.offline)).toBeInTheDocument()
+})

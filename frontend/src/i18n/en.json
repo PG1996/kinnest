@@ -324,7 +324,9 @@
       "pasteHere": "Paste rows from a spreadsheet here",
       "pasteHint": "Columns: date, time, place, weight, height, head, temperature, heart rate, breathing rate, SpO2",
       "row": "Row {{n}}",
-      "fixRows": "Nothing was saved. Fix the rows marked below."
+      "fixRows": "Nothing was saved. Fix the rows marked below.",
+      "offline": "No connection. Nothing was saved; try again when you are online.",
+      "tooMany": "At most 200 rows at a time."
     }
   },
   "vaccines": {
@@ -377,7 +379,8 @@
       "save": "Save",
       "futureGiven": "The given date cannot be in the future",
       "required": "Enter the vaccine name and due date"
-    }
+    },
+    "restore": "Back to due"
   },
   "visits": {
     "add": "Add visit",
@@ -410,7 +413,8 @@
       "prescription": "Prescription notes",
       "save": "Save",
       "invalid": "Enter the date and time"
-    }
+    },
+    "restore": "Back to upcoming"
   },
   "upcoming": {
     "title": "Coming up",

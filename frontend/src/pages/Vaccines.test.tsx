@@ -165,3 +165,13 @@ test('viewer sees no buttons', async () => {
   for (const name of [en.vaccines.markGiven, en.vaccines.skip, en.vaccines.delete, en.vaccines.add, en.vaccines.addMissing])
     expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
 })
+
+test('a skipped vaccine can be put back or marked given', async () => {
+  const skipped = VAX('a', { status: 'skipped' })
+  const calls = mockApi(routes([skipped]))
+  renderApp(<VaccinesTab />)
+  await screen.findByText('Vaccine a 1')
+  expect(within(entry('Vaccine a 1')).getByRole('button', { name: en.vaccines.markGiven })).toBeInTheDocument()
+  await userEvent.click(within(entry('Vaccine a 1')).getByRole('button', { name: en.vaccines.restore }))
+  await waitFor(() => expect(calls.find((c) => c.key === 'PATCH /api/vaccines/a')?.body).toEqual({ status: 'pending' }))
+})

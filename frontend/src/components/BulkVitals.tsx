@@ -31,6 +31,8 @@ export default function BulkVitals({ onDone }: { onDone?: () => void }) {
   const { t } = useTranslation()
   const [rows, setRows] = useState<Row[]>([emptyRow()])
   const [errors, setErrors] = useState<Record<number, string>>({})
+  // a refusal of the whole request (too many rows, no connection, server trouble), as opposed to row errors
+  const [failure, setFailure] = useState('')
   const bulk = useBulkVitals()
 
   const set = (i: number, k: keyof Row, v: string) => setRows(rows.map((r, j) => (j === i ? { ...r, [k]: v } : r)))
@@ -67,9 +69,15 @@ export default function BulkVitals({ onDone }: { onDone?: () => void }) {
       if (Object.keys(problems).length) found[i] = Object.values(problems).join(' ')
     })
     setErrors(found)
+    setFailure('')
     if (Object.keys(found).length) return
+    if (inputs.length > 200) return setFailure(t('vitals.bulk.tooMany'))
     bulk.mutate(inputs, {
-      onError: (e) => setErrors(e instanceof BulkError ? e.rowErrors : {}),
+      onError: (e) => {
+        const rows = e instanceof BulkError ? e.rowErrors : {}
+        setErrors(rows)
+        if (Object.keys(rows).length === 0) setFailure(e instanceof TypeError ? t('vitals.bulk.offline') : e.message)
+      },
       onSuccess: () => {
         setRows([emptyRow()])
         onDone?.()
@@ -156,6 +164,7 @@ export default function BulkVitals({ onDone }: { onDone?: () => void }) {
         </table>
       </div>
       {Object.keys(errors).length > 0 && <p className="text-sm text-danger">{t('vitals.bulk.fixRows')}</p>}
+      {failure && <p className="text-sm text-danger">{failure}</p>}
       {bulk.isSuccess && (
         <p className="text-sm">{t('vitals.bulk.saved', { created: bulk.data.created, existing: bulk.data.existing })}</p>
       )}

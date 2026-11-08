@@ -63,6 +63,9 @@ export default function Settings() {
     onSuccess: (data) => {
       qc.setQueryData(['kid'], data)
       qc.invalidateQueries({ queryKey: ['summary'] })
+      // the vaccine due dates and the growth ages follow the birth date
+      qc.invalidateQueries({ queryKey: ['vaccines'] })
+      qc.invalidateQueries({ queryKey: ['growth'] })
     },
   })
   const submit = (e: FormEvent) => {
