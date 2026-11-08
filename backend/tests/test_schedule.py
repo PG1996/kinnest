@@ -1,5 +1,6 @@
 import uuid
 from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 
 from app.models import Medicine, MedicineDose
 from app.services import schedule
@@ -22,10 +23,11 @@ def med(kind="fixed", **kw):
     return Medicine(**base)
 
 
-def dose(m, scheduled_for, status="given", given_at=None, deleted_at=None):
+def dose(m, scheduled_for, status="given", given_at=None, deleted_at=None, amount=None):
     return MedicineDose(
         id=uuid.uuid4(), medicine_id=m.id, status=status, scheduled_for=scheduled_for,
         given_at=given_at or scheduled_for or NOW, deleted_at=deleted_at,
+        amount=Decimal(amount) if amount is not None else None,
     )
 
 
@@ -123,3 +125,79 @@ def test_valid_slot_rejects_unknown_time():
     assert not schedule.valid_slot(m, [], ist(8, 9, 30), NOW, TZ)
     assert not schedule.valid_slot(m, [], ist(5, 9), NOW, TZ)
     assert not schedule.valid_slot(med("as_needed"), [], ist(8, 9), NOW, TZ)
+
+
+# --- partial dosing (slice 2b) -------------------------------------------------------------------------------------
+
+
+def one_ml(kind="fixed", **kw):
+    return med(kind, dose_amount=Decimal("1.00"), dose_unit="ml", **({"times": ["09:00"]} if kind == "fixed" else {}), **kw)
+
+
+def slot_of(m, doses):
+    return schedule.today_slots(m, doses, NOW, TZ)[0]
+
+
+def test_pieces_add_up_exactly_without_float_drift():
+    m = one_ml()
+    quarters = [dose(m, ist(8, 9), amount="0.25", given_at=ist(8, 9, i)) for i in range(4)]
+    s = slot_of(m, quarters)
+    assert (s.status, s.given_amount, s.remaining) == ("given", Decimal("1.00"), Decimal("0.00"))
+    mixed = [dose(m, ist(8, 9), amount=a) for a in ("0.1", "0.2", "0.7")]
+    assert slot_of(m, mixed).status == "given"
+
+
+def test_partial_slot_reports_progress_and_is_still_unresolved():
+    m = one_ml()
+    s = slot_of(m, [dose(m, ist(8, 9), amount="0.25")])
+    assert (s.status, s.given_amount, s.remaining) == ("partial", Decimal("0.25"), Decimal("0.75"))
+    assert ist(8, 9) in schedule.unresolved_due_slots(m, [dose(m, ist(8, 9), amount="0.25")], NOW, TZ)
+    assert ist(8, 9) not in schedule.unresolved_due_slots(m, [dose(m, ist(8, 9), amount="1.00")], NOW, TZ)
+
+
+def test_skip_after_a_piece_closes_the_slot_and_keeps_the_pieces():
+    m = one_ml()
+    piece, skip = dose(m, ist(8, 9), amount="0.50"), dose(m, ist(8, 9), status="skipped", given_at=ist(8, 9, 20))
+    s = slot_of(m, [piece, skip])
+    assert (s.status, s.given_amount, s.remaining) == ("skipped", Decimal("0.50"), Decimal("0.50"))
+    assert ist(8, 9) not in schedule.unresolved_due_slots(m, [piece, skip], NOW, TZ)
+
+
+def test_legacy_medicine_any_given_dose_completes_the_slot():
+    m = med(times=["09:00"])  # no dose_amount: saved before structured doses
+    s = slot_of(m, [dose(m, ist(8, 9))])
+    assert (s.status, s.remaining) == ("given", None)
+
+
+def test_a_piece_without_amount_counts_as_a_full_dose():
+    m = one_ml()  # the medicine got its amount after this dose was logged
+    assert slot_of(m, [dose(m, ist(8, 9))]).status == "given"
+
+
+def test_undone_pieces_are_ignored():
+    m = one_ml()
+    s = slot_of(m, [dose(m, ist(8, 9), amount="0.50"), dose(m, ist(8, 9), amount="0.50", deleted_at=NOW)])
+    assert (s.status, s.given_amount) == ("partial", Decimal("0.50"))
+
+
+def test_slot_keeps_every_piece_and_exposes_the_latest_as_dose():
+    m = one_ml()
+    first, second = dose(m, ist(8, 9), amount="0.25", given_at=ist(8, 9, 1)), dose(m, ist(8, 9), amount="0.25", given_at=ist(8, 9, 5))
+    s = slot_of(m, [second, first])
+    assert s.doses == [first, second] and s.dose is second
+
+
+def test_interval_stays_on_the_open_slot_until_it_is_completed():
+    m = one_ml("interval", interval_hours=8, first_dose_at=ist(8, 8))
+    half = dose(m, ist(8, 8), amount="0.50", given_at=ist(8, 8, 5))
+    assert schedule.next_interval_due(m, [half]) == ist(8, 8)  # still the first slot
+    s = slot_of(m, [half])
+    assert (s.due_at, s.status) == (ist(8, 8), "partial")
+    rest = dose(m, ist(8, 8), amount="0.50", given_at=ist(8, 8, 40))
+    assert schedule.next_interval_due(m, [half, rest]) == ist(8, 16, 40)  # counted from completion
+
+
+def test_interval_with_a_skip_after_pieces_anchors_to_the_scheduled_time():
+    m = one_ml("interval", interval_hours=8, first_dose_at=ist(8, 8))
+    piece, skip = dose(m, ist(8, 8), amount="0.25", given_at=ist(8, 8, 5)), dose(m, ist(8, 8), status="skipped", given_at=ist(8, 9))
+    assert schedule.next_interval_due(m, [piece, skip]) == ist(8, 16)
