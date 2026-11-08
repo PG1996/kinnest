@@ -121,3 +121,17 @@ export function queuedDoseSlots(pending: QueueEntry[]): Set<string> {
 /** As-needed doses waiting to sync for one medicine. */
 export const queuedAsNeeded = (pending: QueueEntry[], medicineId: string) =>
   pending.filter((p) => p.kind === 'dose' && p.payload.medicine_id === medicineId && !p.payload.scheduled_for).length
+
+/** How much of one slot's dose is waiting to sync (queued given pieces), so the screen can offer only what is left. */
+export function queuedAmount(pending: QueueEntry[], medicineId: string, scheduledFor: string): number {
+  return pending
+    .filter(
+      (p) =>
+        p.kind === 'dose' &&
+        p.payload.status === 'given' &&
+        p.payload.medicine_id === medicineId &&
+        p.payload.scheduled_for != null &&
+        Date.parse(String(p.payload.scheduled_for)) === Date.parse(scheduledFor),
+    )
+    .reduce((sum, p) => sum + Number(p.payload.amount ?? 0), 0)
+}

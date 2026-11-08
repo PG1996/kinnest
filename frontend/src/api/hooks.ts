@@ -48,17 +48,29 @@ export type Sleep = {
 }
 export type SummarySleep = { open: Sleep | null; last: Sleep | null }
 export type ScheduleKind = 'fixed' | 'interval' | 'as_needed'
+export type SlotDose = { id: string; amount: number | null; status: 'given' | 'skipped'; given_at: string; by_name: string }
 export type Slot = {
   due_at: string
-  status: 'pending' | 'given' | 'skipped'
+  status: 'pending' | 'partial' | 'given' | 'skipped'
+  /** Sum of the given pieces. 0 for medicines without a dose amount. */
+  given_amount: number
+  /** What is left of the dose. null for medicines without a dose amount. */
+  remaining: number | null
+  doses: SlotDose[]
+  /** The latest piece. */
   dose_id: string | null
   given_at: string | null
   by_name: string | null
+  nudge: { id: string; remind_at: string } | null
 }
 export type Medicine = {
   id: string
   name: string
-  dose: string
+  /** null for medicines saved before structured doses: the admin is asked to set one. */
+  dose_amount: number | null
+  dose_unit: string | null
+  /** Temporary shim until the medicine form stops using it (Task 6). */
+  dose?: string
   schedule_kind: ScheduleKind
   times: string[]
   interval_hours: number | null
@@ -69,7 +81,7 @@ export type Medicine = {
   notes: string
   ended: boolean
   slots: Slot[]
-  last_dose: { id: string; status: 'given' | 'skipped'; given_at: string; by_name: string } | null
+  last_dose: { id: string; status: 'given' | 'skipped'; amount: number | null; given_at: string; by_name: string } | null
 }
 export type Summary = {
   last_feed: Feed | null

@@ -1,7 +1,7 @@
 import { openDB } from 'idb'
 
 export type QueueEntry = {
-  kind: 'feed' | 'diaper' | 'dose' | 'sleep_start' | 'sleep_end'
+  kind: 'feed' | 'diaper' | 'dose' | 'nudge' | 'sleep_start' | 'sleep_end'
   id: string
   payload: Record<string, unknown>
   queuedAt: number

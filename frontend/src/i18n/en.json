@@ -180,5 +180,18 @@
       "cancel": "Cancel",
       "invalid": "Please check the name, times and dates."
     }
+  },
+  "units": {
+    "ml": "ml",
+    "mg": "mg",
+    "mcg": "mcg",
+    "g": "g",
+    "IU": "IU",
+    "drops_one": "drop",
+    "drops_other": "drops",
+    "tablet_one": "tablet",
+    "tablet_other": "tablets",
+    "puff_one": "puff",
+    "puff_other": "puffs"
   }
 }
