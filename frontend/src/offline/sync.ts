@@ -9,6 +9,8 @@ const pathFor = (e: QueueEntry): string => {
       return '/api/diapers'
     case 'dose':
       return `/api/medicines/${e.payload.medicine_id}/doses`
+    case 'nudge':
+      return `/api/medicines/${e.payload.medicine_id}/nudges`
     case 'sleep_start':
       return '/api/sleep'
     case 'sleep_end':

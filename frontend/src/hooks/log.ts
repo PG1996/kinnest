@@ -70,10 +70,17 @@ export type DoseInput = {
   status: 'given' | 'skipped'
   /** The slot being ticked (scheduled medicines); absent for as-needed doses. */
   scheduled_for?: string
+  /** How much was given (a piece or the whole dose). Not sent for skipped doses or medicines without an amount. */
+  amount?: number
   given_at?: string
   note?: string
 }
-export type DoseResult = LogResult & { by_name?: string; gap_warning?: { last_given_at: string } | null }
+export type DoseResult = LogResult & {
+  by_name?: string
+  gap_warning?: { last_given_at: string } | null
+  /** Where the slot stands after this piece, for scheduled doses. */
+  slot?: { status: 'pending' | 'partial' | 'given' | 'skipped'; given_amount: number; remaining: number | null }
+}
 
 const refreshMedicines = (qc: ReturnType<typeof useQueryClient>) => {
   qc.invalidateQueries({ queryKey: ['medicines'] })
@@ -115,5 +122,25 @@ export function useEndSleep() {
     // `id` is the session being ended (the queue builds the URL from it); the queue key must differ from the start's
     mutationFn: (b: { id: string; ended_at: string }) => post('sleep_end', `/api/sleep/${b.id}/end`, b, `${b.id}:end`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['summary'] }),
+  })
+}
+
+export type NudgeInput = { id: string; medicine_id: string; scheduled_for: string; remind_at: string }
+
+/** "Remind me about the rest of this dose": a one-off reminder. Queued offline like other entries. */
+export function useCreateNudge() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (b: NudgeInput) => post('nudge', `/api/medicines/${b.medicine_id}/nudges`, b),
+    onSuccess: () => refreshMedicines(qc),
+  })
+}
+
+export function useCancelNudge() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (v: { medicineId: string; nudgeId: string }) =>
+      api(`/api/medicines/${v.medicineId}/nudges/${v.nudgeId}`, { method: 'DELETE' }),
+    onSuccess: () => refreshMedicines(qc),
   })
 }
