@@ -54,6 +54,23 @@ Use at least two phones logged in as different people (Admin and Caregiver), plu
 - [ ] Airplane mode: tap Given. It shows "Waiting to sync", then syncs on reconnect with the original time.
 - [ ] Add a medicine just after one of its times has passed: you are **not** reminded about the earlier time. If the Mac slept through a dose, you get no burst of old reminders when it wakes (the dose stays listed as overdue).
 
+## Structured doses and partial dosing (slice 2b)
+Use two phones as different people (Admin and Caregiver) so you can test who gave what.
+- [ ] **Add a medicine** with a dose amount and a unit (try 1 ml, a fixed time a few minutes away). The unit list has ml, drops, mg, mcg, g, IU, tablet, puff, and an amount of 0, nothing, or more than 2 decimals is refused.
+- [ ] A medicine saved **before** this change shows "Set a proper dose for this medicine" for the Admin, and editing it requires an amount and unit. Until then, ticking it still works with **Given** and **Skip**.
+- [ ] **Give full dose**: the slot completes, shows who gave it, and the reminders stop.
+- [ ] **Pieces by two phones**: on phone A tap **Partial dose** and give 0.25; on phone B give 0.25, then 0.5. Both phones show "0.25 ml of 1 ml given, 0.75 ml left" and so on, then the slot completes at exactly 1 ml.
+- [ ] **Too much is refused**: with 0.25 ml left, try to give 0.5 (typed) and see the amount refused; if a stale screen still offers the full dose, the phone says "Only 0.25 ml left" and refreshes.
+- [ ] **Double tap on two phones**: tap **Give full dose** on both phones at the same moment. Only one is recorded; the other says the dose was already given in full. Check the history shows one dose only.
+- [ ] **Reminders keep coming** while a dose is only partly given, and say how much is left ("0.75 ml left"). They stop when the dose is complete.
+- [ ] **Reminder for the rest**: after a partial dose pick "15 min". Both phones show "Reminder at <time>", and at that time every caregiver gets "still to give", once. Cancel one and confirm it never arrives.
+- [ ] Complete the dose **before** the temporary reminder time: no reminder arrives for it.
+- [ ] **Skip after a partial dose**: the slot says skipped and keeps the piece already given; no more can be added.
+- [ ] **Undo a piece**: the freed amount can be given again; undoing the piece that completed the slot makes it "partial" again and the reminders resume.
+- [ ] **As needed**: **Give full dose** records the whole dose; **Partial dose** records the typed amount; a dose inside the minimum gap still asks "Give anyway?".
+- [ ] **Offline**: in airplane mode give a partial piece. It shows "<amount> waiting to sync", the offered amount drops by what is queued, and it syncs on reconnect. A piece that was refused meanwhile appears in the "couldn't be saved" notice, not silently.
+- [ ] Check that **1 ml given as 4 x 0.25 ml** and **2 x 0.5 ml** both complete the slot with no rounding oddities.
+
 ## Sleep (slice 2)
 - [ ] Tap **Sleep**: Home shows "Asleep since <time>" and the button becomes **Wake up**. Another phone shows it within about 30 seconds.
 - [ ] Both phones tap Sleep at once: one session exists, and the other phone is told who already started it.
