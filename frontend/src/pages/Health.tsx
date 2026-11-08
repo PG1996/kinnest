@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import { cn } from '../lib/cn'
+import VitalsTab from './VitalsTab'
 
 export type HealthTab = 'vitals' | 'vaccines' | 'visits'
 const TABS: HealthTab[] = ['vitals', 'vaccines', 'visits']
@@ -30,7 +31,7 @@ export default function Health({ panels = {} }: { panels?: Partial<Record<Health
           </button>
         ))}
       </div>
-      <div role="tabpanel">{panels[tab]}</div>
+      <div role="tabpanel">{panels[tab] ?? (tab === 'vitals' ? <VitalsTab /> : null)}</div>
     </>
   )
 }
