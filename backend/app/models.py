@@ -1,5 +1,6 @@
 import uuid
 from datetime import UTC, date, datetime
+from decimal import Decimal
 
 from sqlalchemy import (
     JSON,
@@ -9,6 +10,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -197,12 +199,21 @@ class Medicine(Base):
     __tablename__ = "medicines"
     __table_args__ = (
         CheckConstraint("schedule_kind in ('fixed','interval','as_needed')", name="ck_medicine_kind"),
+        CheckConstraint(
+            "dose_amount is null or (dose_amount > 0 and dose_amount <= 10000)", name="ck_medicine_dose_amount"
+        ),
+        CheckConstraint(
+            "dose_unit is null or dose_unit in ('ml','drops','mg','mcg','g','IU','tablet','puff')",
+            name="ck_medicine_dose_unit",
+        ),
     )
     id: Mapped[uuid.UUID] = _pk()
     family_id: Mapped[uuid.UUID] = _fk("families")
     kid_id: Mapped[uuid.UUID] = _fk("kids")
     name: Mapped[str] = mapped_column(String(120))
-    dose: Mapped[str] = mapped_column(String(120), default="")
+    dose: Mapped[str] = mapped_column(String(120), default="")  # legacy free text; dropped once the API stops using it
+    dose_amount: Mapped[Decimal | None] = mapped_column(Numeric(8, 2), nullable=True)
+    dose_unit: Mapped[str | None] = mapped_column(String(10), nullable=True)
     schedule_kind: Mapped[str] = mapped_column(String(20))
     times: Mapped[list[str]] = mapped_column(JSON, default=list)  # "HH:MM" in the family timezone, fixed only
     interval_hours: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -222,10 +233,9 @@ class MedicineDose(Base):
     __tablename__ = "medicine_doses"
     __table_args__ = (
         CheckConstraint("status in ('given','skipped')", name="ck_dose_status"),
-        # one live dose per scheduled slot; an undone (soft-deleted) dose frees the slot, as-needed doses (NULL slot) repeat freely
-        Index(
-            "uq_dose_per_slot", "medicine_id", "scheduled_for", unique=True, postgresql_where=text("deleted_at IS NULL")
-        ),
+        CheckConstraint("amount is null or amount > 0", name="ck_dose_amount"),
+        # a slot can hold several pieces; the API enforces that they never add up to more than the prescribed amount
+        Index("ix_dose_slot", "medicine_id", "scheduled_for"),
     )
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True)  # client-supplied
     family_id: Mapped[uuid.UUID] = _fk("families")
@@ -234,6 +244,7 @@ class MedicineDose(Base):
     status: Mapped[str] = mapped_column(String(10))
     scheduled_for: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     given_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    amount: Mapped[Decimal | None] = mapped_column(Numeric(8, 2), nullable=True)  # None: legacy dose, counts as a full one
     by_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     note: Mapped[str] = mapped_column(Text, default="")
     created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
@@ -264,3 +275,19 @@ class SleepSession(Base):
     created_at: Mapped[datetime] = _created()
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class MedicineNudge(Base):
+    """A one-off "remind me about the rest of this dose" reminder."""
+
+    __tablename__ = "medicine_nudges"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True)  # client-supplied
+    family_id: Mapped[uuid.UUID] = _fk("families")
+    kid_id: Mapped[uuid.UUID] = _fk("kids")
+    medicine_id: Mapped[uuid.UUID] = _fk("medicines")
+    scheduled_for: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    remind_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _created()
+    fired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
