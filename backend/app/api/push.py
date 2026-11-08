@@ -10,7 +10,7 @@ from app.models import NotificationPref, PushSubscription
 
 router = APIRouter(prefix="/api")
 
-PREF_KINDS = ("feed", "diaper", "medicine")
+PREF_KINDS = ("feed", "diaper", "medicine", "vaccine", "visit")
 
 
 class Keys(BaseModel):
@@ -27,6 +27,8 @@ class PrefsBody(BaseModel):
     feed: bool
     diaper: bool
     medicine: bool = True  # older clients don't send it
+    vaccine: bool = True
+    visit: bool = True
 
 
 @router.get("/push/public-key")

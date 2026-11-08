@@ -293,3 +293,53 @@ class MedicineNudge(Base):
     created_at: Mapped[datetime] = _created()
     fired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+PLACE_KINDS = ("home", "hospital", "clinic", "other")
+# (column, low, high) — the database refuses anything outside; the API checks first to give a readable message
+VITAL_RANGES = (
+    ("weight_kg", "0.3", "60"),
+    ("height_cm", "20", "150"),
+    ("head_cm", "20", "60"),
+    ("temperature_c", "30", "45"),
+    ("heart_rate", "30", "300"),
+    ("resp_rate", "5", "120"),
+    ("spo2", "50", "100"),
+)
+
+
+class VitalEntry(Base):
+    """One measuring moment: any subset of the measurements, with where and by whom."""
+
+    __tablename__ = "vital_entries"
+    __table_args__ = (
+        CheckConstraint("place_kind in ('home','hospital','clinic','other')", name="ck_vital_place_kind"),
+        *(
+            CheckConstraint(f"{col} is null or ({col} >= {lo} and {col} <= {hi})", name=f"ck_vital_{col}")
+            for col, lo, hi in VITAL_RANGES
+        ),
+        CheckConstraint(
+            "num_nonnulls(" + ", ".join(col for col, _, _ in VITAL_RANGES) + ") > 0", name="ck_vital_any_measurement"
+        ),
+        Index("ix_vital_kid_measured", "kid_id", "measured_at"),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True)  # client-supplied
+    family_id: Mapped[uuid.UUID] = _fk("families")
+    kid_id: Mapped[uuid.UUID] = _fk("kids")
+    measured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    place_kind: Mapped[str] = mapped_column(String(10))
+    place_name: Mapped[str] = mapped_column(String(120), default="")
+    measured_by: Mapped[str] = mapped_column(String(120), default="")
+    note: Mapped[str] = mapped_column(Text, default="")
+    weight_kg: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
+    height_cm: Mapped[Decimal | None] = mapped_column(Numeric(4, 1), nullable=True)
+    head_cm: Mapped[Decimal | None] = mapped_column(Numeric(4, 1), nullable=True)
+    temperature_c: Mapped[Decimal | None] = mapped_column(Numeric(3, 1), nullable=True)
+    heart_rate: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    resp_rate: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    spo2: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    updated_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _created()
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
