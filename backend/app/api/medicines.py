@@ -17,7 +17,7 @@ from app.auth.deps import Member, current_member, require_admin, require_caregiv
 from app.clock import get_now
 from app.config import Settings, get_settings
 from app.db import get_session
-from app.models import Medicine, MedicineDose
+from app.models import Medicine, MedicineDose, MedicineNudge
 from app.services import schedule
 from app.services.entries import recent_doses, reject_future, user_names
 from app.units import DOSE_UNITS, MAX_DOSE
@@ -81,6 +81,15 @@ class MedicinePatch(BaseModel):
     notes: str | None = None
 
 
+class NudgeIn(BaseModel):
+    id: uuid.UUID
+    scheduled_for: AwareDatetime
+    remind_at: AwareDatetime
+
+
+MAX_NUDGE_AHEAD = timedelta(hours=24)
+
+
 class DoseIn(BaseModel):
     id: uuid.UUID
     status: Literal["given", "skipped"]
@@ -122,7 +131,24 @@ def dose_json(d: MedicineDose, names: dict) -> dict:
     }
 
 
-def medicine_json(m: Medicine, doses: list[MedicineDose], names: dict, now: datetime, tz: str) -> dict:
+def nudge_json(n: MedicineNudge) -> dict:
+    return {"id": str(n.id), "medicine_id": str(n.medicine_id), "scheduled_for": _iso(n.scheduled_for), "remind_at": _iso(n.remind_at)}
+
+
+def _active_nudges(db: Session, medicine_id: uuid.UUID) -> dict[datetime, MedicineNudge]:
+    """Temporary reminders still waiting to fire, by the slot they are about."""
+    rows = db.scalars(
+        select(MedicineNudge)
+        .where(MedicineNudge.medicine_id == medicine_id, MedicineNudge.fired_at.is_(None), MedicineNudge.cancelled_at.is_(None))
+        .order_by(MedicineNudge.remind_at)
+    ).all()
+    return {n.scheduled_for: n for n in rows if n.scheduled_for is not None}
+
+
+def medicine_json(
+    m: Medicine, doses: list[MedicineDose], names: dict, now: datetime, tz: str, nudges: dict | None = None
+) -> dict:
+    nudges = nudges or {}
     today_slots = schedule.today_slots(m, doses, now, tz)
     slots = list(today_slots)
     known = {s.due_at for s in slots}
@@ -160,7 +186,7 @@ def medicine_json(m: Medicine, doses: list[MedicineDose], names: dict, now: date
                 "dose_id": str(s.dose.id) if s.dose else None,  # the latest piece
                 "given_at": _iso(s.dose.given_at) if s.dose else None,
                 "by_name": names.get(s.dose.by_user_id, "") if s.dose else None,
-                "nudge": None,
+                "nudge": {"id": str(nudges[s.due_at].id), "remind_at": _iso(nudges[s.due_at].remind_at)} if s.due_at in nudges else None,
             }
             for s in slots
         ],
@@ -175,7 +201,7 @@ def medicine_json(m: Medicine, doses: list[MedicineDose], names: dict, now: date
 
 def _render(db: Session, m: Medicine, now: datetime, tz: str) -> dict:
     doses = recent_doses(db, m.id)
-    return medicine_json(m, doses, user_names(db, {d.by_user_id for d in doses}), now, tz)
+    return medicine_json(m, doses, user_names(db, {d.by_user_id for d in doses}), now, tz, _active_nudges(db, m.id))
 
 
 def _medicine(db: Session, member: Member, medicine_id: uuid.UUID) -> Medicine:
@@ -369,3 +395,52 @@ def dose_history(
     rows = db.scalars(q.order_by(MedicineDose.given_at.desc())).all()
     names = user_names(db, {d.by_user_id for d in rows})
     return [dose_json(d, names) for d in rows]
+
+
+@router.post("/medicines/{medicine_id}/nudges", status_code=201)
+def create_nudge(
+    medicine_id: uuid.UUID,
+    body: NudgeIn,
+    response: Response,
+    member: Member = Depends(require_caregiver),
+    db: Session = Depends(get_session),
+    now: datetime = Depends(get_now),
+    settings: Settings = Depends(get_settings),
+) -> dict:
+    """A one-off "remind me about the rest of this dose": only possible while the slot is partly given."""
+    med = _medicine(db, member, medicine_id)
+    existing = db.get(MedicineNudge, body.id)
+    if existing is not None:
+        if existing.family_id != member.family_id:
+            raise HTTPException(409, "id already used")
+        response.status_code = 200
+        return nudge_json(existing)
+    if not now < body.remind_at <= now + MAX_NUDGE_AHEAD:
+        raise HTTPException(422, "remind_at must be in the future and within 24 hours")
+    state = schedule.slot_state(med, recent_doses(db, med.id), body.scheduled_for)
+    if med.schedule_kind == "as_needed" or state.status != "partial":
+        raise HTTPException(409, "there is no partly given dose to remind about")
+    for old in _active_nudges(db, med.id).values():
+        if old.scheduled_for == body.scheduled_for:
+            old.cancelled_at = datetime.now(UTC)  # one live reminder per slot: the new one replaces it
+    me = member.user.id
+    n = MedicineNudge(
+        id=body.id, family_id=member.family_id, kid_id=member.kid_id, medicine_id=med.id,
+        scheduled_for=body.scheduled_for, remind_at=body.remind_at, created_by=me,
+    )
+    db.add(n)
+    db.commit()
+    return nudge_json(n)
+
+
+@router.delete("/medicines/{medicine_id}/nudges/{nudge_id}")
+def cancel_nudge(
+    medicine_id: uuid.UUID, nudge_id: uuid.UUID, member: Member = Depends(require_caregiver), db: Session = Depends(get_session)
+) -> dict[str, bool]:
+    med = _medicine(db, member, medicine_id)
+    n = db.get(MedicineNudge, nudge_id)
+    if n is None or n.medicine_id != med.id or n.cancelled_at is not None or n.fired_at is not None:
+        raise HTTPException(404, "reminder not found")
+    n.cancelled_at = datetime.now(UTC)
+    db.commit()
+    return {"ok": True}
