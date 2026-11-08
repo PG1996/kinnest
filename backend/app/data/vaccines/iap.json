@@ -1,0 +1,331 @@
+{
+ "id": "iap",
+ "name": "India IAP (2025)",
+ "description": "Indian Academy of Pediatrics ACVIP immunization timetable 2025, vaccines for routine use (Table 2). Includes the optional vaccines IAP recommends (influenza, typhoid, hepatitis A, varicella, HPV).",
+ "source_url": "https://www.indianpediatrics.net/may2026/311.pdf",
+ "source_title": "IAP ACVIP Recommended Immunization Schedule (2025), Indian Pediatrics (2026) 63:311-324, doi:10.1007/s13312-026-00311-w",
+ "source_date": "2026-04-09",
+ "retrieved_on": "2026-11-08",
+ "entries": [
+  {
+   "name": "BCG",
+   "dose_label": "Birth",
+   "due_after": {
+    "days": 0
+   },
+   "notes": "Before discharge"
+  },
+  {
+   "name": "OPV",
+   "dose_label": "Birth",
+   "due_after": {
+    "days": 0
+   },
+   "notes": "As soon as possible after birth"
+  },
+  {
+   "name": "Hep B",
+   "dose_label": "1 (birth dose)",
+   "due_after": {
+    "days": 0
+   },
+   "notes": "Within 24 hours of birth"
+  },
+  {
+   "name": "DTwP/DTaP",
+   "dose_label": "1",
+   "due_after": {
+    "weeks": 6
+   },
+   "notes": ""
+  },
+  {
+   "name": "IPV",
+   "dose_label": "1",
+   "due_after": {
+    "weeks": 6
+   },
+   "notes": "IPV at 6, 10 and 14 weeks; can be part of a combination vaccine"
+  },
+  {
+   "name": "Hib",
+   "dose_label": "1",
+   "due_after": {
+    "weeks": 6
+   },
+   "notes": ""
+  },
+  {
+   "name": "Hep B",
+   "dose_label": "2",
+   "due_after": {
+    "weeks": 6
+   },
+   "notes": ""
+  },
+  {
+   "name": "Rotavirus",
+   "dose_label": "1",
+   "due_after": {
+    "weeks": 6
+   },
+   "notes": ""
+  },
+  {
+   "name": "PCV",
+   "dose_label": "1",
+   "due_after": {
+    "weeks": 6
+   },
+   "notes": ""
+  },
+  {
+   "name": "DTwP/DTaP",
+   "dose_label": "2",
+   "due_after": {
+    "weeks": 10
+   },
+   "notes": ""
+  },
+  {
+   "name": "IPV",
+   "dose_label": "2",
+   "due_after": {
+    "weeks": 10
+   },
+   "notes": ""
+  },
+  {
+   "name": "Hib",
+   "dose_label": "2",
+   "due_after": {
+    "weeks": 10
+   },
+   "notes": ""
+  },
+  {
+   "name": "Hep B",
+   "dose_label": "3",
+   "due_after": {
+    "weeks": 10
+   },
+   "notes": ""
+  },
+  {
+   "name": "Rotavirus",
+   "dose_label": "2",
+   "due_after": {
+    "weeks": 10
+   },
+   "notes": "RV1: 2-dose schedule; all other rotavirus brands: 3 doses"
+  },
+  {
+   "name": "PCV",
+   "dose_label": "2",
+   "due_after": {
+    "weeks": 10
+   },
+   "notes": ""
+  },
+  {
+   "name": "DTwP/DTaP",
+   "dose_label": "3",
+   "due_after": {
+    "weeks": 14
+   },
+   "notes": ""
+  },
+  {
+   "name": "IPV",
+   "dose_label": "3",
+   "due_after": {
+    "weeks": 14
+   },
+   "notes": ""
+  },
+  {
+   "name": "Hib",
+   "dose_label": "3",
+   "due_after": {
+    "weeks": 14
+   },
+   "notes": ""
+  },
+  {
+   "name": "Hep B",
+   "dose_label": "4",
+   "due_after": {
+    "weeks": 14
+   },
+   "notes": "An additional 4th dose is permitted as part of a combination vaccine"
+  },
+  {
+   "name": "Rotavirus",
+   "dose_label": "3",
+   "due_after": {
+    "weeks": 14
+   },
+   "notes": "Not needed for RV1"
+  },
+  {
+   "name": "PCV",
+   "dose_label": "3",
+   "due_after": {
+    "weeks": 14
+   },
+   "notes": ""
+  },
+  {
+   "name": "Influenza (IIV)",
+   "dose_label": "1",
+   "due_after": {
+    "months": 6
+   },
+   "notes": "0.5 ml from 6 months"
+  },
+  {
+   "name": "Influenza (IIV)",
+   "dose_label": "2",
+   "due_after": {
+    "months": 7
+   },
+   "notes": "Repeated every year until 5 years of age"
+  },
+  {
+   "name": "Typhoid conjugate (TCV)",
+   "dose_label": "1",
+   "due_after": {
+    "months": 6
+   },
+   "notes": "IAP age: 6 to 9 months; single dose, no booster"
+  },
+  {
+   "name": "MMR",
+   "dose_label": "1",
+   "due_after": {
+    "months": 9
+   },
+   "notes": ""
+  },
+  {
+   "name": "Hepatitis A",
+   "dose_label": "1",
+   "due_after": {
+    "months": 12
+   },
+   "notes": "Single dose for the live attenuated vaccine"
+  },
+  {
+   "name": "MMR",
+   "dose_label": "2",
+   "due_after": {
+    "months": 15
+   },
+   "notes": ""
+  },
+  {
+   "name": "Varicella",
+   "dose_label": "1",
+   "due_after": {
+    "months": 15
+   },
+   "notes": ""
+  },
+  {
+   "name": "PCV",
+   "dose_label": "Booster",
+   "due_after": {
+    "months": 15
+   },
+   "notes": ""
+  },
+  {
+   "name": "DTwP/DTaP",
+   "dose_label": "Booster 1",
+   "due_after": {
+    "months": 16
+   },
+   "notes": "IAP age: 16 to 18 months"
+  },
+  {
+   "name": "Hib",
+   "dose_label": "Booster 1",
+   "due_after": {
+    "months": 16
+   },
+   "notes": "IAP age: 16 to 18 months"
+  },
+  {
+   "name": "IPV",
+   "dose_label": "Booster 1",
+   "due_after": {
+    "months": 16
+   },
+   "notes": "IAP age: 16 to 18 months"
+  },
+  {
+   "name": "Hepatitis A",
+   "dose_label": "2",
+   "due_after": {
+    "months": 18
+   },
+   "notes": "IAP age: 18 to 19 months; only for the inactivated vaccine"
+  },
+  {
+   "name": "Varicella",
+   "dose_label": "2",
+   "due_after": {
+    "months": 18
+   },
+   "notes": "IAP age: 18 to 19 months; 3 to 6 months after dose 1"
+  },
+  {
+   "name": "DTwP/DTaP",
+   "dose_label": "Booster 2",
+   "due_after": {
+    "months": 48
+   },
+   "notes": "IAP age: 4 to 6 years"
+  },
+  {
+   "name": "IPV",
+   "dose_label": "Booster 2",
+   "due_after": {
+    "months": 48
+   },
+   "notes": "IAP age: 4 to 6 years"
+  },
+  {
+   "name": "MMR",
+   "dose_label": "3",
+   "due_after": {
+    "months": 48
+   },
+   "notes": "IAP age: 4 to 6 years"
+  },
+  {
+   "name": "HPV",
+   "dose_label": "1",
+   "due_after": {
+    "months": 108
+   },
+   "notes": "IAP age: 9 to under 15 years; girls: single dose"
+  },
+  {
+   "name": "Tdap",
+   "dose_label": "10 years",
+   "due_after": {
+    "months": 120
+   },
+   "notes": "Given even if given earlier"
+  },
+  {
+   "name": "Td/Tdap",
+   "dose_label": "16 years",
+   "due_after": {
+    "months": 192
+   },
+   "notes": "IAP age: 16 to 18 years"
+  }
+ ]
+}

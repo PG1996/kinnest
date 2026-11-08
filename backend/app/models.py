@@ -343,3 +343,28 @@ class VitalEntry(Base):
     created_at: Mapped[datetime] = _created()
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Vaccination(Base):
+    __tablename__ = "vaccinations"
+    __table_args__ = (
+        CheckConstraint("status in ('pending','given','skipped')", name="ck_vaccination_status"),
+        CheckConstraint("source in ('iap','uip','manual')", name="ck_vaccination_source"),
+        CheckConstraint("status <> 'given' or given_on is not null", name="ck_vaccination_given_on"),
+    )
+    id: Mapped[uuid.UUID] = _pk()
+    family_id: Mapped[uuid.UUID] = _fk("families")
+    kid_id: Mapped[uuid.UUID] = _fk("kids")
+    name: Mapped[str] = mapped_column(String(120))
+    dose_label: Mapped[str] = mapped_column(String(60), default="")
+    due_date: Mapped[date] = mapped_column(Date, index=True)
+    given_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(String(10), default="pending")
+    place: Mapped[str] = mapped_column(String(120), default="")
+    notes: Mapped[str] = mapped_column(Text, default="")
+    source: Mapped[str] = mapped_column(String(10), default="manual")
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    updated_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _created()
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

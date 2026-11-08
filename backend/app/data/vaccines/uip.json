@@ -1,0 +1,219 @@
+{
+ "id": "uip",
+ "name": "India UIP (government)",
+ "description": "Government of India Universal Immunisation Programme, National Immunisation Schedule for infants and children (free at government facilities).",
+ "source_url": "https://static.pib.gov.in/WriteReadData/specificdocs/documents/2026/mar/doc2026320830601.pdf",
+ "source_title": "PIB, Celebrating the Power of Vaccines (17 March 2026), National Immunisation Schedule",
+ "source_date": "2026-03-17",
+ "retrieved_on": "2026-11-08",
+ "entries": [
+  {
+   "name": "BCG",
+   "dose_label": "Birth",
+   "due_after": {
+    "days": 0
+   },
+   "notes": ""
+  },
+  {
+   "name": "OPV",
+   "dose_label": "0",
+   "due_after": {
+    "days": 0
+   },
+   "notes": ""
+  },
+  {
+   "name": "Hepatitis B",
+   "dose_label": "Birth dose",
+   "due_after": {
+    "days": 0
+   },
+   "notes": ""
+  },
+  {
+   "name": "OPV",
+   "dose_label": "1",
+   "due_after": {
+    "weeks": 6
+   },
+   "notes": ""
+  },
+  {
+   "name": "Pentavalent",
+   "dose_label": "1",
+   "due_after": {
+    "weeks": 6
+   },
+   "notes": ""
+  },
+  {
+   "name": "Rotavirus (RVV)",
+   "dose_label": "1",
+   "due_after": {
+    "weeks": 6
+   },
+   "notes": ""
+  },
+  {
+   "name": "fIPV",
+   "dose_label": "1",
+   "due_after": {
+    "weeks": 6
+   },
+   "notes": ""
+  },
+  {
+   "name": "PCV",
+   "dose_label": "1",
+   "due_after": {
+    "weeks": 6
+   },
+   "notes": ""
+  },
+  {
+   "name": "OPV",
+   "dose_label": "2",
+   "due_after": {
+    "weeks": 10
+   },
+   "notes": ""
+  },
+  {
+   "name": "Pentavalent",
+   "dose_label": "2",
+   "due_after": {
+    "weeks": 10
+   },
+   "notes": ""
+  },
+  {
+   "name": "Rotavirus (RVV)",
+   "dose_label": "2",
+   "due_after": {
+    "weeks": 10
+   },
+   "notes": ""
+  },
+  {
+   "name": "OPV",
+   "dose_label": "3",
+   "due_after": {
+    "weeks": 14
+   },
+   "notes": ""
+  },
+  {
+   "name": "Pentavalent",
+   "dose_label": "3",
+   "due_after": {
+    "weeks": 14
+   },
+   "notes": ""
+  },
+  {
+   "name": "fIPV",
+   "dose_label": "2",
+   "due_after": {
+    "weeks": 14
+   },
+   "notes": ""
+  },
+  {
+   "name": "Rotavirus (RVV)",
+   "dose_label": "3",
+   "due_after": {
+    "weeks": 14
+   },
+   "notes": ""
+  },
+  {
+   "name": "PCV",
+   "dose_label": "2",
+   "due_after": {
+    "weeks": 14
+   },
+   "notes": ""
+  },
+  {
+   "name": "Measles & Rubella (MR)",
+   "dose_label": "1",
+   "due_after": {
+    "months": 9
+   },
+   "notes": "UIP age: 9 to 12 months"
+  },
+  {
+   "name": "Japanese Encephalitis (JE)",
+   "dose_label": "1",
+   "due_after": {
+    "months": 9
+   },
+   "notes": "UIP age: 9 to 12 months; only in endemic districts"
+  },
+  {
+   "name": "PCV",
+   "dose_label": "Booster",
+   "due_after": {
+    "months": 9
+   },
+   "notes": "UIP age: 9 to 12 months"
+  },
+  {
+   "name": "Measles & Rubella (MR)",
+   "dose_label": "2",
+   "due_after": {
+    "months": 16
+   },
+   "notes": "UIP age: 16 to 24 months"
+  },
+  {
+   "name": "Japanese Encephalitis (JE)",
+   "dose_label": "2",
+   "due_after": {
+    "months": 16
+   },
+   "notes": "UIP age: 16 to 24 months; only in endemic districts"
+  },
+  {
+   "name": "DPT",
+   "dose_label": "Booster 1",
+   "due_after": {
+    "months": 16
+   },
+   "notes": "UIP age: 16 to 24 months"
+  },
+  {
+   "name": "OPV",
+   "dose_label": "Booster",
+   "due_after": {
+    "months": 16
+   },
+   "notes": "UIP age: 16 to 24 months"
+  },
+  {
+   "name": "DPT",
+   "dose_label": "Booster 2",
+   "due_after": {
+    "months": 60
+   },
+   "notes": "UIP age: 5 to 6 years"
+  },
+  {
+   "name": "Td",
+   "dose_label": "10 years",
+   "due_after": {
+    "months": 120
+   },
+   "notes": ""
+  },
+  {
+   "name": "Td",
+   "dose_label": "16 years",
+   "due_after": {
+    "months": 192
+   },
+   "notes": ""
+  }
+ ]
+}
