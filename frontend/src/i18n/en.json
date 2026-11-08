@@ -259,6 +259,37 @@
       "hospital": "Hospital",
       "clinic": "Clinic",
       "other": "Other"
+    },
+    "add": "Add vitals",
+    "form": {
+      "title": "Add vitals",
+      "editTitle": "Edit vitals",
+      "which": "What was measured?",
+      "when": "When",
+      "place": "Where",
+      "placeName": "Place name (optional)",
+      "measuredBy": "Measured by (optional)",
+      "note": "Note",
+      "save": "Save",
+      "range": "{{min}}–{{max}} {{unit}}"
+    },
+    "list": {
+      "edit": "Edit",
+      "delete": "Delete",
+      "confirmDelete": "Yes, delete",
+      "cancel": "Cancel",
+      "place": "Place",
+      "all": "All places",
+      "from": "From",
+      "to": "To",
+      "empty": "No vitals yet",
+      "waiting": "Waiting to sync",
+      "enteredBy": "entered by {{name}}",
+      "measuredBy": "measured by {{name}}"
+    },
+    "card": {
+      "title": "Latest vitals",
+      "empty": "No vitals yet"
     }
   }
 }
