@@ -16,7 +16,7 @@ def ist(day, hh, mm=0):
 
 def med(kind="fixed", **kw):
     base = dict(
-        id=uuid.uuid4(), name="Vit D", dose="5 drops", schedule_kind=kind, times=[], interval_hours=None,
+        id=uuid.uuid4(), name="Vit D", dose_amount=Decimal("5"), dose_unit="drops", schedule_kind=kind, times=[], interval_hours=None,
         first_dose_at=None, min_gap_hours=None, start_date=date(2026, 11, 1), end_date=None, deleted_at=None,
     )
     base.update(kw)
@@ -164,7 +164,7 @@ def test_skip_after_a_piece_closes_the_slot_and_keeps_the_pieces():
 
 
 def test_legacy_medicine_any_given_dose_completes_the_slot():
-    m = med(times=["09:00"])  # no dose_amount: saved before structured doses
+    m = med(times=["09:00"], dose_amount=None, dose_unit=None)  # saved before structured doses
     s = slot_of(m, [dose(m, ist(8, 9))])
     assert (s.status, s.remaining) == ("given", None)
 

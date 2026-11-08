@@ -70,6 +70,11 @@ def slot_progress(m: Medicine, due_at: datetime, slot_doses: list[MedicineDose])
     return SlotState(due_at, status, pieces, total if not legacy else ZERO, remaining)
 
 
+def slot_state(m: Medicine, doses: list[MedicineDose], due_at: datetime) -> SlotState:
+    """Progress of one slot, found among a medicine's doses."""
+    return slot_progress(m, due_at, [d for d in _live(doses) if d.scheduled_for == due_at])
+
+
 def _in_course(m: Medicine, day: date) -> bool:
     return m.start_date <= day and (m.end_date is None or day <= m.end_date)
 

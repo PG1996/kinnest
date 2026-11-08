@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 from datetime import UTC, date, datetime, timedelta
 
 from app.models import Medicine, MedicineDose, NotificationPref, ReminderState
@@ -23,7 +24,7 @@ class ParamSender(FakeSender):
 def add_med(w, kind="fixed", name="Vitamin D", **kw):
     admin = w.users["owner"]
     data = dict(
-        family_id=w.kid.family_id, kid_id=w.kid.id, name=name, dose="5 drops", schedule_kind=kind,
+        family_id=w.kid.family_id, kid_id=w.kid.id, name=name, dose_amount=Decimal("5"), dose_unit="drops", schedule_kind=kind,
         times=["09:00"] if kind == "fixed" else [], start_date=date(2026, 11, 1), created_by=admin.id, updated_by=admin.id,
         created_at=SLOT - timedelta(days=2),  # added well before the slots under test
     )
