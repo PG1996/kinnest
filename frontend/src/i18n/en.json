@@ -378,5 +378,46 @@
       "futureGiven": "The given date cannot be in the future",
       "required": "Enter the vaccine name and due date"
     }
+  },
+  "visits": {
+    "add": "Add visit",
+    "upcoming": "Upcoming",
+    "past": "Past",
+    "empty": "No visits yet",
+    "status": {
+      "upcoming": "Upcoming",
+      "done": "Done",
+      "cancelled": "Cancelled"
+    },
+    "markDone": "Mark done",
+    "cancelVisit": "Cancel visit",
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirmDelete": "Yes, delete",
+    "keep": "Keep",
+    "addMedicine": "Add medicine",
+    "notesLabel": "Notes: {{text}}",
+    "prescriptionLabel": "Prescription: {{text}}",
+    "form": {
+      "addTitle": "Add visit",
+      "editTitle": "Edit visit",
+      "doneTitle": "Visit done",
+      "when": "Date and time",
+      "doctor": "Doctor",
+      "place": "Place",
+      "reason": "Reason",
+      "notes": "Notes",
+      "prescription": "Prescription notes",
+      "save": "Save",
+      "invalid": "Enter the date and time"
+    }
+  },
+  "upcoming": {
+    "title": "Coming up",
+    "vaccine": "{{name}}: {{when}}",
+    "overdue": "overdue since {{date}}",
+    "today": "today",
+    "inDays": "in {{count}} days",
+    "visit": "{{who}}: {{when}}"
   }
 }

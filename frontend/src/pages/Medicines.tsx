@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { useMe, useMedicines, type Medicine } from '../api/hooks'
 import MedicineForm from '../components/MedicineForm'
@@ -17,6 +18,14 @@ export default function MedicinesPage() {
   const past = all.filter((m) => m.ended)
   const [editing, setEditing] = useState<Medicine | 'new' | null>(null)
   const [confirming, setConfirming] = useState<string | null>(null)
+  const [params, setParams] = useSearchParams()
+  useEffect(() => {
+    // "Add medicine" after a doctor visit opens this page with the form open
+    if (isAdmin && params.get('add') === '1') {
+      setEditing('new')
+      setParams({}, { replace: true })
+    }
+  }, [isAdmin, params, setParams])
   const refresh = () => qc.invalidateQueries({ queryKey: ['medicines'] })
 
   const save = useMutation({
