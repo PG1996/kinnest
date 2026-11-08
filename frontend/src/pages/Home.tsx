@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useSearchParams } from 'react-router-dom'
-import { useMe, useMedicines, useSummary, type DiaperKind } from '../api/hooks'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useMe, useMedicines, useSummary, useVaccines, useVisits, type DiaperKind } from '../api/hooks'
 import DiaperSheet from '../components/DiaperSheet'
 import FeedSheet from '../components/FeedSheet'
 import PushPrompt from '../components/PushPrompt'
@@ -11,6 +11,7 @@ import LatestVitalsCard from '../components/LatestVitalsCard'
 import MedicinesToday from '../components/MedicinesToday'
 import SleepCard from '../components/SleepCard'
 import Toast, { type ToastData } from '../components/Toast'
+import UpcomingCard from '../components/UpcomingCard'
 import Today from '../components/Today'
 import { Button } from '../components/ui/button'
 import { useLogDiaper, useLogFeed, useUndoDiaper, type FeedInput } from '../hooks/log'
@@ -34,17 +35,25 @@ export default function Home() {
   const [sheet, setSheet] = useState<'feed' | 'diaper' | null>(null)
   const [toast, setToast] = useState<ToastData | null>(null)
   const [params, setParams] = useSearchParams()
+  const navigate = useNavigate()
+  // never let a side card take Home down: anything but a list (an old server, an odd reply) shows nothing
+  const vaccinesData = useVaccines().data
+  const visitsData = useVisits().data
+  const vaccines = Array.isArray(vaccinesData) ? vaccinesData : []
+  const visits = Array.isArray(visitsData) ? visitsData : []
   useEffect(() => {
     // a tapped notification opens the app at /?log=feed or /?log=diaper
     const want = params.get('log')
-    if (want === 'medicine') {
+    if (want === 'vaccine' || want === 'visit') {
+      navigate(`/health?tab=${want === 'vaccine' ? 'vaccines' : 'visits'}`, { replace: true })
+    } else if (want === 'medicine') {
       setScrollToMeds(true)
       setParams({}, { replace: true })
     } else if (canLog && (want === 'feed' || want === 'diaper')) {
       setSheet(want)
       setParams({}, { replace: true })
     }
-  }, [canLog, params, setParams])
+  }, [canLog, navigate, params, setParams])
   const closeToast = useCallback(() => setToast(null), [])
   const logFeed = useLogFeed()
   const logDiaper = useLogDiaper()
@@ -112,6 +121,7 @@ export default function Home() {
           <LastDiaperCard summary={summary} now={now} />
           <SleepCard sleep={summary.sleep} now={now} canLog={canLog} onToast={setToast} />
           <Today summary={summary} />
+          <UpcomingCard vaccines={vaccines} visits={visits} now={now} />
           {summary.vitals && <LatestVitalsCard latest={summary.vitals.latest} canLog={canLog} />}
           {medicines.length > 0 && (
             <div ref={medsRef} className="space-y-4">
