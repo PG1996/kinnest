@@ -13,12 +13,12 @@ const text = (key: string, vars: Record<string, string>) => Object.entries(vars)
 
 const slot = (over: object = {}) => ({ due_at: minsAgo(20), status: 'pending', dose_id: null, given_at: null, by_name: null, ...over })
 const med = (over: object = {}) => ({
-  id: 'm1', name: 'Vitamin D', dose: '5 drops', schedule_kind: 'fixed', times: ['09:00'], interval_hours: null, first_dose_at: null,
+  id: 'm1', name: 'Vitamin D', dose_amount: 5, dose_unit: 'drops', schedule_kind: 'fixed', times: ['09:00'], interval_hours: null, first_dose_at: null,
   min_gap_hours: null, start_date: '2026-11-01', end_date: null, notes: '', ended: false, slots: [slot()], last_dose: null, ...over,
 })
 const asNeeded = (lastGivenMinsAgo: number | null, over: object = {}) =>
   med({
-    id: 'm2', name: 'Paracetamol', dose: '1.5 ml', schedule_kind: 'as_needed', times: [], min_gap_hours: 6, slots: [],
+    id: 'm2', name: 'Paracetamol', dose_amount: 1.5, dose_unit: 'ml', schedule_kind: 'as_needed', times: [], min_gap_hours: 6, slots: [],
     last_dose: lastGivenMinsAgo === null ? null : { id: 'd9', status: 'given', given_at: minsAgo(lastGivenMinsAgo), by_name: 'Mom' }, ...over,
   })
 const summary = { last_feed: null, next_feed_due_at: null, last_diaper: null, feeds_today: 0, diapers_today: { wet: 0, dirty: 0, both: 0 }, sleep: { open: null, last: null } }

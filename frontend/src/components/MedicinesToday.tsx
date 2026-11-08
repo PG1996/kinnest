@@ -5,6 +5,7 @@ import { ApiError } from '../api/client'
 import type { Medicine, Slot } from '../api/hooks'
 import { useGiveDose, useUndoDose, type DoseResult } from '../hooks/log'
 import { formatAgo, formatClock } from '../lib/time'
+import { formatDose } from '../lib/units'
 import { queuedAsNeeded, queuedDoseSlots, slotKey } from '../offline/pending'
 import type { QueueEntry } from '../offline/queue'
 import GiveAsNeededSheet from './GiveAsNeededSheet'
@@ -131,9 +132,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
       <h2 className="font-medium">{t('medicines.title')}</h2>
       {medicines.map((m) => (
         <Card key={m.id} className="space-y-3">
-          <p className="text-lg font-medium">
-            {m.name} · {m.dose}
-          </p>
+          <p className="text-lg font-medium">{m.dose_amount != null && m.dose_unit ? `${m.name} · ${formatDose(m.dose_amount, m.dose_unit, t)}` : m.name}</p>
           {m.schedule_kind === 'as_needed' ? asNeededRow(m) : m.slots.map((s) => slotRow(m, s))}
         </Card>
       ))}

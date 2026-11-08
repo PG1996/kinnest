@@ -1,13 +1,14 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import en from '../i18n/en.json'
+import { DOSE_UNITS } from '../lib/units'
 import { toLocalInput } from '../lib/time'
 import { ME_ADMIN, mockApi, renderApp } from '../test/utils'
 import MedicinesPage from './Medicines'
 
 const text = (key: string, vars: Record<string, string>) => Object.entries(vars).reduce((s, [k, v]) => s.replace(`{{${k}}}`, v), key)
 const med = (over: object = {}) => ({
-  id: 'm1', name: 'Vitamin D', dose: '5 drops', schedule_kind: 'fixed', times: ['09:00', '21:00'], interval_hours: null, first_dose_at: null,
+  id: 'm1', name: 'Vitamin D', dose_amount: 5, dose_unit: 'drops', schedule_kind: 'fixed', times: ['09:00', '21:00'], interval_hours: null, first_dose_at: null,
   min_gap_hours: null, start_date: '2026-11-01', end_date: null, notes: '', ended: false, slots: [], last_dose: null, ...over,
 })
 const base = (medicines: object[] = [], me: object = ME_ADMIN) => ({ 'GET /api/me': { body: me }, 'GET /api/medicines': { body: medicines } })
@@ -17,9 +18,10 @@ const today = () => toLocalInput(new Date()).slice(0, 10)
 async function openForm() {
   await userEvent.click(await screen.findByRole('button', { name: en.medicines.page.add }))
 }
-async function fillBasics(name = 'Vitamin D', dose = '5 drops') {
+async function fillBasics(name = 'Vitamin D', amount = '5', unit = 'drops') {
   await userEvent.type(screen.getByLabelText(en.medicines.form.name), name)
-  await userEvent.type(screen.getByLabelText(en.medicines.form.dose), dose)
+  await userEvent.type(screen.getByLabelText(en.medicines.form.doseAmount), amount)
+  await userEvent.selectOptions(screen.getByLabelText(en.medicines.form.doseUnit), unit)
 }
 const save = () => userEvent.click(screen.getByRole('button', { name: en.medicines.form.save }))
 
@@ -27,14 +29,14 @@ test('admin adds a fixed medicine with two times and the POST body matches', asy
   const calls = mockApi({ ...base(), 'POST /api/medicines': created })
   renderApp(<MedicinesPage />, '/medicines')
   await openForm()
-  await fillBasics()
+  await fillBasics('Vitamin D', '0.25', 'ml')
   fireEvent.change(screen.getByLabelText(text(en.medicines.form.timeN, { n: '1' })), { target: { value: '08:00' } })
   await userEvent.click(screen.getByRole('button', { name: en.medicines.form.addTime }))
   fireEvent.change(screen.getByLabelText(text(en.medicines.form.timeN, { n: '2' })), { target: { value: '20:00' } })
   await save()
   await waitFor(() => expect(calls.some((c) => c.key === 'POST /api/medicines')).toBe(true))
   expect(calls.find((c) => c.key === 'POST /api/medicines')!.body).toMatchObject({
-    name: 'Vitamin D', dose: '5 drops', schedule_kind: 'fixed', times: ['08:00', '20:00'], start_date: today(), end_date: null,
+    name: 'Vitamin D', dose_amount: 0.25, dose_unit: 'ml', schedule_kind: 'fixed', times: ['08:00', '20:00'], start_date: today(), end_date: null,
   })
 })
 
@@ -55,7 +57,7 @@ test('interval form requires hours and a first dose, then posts both', async () 
   const calls = mockApi({ ...base(), 'POST /api/medicines': created })
   renderApp(<MedicinesPage />, '/medicines')
   await openForm()
-  await fillBasics('Antibiotic', '2.5 ml')
+  await fillBasics('Antibiotic', '2.5', 'ml')
   await userEvent.click(screen.getByRole('radio', { name: en.medicines.form.kind.interval }))
   const hours = screen.getByLabelText(en.medicines.form.intervalHours)
   await userEvent.clear(hours)
@@ -75,7 +77,7 @@ test('as needed form posts the optional minimum gap', async () => {
   const calls = mockApi({ ...base(), 'POST /api/medicines': created })
   renderApp(<MedicinesPage />, '/medicines')
   await openForm()
-  await fillBasics('Paracetamol', '1.5 ml')
+  await fillBasics('Paracetamol', '1.5', 'ml')
   await userEvent.click(screen.getByRole('radio', { name: en.medicines.form.kind.as_needed }))
   await userEvent.type(screen.getByLabelText(en.medicines.form.minGap), '6')
   await save()
@@ -87,7 +89,7 @@ test('as needed without a gap posts null', async () => {
   const calls = mockApi({ ...base(), 'POST /api/medicines': created })
   renderApp(<MedicinesPage />, '/medicines')
   await openForm()
-  await fillBasics('Paracetamol', '1.5 ml')
+  await fillBasics('Paracetamol', '1.5', 'ml')
   await userEvent.click(screen.getByRole('radio', { name: en.medicines.form.kind.as_needed }))
   await save()
   await waitFor(() => expect(calls.find((c) => c.key === 'POST /api/medicines')?.body).toMatchObject({ min_gap_hours: null }))
@@ -122,16 +124,21 @@ test('past medicines are listed separately', async () => {
 })
 
 test('editing prefills the form and PATCHes the change', async () => {
-  const calls = mockApi({ ...base([med()]), 'PATCH /api/medicines/m1': { body: med({ dose: '10 drops' }) } })
+  const calls = mockApi({ ...base([med()]), 'PATCH /api/medicines/m1': { body: med({ dose_amount: 7.5, dose_unit: 'mg' }) } })
   renderApp(<MedicinesPage />, '/medicines')
   await userEvent.click(await screen.findByRole('button', { name: en.medicines.page.edit }))
   expect(screen.getByLabelText(en.medicines.form.name)).toHaveValue('Vitamin D')
   expect(screen.getByLabelText(text(en.medicines.form.timeN, { n: '2' }))).toHaveValue('21:00')
-  const dose = screen.getByLabelText(en.medicines.form.dose)
-  await userEvent.clear(dose)
-  await userEvent.type(dose, '10 drops')
+  expect(screen.getByLabelText(en.medicines.form.doseAmount)).toHaveValue(5)
+  expect(screen.getByLabelText(en.medicines.form.doseUnit)).toHaveValue('drops')
+  const amount = screen.getByLabelText(en.medicines.form.doseAmount)
+  await userEvent.clear(amount)
+  await userEvent.type(amount, '7.5')
+  await userEvent.selectOptions(screen.getByLabelText(en.medicines.form.doseUnit), 'mg')
   await save()
-  await waitFor(() => expect(calls.find((c) => c.key === 'PATCH /api/medicines/m1')?.body).toMatchObject({ dose: '10 drops', schedule_kind: 'fixed' }))
+  await waitFor(() =>
+    expect(calls.find((c) => c.key === 'PATCH /api/medicines/m1')?.body).toMatchObject({ dose_amount: 7.5, dose_unit: 'mg', schedule_kind: 'fixed' }),
+  )
 })
 
 test('a server refusal is shown instead of closing the form', async () => {
@@ -142,4 +149,64 @@ test('a server refusal is shown instead of closing the form', async () => {
   await save()
   expect(await screen.findByText(en.common.error)).toBeInTheDocument()
   expect(screen.getByLabelText(en.medicines.form.name)).toBeInTheDocument()
+})
+
+
+test('a dose amount of 0, three decimals, nothing, or no unit is refused before sending', async () => {
+  const calls = mockApi({ ...base(), 'POST /api/medicines': created })
+  renderApp(<MedicinesPage />, '/medicines')
+  await openForm()
+  await userEvent.type(screen.getByLabelText(en.medicines.form.name), 'Syrup')
+  const amount = screen.getByLabelText(en.medicines.form.doseAmount)
+  const unit = screen.getByLabelText(en.medicines.form.doseUnit)
+  await userEvent.selectOptions(unit, 'ml')
+  for (const bad of ['', '0', '0.001', '1.005', '-1', '10001']) {
+    await userEvent.clear(amount)
+    if (bad) await userEvent.type(amount, bad)
+    await save()
+    expect(await screen.findByText(en.medicines.form.invalid), `amount "${bad}"`).toBeInTheDocument()
+  }
+  await userEvent.clear(amount)
+  await userEvent.type(amount, '1')
+  await userEvent.selectOptions(unit, '') // back to the placeholder: no unit chosen
+  await save()
+  expect(await screen.findByText(en.medicines.form.invalid)).toBeInTheDocument()
+  expect(calls.some((c) => c.key === 'POST /api/medicines')).toBe(false)
+})
+
+test('the unit list offers all eight units and a placeholder', async () => {
+  mockApi(base())
+  renderApp(<MedicinesPage />, '/medicines')
+  await openForm()
+  const options = [...screen.getByLabelText(en.medicines.form.doseUnit).querySelectorAll('option')].map((o) => o.getAttribute('value'))
+  expect(options).toEqual(['', ...DOSE_UNITS])
+})
+
+test('cards show the dose with its unit', async () => {
+  mockApi(base([med({ dose_amount: 0.25, dose_unit: 'ml' }), med({ id: 'm2', name: 'Iron', dose_amount: 1, dose_unit: 'drops' })]))
+  renderApp(<MedicinesPage />, '/medicines')
+  expect(await screen.findByText('Vitamin D · 0.25 ml')).toBeInTheDocument()
+  expect(screen.getByText('Iron · 1 drop')).toBeInTheDocument()
+})
+
+test('a medicine saved before structured doses asks for a dose, and editing requires one', async () => {
+  const calls = mockApi({ ...base([med({ dose_amount: null, dose_unit: null })]), 'PATCH /api/medicines/m1': { body: med() } })
+  renderApp(<MedicinesPage />, '/medicines')
+  expect(await screen.findByText(en.medicines.page.setDose)).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: en.medicines.page.edit }))
+  expect(screen.getByLabelText(en.medicines.form.doseAmount)).toHaveValue(null)
+  await save()
+  expect(await screen.findByText(en.medicines.form.invalid)).toBeInTheDocument()
+  expect(calls.some((c) => c.key === 'PATCH /api/medicines/m1')).toBe(false)
+  await userEvent.type(screen.getByLabelText(en.medicines.form.doseAmount), '5')
+  await userEvent.selectOptions(screen.getByLabelText(en.medicines.form.doseUnit), 'drops')
+  await save()
+  await waitFor(() => expect(calls.find((c) => c.key === 'PATCH /api/medicines/m1')?.body).toMatchObject({ dose_amount: 5, dose_unit: 'drops' }))
+})
+
+test('the set-a-dose notice is only for the admin', async () => {
+  mockApi(base([med({ dose_amount: null, dose_unit: null })], { ...ME_ADMIN, role: 'caregiver' }))
+  renderApp(<MedicinesPage />, '/medicines')
+  await screen.findByText(/Vitamin D/)
+  expect(screen.queryByText(en.medicines.page.setDose)).not.toBeInTheDocument()
 })

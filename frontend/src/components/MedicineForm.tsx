@@ -3,16 +3,18 @@ import { useTranslation } from 'react-i18next'
 import type { Medicine, ScheduleKind } from '../api/hooks'
 import { cn } from '../lib/cn'
 import { toLocalInput } from '../lib/time'
+import { DOSE_UNITS } from '../lib/units'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
-import { Input } from './ui/field'
+import { Input, Select } from './ui/field'
 
 const KINDS: ScheduleKind[] = ['fixed', 'interval', 'as_needed']
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
 
 type Values = {
   name: string
-  dose: string
+  doseAmount: string
+  doseUnit: string
   kind: ScheduleKind
   times: string[]
   intervalHours: string
@@ -26,7 +28,8 @@ type Values = {
 function initial(m?: Medicine): Values {
   return {
     name: m?.name ?? '',
-    dose: m?.dose ?? '',
+    doseAmount: m?.dose_amount != null ? String(m.dose_amount) : '',
+    doseUnit: m?.dose_unit ?? '',
     kind: m?.schedule_kind ?? 'fixed',
     times: m?.times.length ? [...m.times] : ['09:00'],
     intervalHours: m?.interval_hours != null ? String(m.interval_hours) : '8',
@@ -39,11 +42,14 @@ function initial(m?: Medicine): Values {
 }
 
 const wholeNumber = (s: string, min: number, max: number) => /^\d+$/.test(s) && Number(s) >= min && Number(s) <= max
+/** A positive amount with at most 2 decimals, up to 10000. */
+const validAmount = (s: string) => /^\d+(\.\d{1,2})?$/.test(s) && Number(s) > 0 && Number(s) <= 10000
 
 /** The request body for the API, or null when the form is not valid (the server checks again). */
 function toBody(v: Values): Record<string, unknown> | null {
   if (!v.name.trim() || !v.startDate || (v.endDate && v.endDate < v.startDate)) return null
-  const common = { name: v.name.trim(), dose: v.dose.trim(), schedule_kind: v.kind, start_date: v.startDate, end_date: v.endDate || null, notes: v.notes }
+  if (!validAmount(v.doseAmount) || !(DOSE_UNITS as readonly string[]).includes(v.doseUnit)) return null
+  const common = { name: v.name.trim(), dose_amount: Number(v.doseAmount), dose_unit: v.doseUnit, schedule_kind: v.kind, start_date: v.startDate, end_date: v.endDate || null, notes: v.notes }
   if (v.kind === 'fixed') {
     if (!v.times.length || v.times.some((x) => !TIME.test(x)) || new Set(v.times).size !== v.times.length) return null
     return { ...common, times: v.times }
@@ -81,8 +87,31 @@ export default function MedicineForm({ medicine, saving, failed, onSave, onCance
       <form onSubmit={submit} className="space-y-3">
         {label('med-name', t('medicines.form.name'))}
         <Input id="med-name" value={v.name} onChange={(e) => set('name', e.target.value)} />
-        {label('med-dose', t('medicines.form.dose'))}
-        <Input id="med-dose" value={v.dose} onChange={(e) => set('dose', e.target.value)} />
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            {label('med-amount', t('medicines.form.doseAmount'))}
+            <Input
+              id="med-amount"
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              value={v.doseAmount}
+              onChange={(e) => set('doseAmount', e.target.value)}
+            />
+          </div>
+          <div className="space-y-1">
+            {label('med-unit', t('medicines.form.doseUnit'))}
+            <Select id="med-unit" value={v.doseUnit} onChange={(e) => set('doseUnit', e.target.value)}>
+              <option value="">{t('medicines.form.chooseUnit')}</option>
+              {DOSE_UNITS.map((u) => (
+                <option key={u} value={u}>
+                  {t(`units.${u}`, { count: 2 })}
+                </option>
+              ))}
+            </Select>
+          </div>
+        </div>
 
         <fieldset className="flex flex-wrap gap-2" aria-label={t('medicines.form.kindLabel')}>
           {KINDS.map((k) => (
