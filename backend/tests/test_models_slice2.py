@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 from datetime import UTC, date, datetime, timedelta
 
 import pytest
@@ -21,7 +22,7 @@ def base(db_session):
     db_session.add_all([kid, user])
     db_session.flush()
     med = Medicine(
-        family_id=fam.id, kid_id=kid.id, name="Vit D", dose="5 drops", schedule_kind="fixed",
+        family_id=fam.id, kid_id=kid.id, name="Vit D", dose_amount=Decimal("5"), dose_unit="drops", schedule_kind="fixed",
         times=["09:00", "21:00"], start_date=date(2026, 11, 1), created_by=user.id, updated_by=user.id,
     )
     db_session.add(med)

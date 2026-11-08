@@ -1,12 +1,14 @@
 import re
 import uuid
 from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 from typing import Literal
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.encoders import jsonable_encoder
-from pydantic import AwareDatetime, BaseModel, Field, ValidationError, model_validator
+from fastapi.responses import JSONResponse
+from pydantic import AwareDatetime, BaseModel, Field, ValidationError, field_validator, model_validator
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -18,6 +20,7 @@ from app.db import get_session
 from app.models import Medicine, MedicineDose
 from app.services import schedule
 from app.services.entries import recent_doses, reject_future, user_names
+from app.units import DOSE_UNITS, MAX_DOSE
 
 router = APIRouter(prefix="/api")
 
@@ -27,7 +30,8 @@ Kind = Literal["fixed", "interval", "as_needed"]
 
 class MedicineIn(BaseModel):
     name: str = Field(min_length=1, max_length=120)
-    dose: str = Field(default="", max_length=120)
+    dose_amount: Decimal = Field(gt=0, le=MAX_DOSE, decimal_places=2)
+    dose_unit: str
     schedule_kind: Kind
     times: list[str] = []
     interval_hours: int | None = None
@@ -36,6 +40,13 @@ class MedicineIn(BaseModel):
     start_date: date
     end_date: date | None = None
     notes: str = ""
+
+    @field_validator("dose_unit")
+    @classmethod
+    def _known_unit(cls, v: str) -> str:
+        if v not in DOSE_UNITS:
+            raise ValueError(f"dose_unit must be one of {', '.join(DOSE_UNITS)}")
+        return v
 
     @model_validator(mode="after")
     def _check_schedule(self) -> "MedicineIn":
@@ -58,7 +69,8 @@ class MedicineIn(BaseModel):
 
 class MedicinePatch(BaseModel):
     name: str | None = None
-    dose: str | None = None
+    dose_amount: Decimal | None = None
+    dose_unit: str | None = None
     schedule_kind: Kind | None = None
     times: list[str] | None = None
     interval_hours: int | None = None
@@ -72,12 +84,13 @@ class MedicinePatch(BaseModel):
 class DoseIn(BaseModel):
     id: uuid.UUID
     status: Literal["given", "skipped"]
+    amount: Decimal | None = Field(default=None, gt=0, le=MAX_DOSE, decimal_places=2)
     given_at: AwareDatetime | None = None
     scheduled_for: AwareDatetime | None = None
     note: str = ""
 
 
-FIELDS = ("name", "dose", "schedule_kind", "times", "interval_hours", "first_dose_at", "min_gap_hours", "start_date", "end_date", "notes")
+FIELDS = ("name", "dose_amount", "dose_unit", "schedule_kind", "times", "interval_hours", "first_dose_at", "min_gap_hours", "start_date", "end_date", "notes")
 
 
 def _validated(data: dict) -> MedicineIn:
@@ -91,11 +104,16 @@ def _iso(ts: datetime | None) -> str | None:
     return ts.isoformat() if ts else None
 
 
+def _num(x: Decimal | None) -> float | None:
+    return float(x) if x is not None else None
+
+
 def dose_json(d: MedicineDose, names: dict) -> dict:
     return {
         "id": str(d.id),
         "medicine_id": str(d.medicine_id),
         "status": d.status,
+        "amount": _num(d.amount),
         "scheduled_for": _iso(d.scheduled_for),
         "given_at": _iso(d.given_at),
         "by_user_id": str(d.by_user_id),
@@ -109,7 +127,7 @@ def medicine_json(m: Medicine, doses: list[MedicineDose], names: dict, now: date
     slots = list(today_slots)
     known = {s.due_at for s in slots}
     slots += [  # a recent missed slot (e.g. last night's) stays open until someone ticks or skips it
-        schedule.SlotState(due, "pending", None) for due in schedule.unresolved_due_slots(m, doses, now, tz) if due not in known
+        schedule.slot_state(m, doses, due) for due in schedule.unresolved_due_slots(m, doses, now, tz) if due not in known
     ]
     slots.sort(key=lambda s: s.due_at)
     last = doses[0] if doses else None
@@ -117,7 +135,8 @@ def medicine_json(m: Medicine, doses: list[MedicineDose], names: dict, now: date
     return {
         "id": str(m.id),
         "name": m.name,
-        "dose": m.dose,
+        "dose_amount": _num(m.dose_amount),
+        "dose_unit": m.dose_unit,
         "schedule_kind": m.schedule_kind,
         "times": list(m.times or []),
         "interval_hours": m.interval_hours,
@@ -131,14 +150,23 @@ def medicine_json(m: Medicine, doses: list[MedicineDose], names: dict, now: date
             {
                 "due_at": _iso(s.due_at),
                 "status": s.status,
-                "dose_id": str(s.dose.id) if s.dose else None,
+                "given_amount": _num(s.given_amount),
+                "remaining": _num(s.remaining),
+                "doses": [
+                    {"id": str(d.id), "amount": _num(d.amount), "status": d.status, "given_at": _iso(d.given_at),
+                     "by_name": names.get(d.by_user_id, "")}
+                    for d in s.doses
+                ],
+                "dose_id": str(s.dose.id) if s.dose else None,  # the latest piece
                 "given_at": _iso(s.dose.given_at) if s.dose else None,
                 "by_name": names.get(s.dose.by_user_id, "") if s.dose else None,
+                "nudge": None,
             }
             for s in slots
         ],
         "last_dose": (
-            {"id": str(last.id), "status": last.status, "given_at": _iso(last.given_at), "by_name": names.get(last.by_user_id, "")}
+            {"id": str(last.id), "status": last.status, "amount": _num(last.amount), "given_at": _iso(last.given_at),
+             "by_name": names.get(last.by_user_id, "")}
             if last
             else None
         ),
@@ -220,19 +248,13 @@ def delete_medicine(
     return {"ok": True}
 
 
-def _slot_dose(db: Session, medicine_id: uuid.UUID, scheduled_for: datetime) -> MedicineDose | None:
-    return db.scalar(
-        select(MedicineDose).where(
-            MedicineDose.medicine_id == medicine_id,
-            MedicineDose.scheduled_for == scheduled_for,
-            MedicineDose.deleted_at.is_(None),
-        )
-    )
-
-
 def _existing_response(db: Session, d: MedicineDose, response: Response) -> dict:
     response.status_code = 200
     return {**dose_json(d, user_names(db, {d.by_user_id})), "gap_warning": None}
+
+
+def _refused(detail: str, remaining: Decimal | None) -> JSONResponse:
+    return JSONResponse(status_code=409, content={"detail": detail, "remaining": _num(remaining)})
 
 
 @router.post("/medicines/{medicine_id}/doses", status_code=201)
@@ -244,7 +266,7 @@ def give_dose(
     db: Session = Depends(get_session),
     settings: Settings = Depends(get_settings),
     now: datetime = Depends(get_now),
-) -> dict:
+):
     med = _medicine(db, member, medicine_id)
     existing = db.get(MedicineDose, body.id)
     if existing is not None:
@@ -254,10 +276,21 @@ def give_dose(
 
     given_at = body.given_at or now
     reject_future(given_at)
+    has_amount = med.dose_amount is not None
+    amount = body.amount if body.status == "given" else None
+    if body.status == "given" and has_amount and amount is not None and amount > med.dose_amount:
+        raise HTTPException(422, "amount is more than the dose")
+
+    # Serialise dose writes per medicine: the over-dose check below reads the slot's total, and two phones tapping at
+    # the same moment must not both pass it. The lock is released when this request commits or rolls back.
+    db.execute(select(Medicine.id).where(Medicine.id == med.id).with_for_update())
+
     gap_warning = None
     if med.schedule_kind == "as_needed":
         if body.scheduled_for is not None or body.status != "given":
             raise HTTPException(422, "as-needed doses are only ever given, and have no scheduled time")
+        if has_amount and amount is None:
+            amount = med.dose_amount  # "give now" without an amount means the whole dose
         if med.min_gap_hours:
             last = db.scalar(
                 select(MedicineDose)
@@ -270,27 +303,39 @@ def give_dose(
     else:
         if body.scheduled_for is None:
             raise HTTPException(422, "scheduled_for is required for a scheduled medicine")
-        taken = _slot_dose(db, med.id, body.scheduled_for)
-        if taken is not None:  # someone else ticked this slot first
-            return _existing_response(db, taken, response)
-        if not schedule.valid_slot(med, recent_doses(db, med.id), body.scheduled_for, now, settings.app_timezone):
+        if body.status == "given" and has_amount and amount is None:
+            raise HTTPException(422, "amount is required")
+        doses = recent_doses(db, med.id)
+        if not schedule.valid_slot(med, doses, body.scheduled_for, now, settings.app_timezone):
             raise HTTPException(409, "that dose is not due")
+        slot = schedule.slot_state(med, doses, body.scheduled_for)
+        if slot.status == "skipped":
+            return _refused("that dose was skipped", slot.remaining)
+        if slot.status == "given":
+            return _refused("that dose was already given in full", slot.remaining or Decimal("0"))
+        if body.status == "given" and has_amount and slot.given_amount + amount > med.dose_amount:
+            return _refused(f"only {format(slot.remaining.normalize(), 'f')} left to give", slot.remaining)
 
     me = member.user.id
     dose = MedicineDose(
         id=body.id, family_id=member.family_id, kid_id=member.kid_id, medicine_id=med.id, status=body.status,
-        scheduled_for=body.scheduled_for, given_at=given_at, by_user_id=me, note=body.note, created_by=me, updated_by=me,
+        scheduled_for=body.scheduled_for, given_at=given_at, amount=amount, by_user_id=me, note=body.note,
+        created_by=me, updated_by=me,
     )
     db.add(dose)
     try:
         db.commit()
-    except IntegrityError:  # a concurrent request stored this id or this slot first
+    except IntegrityError:  # a concurrent request stored this very id
         db.rollback()
-        winner = db.get(MedicineDose, body.id) or (_slot_dose(db, med.id, body.scheduled_for) if body.scheduled_for else None)
+        winner = db.get(MedicineDose, body.id)
         if winner is None:
             raise
         return _existing_response(db, winner, response)
-    return {**dose_json(dose, user_names(db, {me})), "gap_warning": gap_warning}
+    result = {**dose_json(dose, user_names(db, {me})), "gap_warning": gap_warning}
+    if body.scheduled_for is not None:
+        state = schedule.slot_state(med, recent_doses(db, med.id), body.scheduled_for)
+        result["slot"] = {"status": state.status, "given_amount": _num(state.given_amount), "remaining": _num(state.remaining)}
+    return result
 
 
 @router.delete("/medicines/{medicine_id}/doses/{dose_id}")

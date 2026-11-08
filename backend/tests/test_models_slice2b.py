@@ -26,7 +26,7 @@ def base(db_session):
 
 def medicine(b, **kw):
     data = dict(
-        family_id=b.fam.id, kid_id=b.kid.id, name="Vit D", dose="", schedule_kind="fixed", times=["09:00"],
+        family_id=b.fam.id, kid_id=b.kid.id, name="Vit D", schedule_kind="fixed", times=["09:00"],
         start_date=date(2026, 11, 1), created_by=b.user.id, updated_by=b.user.id,
         dose_amount=Decimal("1.00"), dose_unit="ml",
     )

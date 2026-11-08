@@ -211,7 +211,6 @@ class Medicine(Base):
     family_id: Mapped[uuid.UUID] = _fk("families")
     kid_id: Mapped[uuid.UUID] = _fk("kids")
     name: Mapped[str] = mapped_column(String(120))
-    dose: Mapped[str] = mapped_column(String(120), default="")  # legacy free text; dropped once the API stops using it
     dose_amount: Mapped[Decimal | None] = mapped_column(Numeric(8, 2), nullable=True)
     dose_unit: Mapped[str | None] = mapped_column(String(10), nullable=True)
     schedule_kind: Mapped[str] = mapped_column(String(20))

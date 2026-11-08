@@ -20,6 +20,7 @@ from app.models import (
 )
 from app.services import schedule
 from app.services.entries import recent_doses
+from app.units import format_dose
 
 log = logging.getLogger(__name__)
 
@@ -157,7 +158,7 @@ def _medicine_chain(db: Session, kid: Kid, med: Medicine, anchor: datetime, now:
     params = {
         "kid": kid.name,
         "medicine": med.name,
-        "dose": med.dose,
+        "dose": format_dose(med.dose_amount, med.dose_unit) if med.dose_amount is not None else "",
         "time": _clock(anchor, tz),
         "mins": int((now - anchor).total_seconds() // 60),
     }
