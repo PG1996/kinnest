@@ -16,6 +16,7 @@ from app.clock import get_now
 from app.config import Settings, get_settings
 from app.db import get_session
 from app.models import Kid, VitalEntry
+from app.services import who
 from app.services.entries import MAX_FUTURE, user_names
 
 router = APIRouter(prefix="/api")
@@ -256,6 +257,44 @@ def list_vitals(
     rows = db.scalars(q.order_by(VitalEntry.measured_at.desc()).limit(limit)).all()
     names = user_names(db, {r.created_by for r in rows})
     return [vital_json(r, names) for r in rows]
+
+
+GROWTH_COLUMN = {"weight": "weight_kg", "height": "height_cm", "head": "head_cm"}
+CURVE_PERCENTILES = (3, 15, 50, 85, 97)
+
+
+@router.get("/vitals/growth/{kind}")
+def growth(
+    kind: Literal["weight", "height", "head"],
+    member: Member = Depends(current_member),
+    db: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+) -> dict:
+    birth = db.get(Kid, member.kid_id).birth_date
+    if birth is None:
+        raise HTTPException(409, "birth date not set")
+    curves = {
+        str(p): [[m, round(who.value_at_percentile(kind, m, p), 4)] for m in range(who.MAX_MONTHS + 1)]
+        for p in CURVE_PERCENTILES
+    }
+    col = getattr(VitalEntry, GROWTH_COLUMN[kind])
+    rows = db.scalars(
+        select(VitalEntry)
+        .where(VitalEntry.kid_id == member.kid_id, VitalEntry.deleted_at.is_(None), col.is_not(None))
+        .order_by(VitalEntry.measured_at)
+    ).all()
+    zone = ZoneInfo(settings.app_timezone)
+    points = []
+    for r in rows:
+        age = (r.measured_at.astimezone(zone).date() - birth).days / who.DAYS_PER_MONTH
+        if not 0 <= age <= who.MAX_MONTHS:
+            continue
+        value = float(getattr(r, GROWTH_COLUMN[kind]))
+        points.append({
+            "id": str(r.id), "measured_at": r.measured_at.isoformat(), "age_months": round(age, 3), "value": value,
+            "percentile": who.percentile_of(kind, age, value), "place_kind": r.place_kind,
+        })
+    return {"birth_date": birth.isoformat(), "source": who.source(kind), "curves": curves, "points": points}
 
 
 @router.patch("/vitals/{vital_id}")
