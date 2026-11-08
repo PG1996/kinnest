@@ -12,6 +12,7 @@ from app.models import (
     Feed,
     Kid,
     Medicine,
+    MedicineNudge,
     Membership,
     NotificationPref,
     PushSubscription,
@@ -146,6 +147,10 @@ def _diaper_alert(db: Session, kid: Kid, now: datetime, sender: Sender, tz: str,
         db.add(ReminderState(kid_id=kid.id, kind="diaper", anchor_at=anchor, level=0, last_sent_at=now))
 
 
+def _dose_text(med: Medicine) -> str:
+    return format_dose(med.dose_amount, med.dose_unit) if med.dose_amount is not None else "Dose"
+
+
 def _medicine_chain(db: Session, kid: Kid, med: Medicine, anchor: datetime, now: datetime, sender: Sender, tz: str, sent: list[Sent]) -> None:
     if anchor < med.created_at:
         return  # the slot was before the medicine was added
@@ -155,12 +160,15 @@ def _medicine_chain(db: Session, kid: Kid, med: Medicine, anchor: datetime, now:
     level = 0 if state is None else state.level + 1  # lowest level not yet sent
     if level >= len(OFFSETS) or now < anchor + OFFSETS[level]:
         return
+    slot = schedule.slot_state(med, recent_doses(db, med.id), anchor)
     params = {
         "kid": kid.name,
         "medicine": med.name,
-        "dose": format_dose(med.dose_amount, med.dose_unit) if med.dose_amount is not None else "",
+        "dose": _dose_text(med),
         "time": _clock(anchor, tz),
         "mins": int((now - anchor).total_seconds() // 60),
+        # a half-given dose keeps reminding, and says how much is left
+        "progress": f" {format_dose(slot.remaining, med.dose_unit)} left." if slot.status == "partial" else "",
     }
     urgency = "high" if level == 2 else "normal"
     recipients = _recipients(db, kid, "medicine", admins_only=level == 2)
@@ -182,6 +190,46 @@ def _medicine_chains(db: Session, kid: Kid, now: datetime, sender: Sender, tz: s
         for anchor in schedule.unresolved_due_slots(med, recent_doses(db, med.id), now, tz):
             _medicine_chain(db, kid, med, anchor, now, sender, tz, sent)
             db.commit()  # right after the sends, as for feeds
+
+
+NUDGE_STALE = timedelta(minutes=30)  # a reminder found later than this (the Mac was off) is dropped, not sent late
+
+
+def _fire_nudges(db: Session, kid: Kid, now: datetime, sender: Sender, tz: str, sent: list[Sent]) -> None:
+    """Send the one-off "rest of the dose" reminders that are due, if their dose is still partly given."""
+    due = db.scalars(
+        select(MedicineNudge)
+        .where(
+            MedicineNudge.kid_id == kid.id,
+            MedicineNudge.fired_at.is_(None),
+            MedicineNudge.cancelled_at.is_(None),
+            MedicineNudge.remind_at <= now,
+        )
+        .order_by(MedicineNudge.remind_at)
+    ).all()
+    for n in due:
+        med = db.get(Medicine, n.medicine_id)
+        slot = (
+            schedule.slot_state(med, recent_doses(db, med.id), n.scheduled_for)
+            if med is not None and schedule.is_active(med, now, tz)
+            else None
+        )
+        if slot is None or slot.status != "partial":
+            n.cancelled_at = now  # finished, skipped, undone, or the medicine is gone: nothing left to remind about
+        elif now - n.remind_at > NUDGE_STALE:
+            n.fired_at = now
+        else:
+            params = {
+                "kid": kid.name,
+                "medicine": med.name,
+                "dose": _dose_text(med),
+                "left": format_dose(slot.remaining, med.dose_unit),
+                "time": _clock(n.scheduled_for, tz),
+            }
+            recipients = _recipients(db, kid, "medicine", admins_only=False)
+            if _deliver(db, sender, recipients, "med_nudge", params, "normal", "/?log=medicine", "medicine", 0, sent):
+                n.fired_at = now
+        db.commit()
 
 
 def _purge_old_state(db: Session, now: datetime) -> None:
@@ -206,6 +254,7 @@ def tick(db: Session, now: datetime, sender: Sender, tz: str = "Asia/Kolkata") -
         _diaper_alert(db, kid, now, sender, tz, sent)
         db.commit()
         _medicine_chains(db, kid, now, sender, tz, sent)
+        _fire_nudges(db, kid, now, sender, tz, sent)
     _purge_old_state(db, now)
     db.commit()
     return sent

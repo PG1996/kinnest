@@ -16,15 +16,19 @@ MESSAGES: dict[str, dict[str, dict[str, str]]] = {
         },
         "med_due": {
             "title": "{kid}: {medicine} due",
-            "body": "{dose} at {time}.",
+            "body": "{dose} at {time}.{progress}",
         },
         "med_due_again": {
             "title": "{kid}: {medicine} still not given",
-            "body": "Due since {time}. Please give it and tick it off.",
+            "body": "Due since {time}.{progress} Please give it and tick it off.",
         },
         "med_overdue_admin": {
             "title": "{kid}: {medicine} overdue {mins} min",
-            "body": "Nobody has marked the {time} dose. Please check.",
+            "body": "Nobody has marked the {time} dose.{progress} Please check.",
+        },
+        "med_nudge": {
+            "title": "{kid}: {medicine} still to give",
+            "body": "{left} left of {dose}.",
         },
         "diaper_alert": {
             "title": "{kid}: diaper check",
