@@ -99,6 +99,13 @@ class DoseIn(BaseModel):
     note: str = ""
 
 
+class DosePatch(BaseModel):
+    status: Literal["given", "skipped"] | None = None
+    amount: Decimal | None = Field(default=None, gt=0, le=MAX_DOSE, decimal_places=2)
+    given_at: AwareDatetime | None = None
+    note: str | None = Field(default=None, max_length=2000)
+
+
 FIELDS = ("name", "dose_amount", "dose_unit", "schedule_kind", "times", "interval_hours", "first_dose_at", "min_gap_hours", "start_date", "end_date", "notes")
 
 
@@ -365,6 +372,82 @@ def give_dose(
         state = schedule.slot_state(med, recent_doses(db, med.id), body.scheduled_for)
         result["slot"] = {"status": state.status, "given_amount": _num(state.given_amount), "remaining": _num(state.remaining)}
     return result
+
+
+@router.post("/medicines/{medicine_id}/doses/history", status_code=201)
+def record_past_dose(
+    medicine_id: uuid.UUID,
+    body: DoseIn,
+    response: Response,
+    member: Member = Depends(require_admin),
+    db: Session = Depends(get_session),
+) -> dict:
+    """Admin only: put an earlier dose on record. It skips the slot rules (due window, over-dose guard) of live logging."""
+    med = _medicine(db, member, medicine_id)
+    existing = db.get(MedicineDose, body.id)
+    if existing is not None:
+        if existing.family_id != member.family_id:
+            raise HTTPException(409, "id already used")
+        return _existing_response(db, existing, response)
+    if body.given_at is None:
+        raise HTTPException(422, "given_at is required for a past dose")
+    reject_future(body.given_at)
+    amount = body.amount if body.status == "given" else None
+    if body.status == "given" and amount is None:
+        amount = med.dose_amount  # no amount means the whole prescribed dose
+    scheduled_for = None if med.schedule_kind == "as_needed" else body.scheduled_for
+    me = member.user.id
+    dose = MedicineDose(
+        id=body.id, family_id=member.family_id, kid_id=member.kid_id, medicine_id=med.id, status=body.status,
+        scheduled_for=scheduled_for, given_at=body.given_at, amount=amount, prescribed_amount=med.dose_amount,
+        prescribed_unit=med.dose_unit, by_user_id=me, note=body.note, created_by=me, updated_by=me,
+    )
+    db.add(dose)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        winner = db.get(MedicineDose, body.id)
+        if winner is None:
+            raise
+        return _existing_response(db, winner, response)
+    return {**dose_json(dose, user_names(db, {me})), "gap_warning": None}
+
+
+@router.patch("/medicines/{medicine_id}/doses/{dose_id}")
+def fix_dose(
+    medicine_id: uuid.UUID,
+    dose_id: uuid.UUID,
+    body: DosePatch,
+    member: Member = Depends(require_admin),
+    db: Session = Depends(get_session),
+) -> dict:
+    """Admin only: correct the amount, time, note or given/skipped state of a recorded dose."""
+    med = _medicine(db, member, medicine_id)
+    dose = db.get(MedicineDose, dose_id)
+    if dose is None or dose.medicine_id != med.id or dose.family_id != member.family_id or dose.deleted_at is not None:
+        raise HTTPException(404, "dose not found")
+    changes = body.model_dump(exclude_unset=True)
+    if not changes:
+        raise HTTPException(422, "nothing to change")
+    if "given_at" in changes:
+        if changes["given_at"] is None:
+            raise HTTPException(422, "given_at cannot be empty")
+        reject_future(changes["given_at"])
+        dose.given_at = changes["given_at"]
+    if "status" in changes and changes["status"] is not None:
+        dose.status = changes["status"]
+    if "amount" in changes and changes["amount"] is not None:
+        dose.amount = changes["amount"]
+    if "note" in changes and changes["note"] is not None:
+        dose.note = changes["note"]
+    if dose.status == "skipped":
+        dose.amount = None
+    elif dose.amount is None:
+        dose.amount = med.dose_amount  # a skip put back to given without an amount counts as the whole dose
+    dose.updated_by = member.user.id
+    db.commit()
+    return dose_json(dose, user_names(db, {dose.by_user_id}))
 
 
 @router.delete("/medicines/{medicine_id}/doses/{dose_id}")
