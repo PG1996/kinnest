@@ -52,12 +52,12 @@ export default function VitalsCharts() {
   const options = TABS.map((k) => {
     const m = MEASUREMENTS.find((x) => x.key === k)!
     const v = latest(vitals, k)
-    return { value: k, label: v == null ? t(m.label) : `${t(m.label)} ${shownValue(k, v)}` }
+    return { value: k, label: t(m.label), detail: v == null ? '–' : String(shownValue(k, v)) }
   })
 
   return (
     <div className="space-y-4">
-      <Segmented kind="tab" label={t('vitals.charts.metrics')} value={tab} options={options} onChange={setTab} />
+      <Segmented kind="tab" scroll label={t('vitals.charts.metrics')} value={tab} options={options} onChange={setTab} />
       <fieldset className="space-y-2">
         <legend className="text-sm text-muted">{t('vitals.charts.showPlaces')}</legend>
         <div className="flex flex-wrap gap-2">

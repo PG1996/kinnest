@@ -1,7 +1,8 @@
 import { useRef, type KeyboardEvent } from 'react'
 import { cn } from '../../lib/cn'
 
-export type SegOption<T extends string> = { value: T; label: string }
+/** `detail` is a second line under the label (a value); it only shows in `scroll` mode. */
+export type SegOption<T extends string> = { value: T; label: string; detail?: string }
 
 /** A radio group drawn as a track with a sliding white pill. Arrow keys move the choice. */
 export function Segmented<T extends string>({
@@ -11,6 +12,7 @@ export function Segmented<T extends string>({
   onChange,
   className,
   kind = 'radio',
+  scroll = false,
 }: {
   label: string
   value: T
@@ -19,6 +21,8 @@ export function Segmented<T extends string>({
   className?: string
   /** `tab` renders a tablist (for switching panels); `radio` a radiogroup (for choosing a value). */
   kind?: 'radio' | 'tab'
+  /** For many or long options: each keeps its own width and the row scrolls sideways, instead of equal squeezed columns. */
+  scroll?: boolean
 }) {
   const refs = useRef<(HTMLButtonElement | null)[]>([])
   const n = options.length
@@ -33,6 +37,36 @@ export function Segmented<T extends string>({
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') move(e, index + 1)
     else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') move(e, index - 1)
   }
+  if (scroll)
+    return (
+      <div role={kind === 'tab' ? 'tablist' : 'radiogroup'} aria-label={label} onKeyDown={onKeyDown} className={cn('rounded-2xl bg-surface-2 p-1', className)}>
+        <div className="flex gap-1 overflow-x-auto [scrollbar-width:none]">
+          {options.map((o, i) => (
+            <button
+              key={o.value}
+              ref={(el) => {
+                refs.current[i] = el
+              }}
+              type="button"
+              role={kind === 'tab' ? 'tab' : 'radio'}
+              {...(kind === 'tab' ? { 'aria-selected': o.value === value } : { 'aria-checked': o.value === value })}
+              tabIndex={o.value === value ? 0 : -1}
+              onClick={() => onChange(o.value)}
+              className={cn('min-h-11 shrink-0 whitespace-nowrap rounded-xl px-3.5 py-1.5 text-center', o.value === value ? 'bg-surface text-ink shadow-sm' : 'text-muted')}
+            >
+              <span data-testid="tab-name" className="block text-xs font-semibold">
+                {o.label}
+              </span>
+              {o.detail && (
+                <span data-testid="tab-value" className="block text-sm font-bold tabular-nums">
+                  {o.detail}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+    )
   return (
     <div role={kind === 'tab' ? 'tablist' : 'radiogroup'} aria-label={label} onKeyDown={onKeyDown} className={cn('rounded-2xl bg-surface-2 p-1', className)}>
       <div className="relative grid" style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}>
