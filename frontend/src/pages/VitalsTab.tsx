@@ -1,9 +1,11 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
+import { useScanStatus } from '../api/scan'
 import { useMe, useVitals, type PlaceKind, type Vital, type VitalFilters } from '../api/hooks'
 import BulkVitals from '../components/BulkVitals'
 import Sheet from '../components/Sheet'
+import SnapRecord from '../components/SnapRecord'
 import VitalForm from '../components/VitalForm'
 import VitalList, { type VitalRow } from '../components/VitalList'
 import { Button } from '../components/ui/button'
@@ -43,6 +45,8 @@ export default function VitalsTab() {
   const waiting = useQueue().pending.filter((p) => p.kind === 'vital').map(fromQueue)
   const [editing, setEditing] = useState<Vital | 'new' | null>(null)
   const [bulkOpen, setBulkOpen] = useState(false)
+  const [snapOpen, setSnapOpen] = useState(false)
+  const scanOn = useScanStatus().data?.enabled === true
   const [view, setView] = useState<'list' | 'charts'>('charts')
   const create = useCreateVital()
   const update = useUpdateVital()
@@ -68,6 +72,11 @@ export default function VitalsTab() {
           <Button variant="soft" onClick={() => setBulkOpen(true)}>
             {t('vitals.bulk.open')}
           </Button>
+          {scanOn && (
+            <Button variant="outline" onClick={() => setSnapOpen(true)}>
+              {t('scan.snap')}
+            </Button>
+          )}
         </div>
       )}
       <Segmented
@@ -119,6 +128,15 @@ export default function VitalsTab() {
         onDelete={(id) => remove.mutate(id)}
       />
         </>
+      )}
+      {snapOpen && (
+        <SnapRecord
+          onClose={() => setSnapOpen(false)}
+          onManual={() => {
+            setSnapOpen(false)
+            setEditing('new')
+          }}
+        />
       )}
       {bulkOpen && (
         <Sheet variant="full" title={t('vitals.bulk.title')} onClose={() => setBulkOpen(false)}>
