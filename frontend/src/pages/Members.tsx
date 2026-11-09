@@ -48,20 +48,24 @@ export default function Members() {
 
   return (
     <>
-      <h2 className="text-xl font-semibold">{t('members.title')}</h2>
       <Card className="p-0">
         <ul className="divide-y divide-line">
         {(members.data ?? []).map((m, i) => (
-          <li key={m.email} className="flex flex-wrap items-center gap-3 p-4">
-            <Avatar name={m.pending ? '' : m.name || m.email} index={i} size={40} />
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-bold">{m.email}</p>
-              <p className="text-sm text-muted">{m.pending ? t('members.pending') : m.name}</p>
+          <li key={m.email} className="space-y-3 p-4">
+            <div className="flex items-start gap-3">
+              <Avatar name={m.pending ? '' : m.name || m.email} index={i} size={40} />
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold break-words">{m.pending ? t('members.pending') : m.name || m.email}</p>
+                <p className="text-sm text-muted break-all">{m.email}</p>
+              </div>
+              {!(isAdmin && !m.pending && m.user_id) && (
+                <Badge tone={m.role === 'admin' ? 'med' : m.role === 'caregiver' ? 'diaper' : 'plain'}>{t(`roles.${m.role}`)}</Badge>
+              )}
             </div>
-            {isAdmin && !m.pending && m.user_id ? (
-              <>
+            {isAdmin && !m.pending && m.user_id && (
+              <div data-testid="member-actions" className="flex items-center justify-between gap-2 pl-[52px]">
                 <Select
-                  className="w-auto"
+                  className="w-auto min-w-36"
                   aria-label={t('members.roleFor', { email: m.email })}
                   value={m.role}
                   onChange={(e) => changeRole.mutate({ id: m.user_id!, role: e.target.value as Role })}
@@ -73,22 +77,20 @@ export default function Members() {
                   ))}
                 </Select>
                 {confirming === m.user_id ? (
-                  <>
+                  <div className="flex gap-1">
                     <Button variant="danger" onClick={() => remove.mutate(m.user_id!)}>
                       {t('members.confirmRemove')}
                     </Button>
                     <Button variant="ghost" onClick={() => setConfirming(null)}>
                       {t('members.cancel')}
                     </Button>
-                  </>
+                  </div>
                 ) : (
                   <Button variant="ghost" onClick={() => setConfirming(m.user_id)}>
                     {t('members.remove')}
                   </Button>
                 )}
-              </>
-            ) : (
-              <Badge tone={m.role === 'admin' ? 'med' : m.role === 'caregiver' ? 'diaper' : 'plain'}>{t(`roles.${m.role}`)}</Badge>
+              </div>
             )}
           </li>
         ))}
