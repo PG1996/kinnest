@@ -193,7 +193,14 @@
       "endBeforeStart": "Waking up must be after falling asleep.",
       "future": "That time is in the future.",
       "tooLong": "A sleep can be at most 24 hours."
-    }
+    },
+    "confirmStartTitle": "Start sleep?",
+    "confirmStartBody": "Falling asleep now, at {{time}}.",
+    "confirmStart": "Yes, start sleep",
+    "confirmEndTitle": "Wake up?",
+    "confirmEndBody": "She has been asleep for {{ago}} (since {{time}}).",
+    "confirmEnd": "Yes, woke up",
+    "cancel": "Cancel"
   },
   "medicines": {
     "title": "Medicines",

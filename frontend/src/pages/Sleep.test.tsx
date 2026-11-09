@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import en from '../i18n/en.json'
 import { formatClock } from '../lib/time'
@@ -14,6 +14,8 @@ const summary = (sleep: object) => ({
   last_feed: null, next_feed_due_at: null, last_diaper: null, feeds_today: 0, diapers_today: { wet: 0, dirty: 0, both: 0 }, sleep,
 })
 const base = (sleep: object, me = ME_ADMIN) => ({ 'GET /api/me': { body: me }, 'GET /api/summary': { body: summary(sleep) } })
+const confirmStart = async () => userEvent.click(within(await screen.findByRole('dialog', { name: en.sleep.confirmStartTitle })).getByRole('button', { name: en.sleep.confirmStart }))
+const confirmEnd = async () => userEvent.click(within(await screen.findByRole('dialog', { name: en.sleep.confirmEndTitle })).getByRole('button', { name: en.sleep.confirmEnd }))
 const text = (key: string, vars: Record<string, string>) => Object.entries(vars).reduce((s, [k, v]) => s.replace(`{{${k}}}`, v), key)
 
 test('shows asleep since and the wake button when a session is open', async () => {
@@ -43,6 +45,7 @@ test('tapping Sleep posts a start with a client id and the current time', async 
   const calls = mockApi({ ...base({ open: null, last: null }), 'POST /api/sleep': { status: 201, body: session() } })
   renderApp(<Home />)
   await userEvent.click(await screen.findByRole('button', { name: en.sleep.start }))
+  await confirmStart()
   await waitFor(() => expect(calls.some((c) => c.key === 'POST /api/sleep')).toBe(true))
   const body = calls.find((c) => c.key === 'POST /api/sleep')!.body as { id: string; started_at: string }
   expect(body.id).toMatch(/^[0-9a-f-]{36}$/)
@@ -53,6 +56,7 @@ test('tapping Wake up posts an end for the open session', async () => {
   const calls = mockApi({ ...base({ open: session(), last: null }), 'POST /api/sleep/s1/end': { body: session({ ended_at: minsAgo(0) }) } })
   renderApp(<Home />)
   await userEvent.click(await screen.findByRole('button', { name: en.sleep.end }))
+  await confirmEnd()
   await waitFor(() => expect(calls.some((c) => c.key === 'POST /api/sleep/s1/end')).toBe(true))
   expect(Date.parse((calls.find((c) => c.key === 'POST /api/sleep/s1/end')!.body as { ended_at: string }).ended_at)).toBeLessThanOrEqual(Date.now())
 })
@@ -71,6 +75,7 @@ test('a 409 on start says who already started the sleep instead of an error', as
   })
   renderApp(<Home />)
   await userEvent.click(await screen.findByRole('button', { name: en.sleep.start }))
+  await confirmStart()
   expect(await screen.findByText(text(en.sleep.alreadyAsleep, { name: 'Nanny' }))).toBeInTheDocument()
 })
 
@@ -86,6 +91,7 @@ test('with no connection the start is queued and the card shows asleep', async (
   )
   renderApp(<Home />)
   await userEvent.click(await screen.findByRole('button', { name: en.sleep.start }))
+  await confirmStart()
   expect(await screen.findByText(en.home.queued)).toBeInTheDocument()
   expect(await screen.findByRole('button', { name: en.sleep.end })).toBeInTheDocument()
   expect((await list())[0]).toMatchObject({ kind: 'sleep_start' })
@@ -95,5 +101,44 @@ test('a failed save tells the caregiver', async () => {
   mockApi({ ...base({ open: null, last: null }), 'POST /api/sleep': { status: 422, body: { detail: 'timestamp is in the future' } } })
   renderApp(<Home />)
   await userEvent.click(await screen.findByRole('button', { name: en.sleep.start }))
+  await confirmStart()
   expect((await screen.findByText(en.home.saveError)).closest('[role=status]')).toHaveAttribute('data-tone', 'error')
+})
+
+// --- a confirmation before sleep is logged (accidental touches) -------------------------------------------------------
+
+test('tapping Sleep asks first and logs nothing until it is confirmed', async () => {
+  const calls = mockApi({ ...base({ open: null, last: null }), 'POST /api/sleep': { status: 201, body: { id: 'x' } } })
+  renderApp(<Home />)
+  await userEvent.click(await screen.findByRole('button', { name: en.sleep.start }))
+  const dialog = await screen.findByRole('dialog', { name: en.sleep.confirmStartTitle })
+  expect(within(dialog).getByText(/AM|PM/)).toBeInTheDocument() // says what time it will be logged at
+  expect(calls.some((c) => c.key === 'POST /api/sleep')).toBe(false)
+  await userEvent.click(within(dialog).getByRole('button', { name: en.sleep.confirmStart }))
+  await waitFor(() => expect(calls.some((c) => c.key === 'POST /api/sleep')).toBe(true))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+})
+
+test('cancelling the confirmation logs nothing', async () => {
+  const calls = mockApi({ ...base({ open: null, last: null }), 'POST /api/sleep': { status: 201, body: { id: 'x' } } })
+  renderApp(<Home />)
+  await userEvent.click(await screen.findByRole('button', { name: en.sleep.start }))
+  const dialog = await screen.findByRole('dialog', { name: en.sleep.confirmStartTitle })
+  await userEvent.click(within(dialog).getByRole('button', { name: en.sleep.cancel }))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  await userEvent.click(await screen.findByRole('button', { name: en.sleep.start }))
+  await userEvent.keyboard('{Escape}')
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(calls.some((c) => c.key === 'POST /api/sleep')).toBe(false)
+})
+
+test('waking up asks first too, and says how long she has been asleep', async () => {
+  const calls = mockApi({ ...base({ open: session(), last: null }), 'POST /api/sleep/s1/end': { body: { id: 's1' } } })
+  renderApp(<Home />)
+  await userEvent.click(await screen.findByRole('button', { name: en.sleep.end }))
+  const dialog = await screen.findByRole('dialog', { name: en.sleep.confirmEndTitle })
+  expect(dialog).toHaveTextContent('45m')
+  expect(calls.some((c) => c.key === 'POST /api/sleep/s1/end')).toBe(false)
+  await userEvent.click(within(dialog).getByRole('button', { name: en.sleep.confirmEnd }))
+  await waitFor(() => expect(calls.some((c) => c.key === 'POST /api/sleep/s1/end')).toBe(true))
 })

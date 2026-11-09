@@ -7,6 +7,7 @@ import FeedSheet from '../components/FeedSheet'
 import HomeHeader from '../components/HomeHeader'
 import PushPrompt from '../components/PushPrompt'
 import QuickLog from '../components/QuickLog'
+import SleepConfirm from '../components/SleepConfirm'
 import LastDiaperCard from '../components/LastDiaperCard'
 import LastFeedCard from '../components/LastFeedCard'
 import LatestVitalsCard from '../components/LatestVitalsCard'
@@ -48,6 +49,7 @@ export default function Home() {
   const [sheet, setSheet] = useState<'feed' | 'diaper' | null>(null)
   const [toast, setToast] = useState<ToastData | null>(null)
   const sleepActions = useSleepActions(summary?.sleep, setToast)
+  const [sleepAsk, setSleepAsk] = useState(false)
   const [params, setParams] = useSearchParams()
   const navigate = useNavigate()
   // never let a side card take Home down: anything but a list (an old server, an odd reply) shows nothing
@@ -143,7 +145,7 @@ export default function Home() {
           sleepBusy={sleepActions.pending}
           onFeed={() => setSheet('feed')}
           onDiaper={() => setSheet('diaper')}
-          onSleep={sleepActions.toggle}
+          onSleep={() => setSleepAsk(true)}
           onMedicine={() =>
             medicines.length > 0 ? medsRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }) : navigate('/health?tab=medicines')
           }
@@ -175,6 +177,17 @@ export default function Home() {
           failed={logFeed.isError}
           onSave={saveFeed}
           onClose={() => setSheet(null)}
+        />
+      )}
+      {sleepAsk && (
+        <SleepConfirm
+          open={sleepActions.open}
+          now={now}
+          onCancel={() => setSleepAsk(false)}
+          onConfirm={() => {
+            setSleepAsk(false)
+            sleepActions.toggle()
+          }}
         />
       )}
       {sheet === 'diaper' && <DiaperSheet onPick={pickDiaper} onClose={() => setSheet(null)} />}
