@@ -67,7 +67,7 @@ export default function VisitsTab() {
                   </Button>
                 )}
                 {v.status === 'done' && role === 'admin' && (
-                  <Link to="/medicines?add=1" className={linkButtonClass('soft')}>
+                  <Link to="/health?tab=medicines&add=1" className={linkButtonClass('soft')}>
                     {t('visits.addMedicine')}
                   </Link>
                 )}

@@ -23,7 +23,8 @@ export default function MedicinesPage() {
     // "Add medicine" after a doctor visit opens this page with the form open
     if (isAdmin && params.get('add') === '1') {
       setEditing('new')
-      setParams({}, { replace: true })
+      params.delete('add')
+      setParams(params, { replace: true })
     }
   }, [isAdmin, params, setParams])
   const refresh = () => qc.invalidateQueries({ queryKey: ['medicines'] })
@@ -90,7 +91,7 @@ export default function MedicinesPage() {
 
   return (
     <>
-      <h1 className="text-xl font-semibold">{t('medicines.page.title')}</h1>
+      <h2 className="text-xl font-bold">{t('medicines.page.title')}</h2>
       {isAdmin && editing === null && <Button onClick={() => setEditing('new')}>{t('medicines.page.add')}</Button>}
       {editing !== null && (
         <MedicineForm

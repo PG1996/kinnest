@@ -20,7 +20,11 @@
     "members": "Family",
     "settings": "Settings",
     "medicines": "Medicines",
-    "health": "Health"
+    "health": "Health",
+    "timeline": "Timeline",
+    "patterns": "Patterns",
+    "family": "Family",
+    "label": "Main"
   },
   "login": {
     "title": "Welcome to Kinnest",
@@ -229,8 +233,10 @@
     "tabs": {
       "vitals": "Vitals",
       "vaccines": "Vaccines",
-      "visits": "Visits"
-    }
+      "visits": "Visits",
+      "medicines": "Medicines"
+    },
+    "tablist": "Health sections"
   },
   "vitals": {
     "measurements": {
@@ -427,5 +433,21 @@
     "today": "today",
     "inDays": "in {{count}} days",
     "visit": "{{who}}: {{when}}"
+  },
+  "family": {
+    "title": "Family",
+    "tabs": {
+      "members": "Members",
+      "settings": "Settings"
+    },
+    "tablist": "Family sections"
+  },
+  "timeline": {
+    "title": "Timeline",
+    "soon": "Everything that happened, newest first, will show here."
+  },
+  "patterns": {
+    "title": "Patterns",
+    "soon": "Feeding and sleep patterns for the last 7 days will show here."
   }
 }

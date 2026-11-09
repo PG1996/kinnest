@@ -1,14 +1,23 @@
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
-import { cn } from '../lib/cn'
+import PageHeader from '../components/PageHeader'
+import { Segmented } from '../components/ui/segmented'
+import MedicinesPage from './Medicines'
 import VaccinesTab from './VaccinesTab'
 import VisitsTab from './VisitsTab'
 import VitalsTab from './VitalsTab'
 
-export type HealthTab = 'vitals' | 'vaccines' | 'visits'
-const TABS: HealthTab[] = ['vitals', 'vaccines', 'visits']
+export type HealthTab = 'vitals' | 'vaccines' | 'visits' | 'medicines'
+const TABS: HealthTab[] = ['vitals', 'vaccines', 'visits', 'medicines']
 
-/** Vitals, vaccines and doctor visits as sub-tabs; the tab lives in the URL (?tab=) so links and notifications open it. */
+const DEFAULT_PANELS: Record<HealthTab, React.ReactNode> = {
+  vitals: <VitalsTab />,
+  vaccines: <VaccinesTab />,
+  visits: <VisitsTab />,
+  medicines: <MedicinesPage />,
+}
+
+/** Vitals, vaccines, doctor visits and medicines as sub-tabs; the tab lives in the URL (?tab=) so links and notifications open it. */
 export default function Health({ panels = {} }: { panels?: Partial<Record<HealthTab, React.ReactNode>> }) {
   const { t } = useTranslation()
   const [params, setParams] = useSearchParams()
@@ -16,24 +25,17 @@ export default function Health({ panels = {} }: { panels?: Partial<Record<Health
   const tab: HealthTab = wanted && TABS.includes(wanted) ? wanted : 'vitals'
   return (
     <>
-      <h1 className="text-xl font-semibold">{t('health.title')}</h1>
-      <div role="tablist" className="flex gap-2">
-        {TABS.map((k) => (
-          <button
-            key={k}
-            role="tab"
-            aria-selected={tab === k}
-            onClick={() => setParams({ tab: k })}
-            className={cn(
-              'min-h-12 flex-1 rounded-full px-3 text-sm font-medium',
-              tab === k ? 'bg-primary text-primary-ink' : 'bg-line/40 text-ink',
-            )}
-          >
-            {t(`health.tabs.${k}`)}
-          </button>
-        ))}
+      <PageHeader title={t('health.title')} />
+      <Segmented
+        kind="tab"
+        label={t('health.tablist')}
+        value={tab}
+        options={TABS.map((k) => ({ value: k, label: t(`health.tabs.${k}`) }))}
+        onChange={(k) => setParams({ tab: k })}
+      />
+      <div role="tabpanel" className="space-y-4">
+        {panels[tab] ?? DEFAULT_PANELS[tab]}
       </div>
-      <div role="tabpanel">{panels[tab] ?? (tab === 'vitals' ? <VitalsTab /> : tab === 'vaccines' ? <VaccinesTab /> : <VisitsTab />)}</div>
     </>
   )
 }

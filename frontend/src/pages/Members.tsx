@@ -46,7 +46,7 @@ export default function Members() {
 
   return (
     <>
-      <h1 className="text-xl font-semibold">{t('members.title')}</h1>
+      <h2 className="text-xl font-semibold">{t('members.title')}</h2>
       <Card className="divide-y divide-line p-0">
         {(members.data ?? []).map((m) => (
           <div key={m.email} className="flex flex-wrap items-center gap-3 p-4">

@@ -7,6 +7,8 @@ import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/field'
 import PushPrompt from '../components/PushPrompt'
+import ThemeToggle from '../components/ThemeToggle'
+import { useSignOut } from '../hooks/auth'
 
 type Prefs = { feed: boolean; diaper: boolean; medicine?: boolean; vaccine?: boolean; visit?: boolean }
 
@@ -29,6 +31,7 @@ type Kid = {
 export default function Settings() {
   const { t } = useTranslation()
   const qc = useQueryClient()
+  const signOut = useSignOut()
   const isAdmin = useMe().data?.role === 'admin'
   const kid = useQuery({ queryKey: ['kid'], queryFn: () => api<Kid>('/api/kid') })
   const [form, setForm] = useState({ name: '', birth_date: '', feed: '180', diaper: '240' })
@@ -84,7 +87,7 @@ export default function Settings() {
 
   return (
     <>
-      <h1 className="text-xl font-semibold">{t('settings.title')}</h1>
+      <h2 className="text-xl font-bold">{t('settings.title')}</h2>
       <Card>
         <form onSubmit={submit} className="space-y-3">
           {field('kid-name', t('settings.kidName'), 'name')}
@@ -121,6 +124,11 @@ export default function Settings() {
           </label>
         ))}
       </Card>
+      <h2 className="font-medium">{t('theme.label')}</h2>
+      <ThemeToggle />
+      <Button variant="outline" className="w-full" onClick={signOut}>
+        {t('common.signOut')}
+      </Button>
     </>
   )
 }

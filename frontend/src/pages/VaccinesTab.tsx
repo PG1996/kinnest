@@ -39,7 +39,7 @@ export default function VaccinesTab() {
   const birthHint = noBirth && (
     <p className="text-sm text-muted">
       <span>{t('vaccines.noBirthDate')}</span>{' '}
-      <Link to="/settings" className="text-primary underline">
+      <Link to="/family?tab=settings" className="text-primary underline">
         {t('vitals.charts.noBirthDateLink')}
       </Link>
     </p>
