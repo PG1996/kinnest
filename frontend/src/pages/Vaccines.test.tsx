@@ -58,7 +58,7 @@ test('birth date missing disables the picker', async () => {
   mockApi(routes([], ME_ADMIN, KID(null)))
   renderApp(<VaccinesTab />)
   expect(await screen.findByText(en.vaccines.noBirthDate)).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: en.vitals.charts.noBirthDateLink })).toHaveAttribute('href', '/settings')
+  expect(screen.getByRole('link', { name: en.vitals.charts.noBirthDateLink })).toHaveAttribute('href', '/family?tab=settings')
   await screen.findByText(TEMPLATES[0].name)
   for (const b of screen.getAllByRole('button', { name: en.vaccines.picker.use })) expect(b).toBeDisabled()
 })

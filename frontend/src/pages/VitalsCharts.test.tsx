@@ -74,7 +74,7 @@ test('missing birth date shows the settings hint', async () => {
   mockApi(routes(null))
   renderApp(<VitalsCharts />)
   const links = await screen.findAllByRole('link', { name: en.vitals.charts.noBirthDateLink })
-  expect(links[0]).toHaveAttribute('href', '/settings')
+  expect(links[0]).toHaveAttribute('href', '/family?tab=settings')
   expect(screen.getAllByText(en.vitals.charts.noBirthDate).length).toBe(3)
 })
 

@@ -10,12 +10,15 @@ export function Segmented<T extends string>({
   options,
   onChange,
   className,
+  kind = 'radio',
 }: {
   label: string
   value: T
   options: SegOption<T>[]
   onChange: (v: T) => void
   className?: string
+  /** `tab` renders a tablist (for switching panels); `radio` a radiogroup (for choosing a value). */
+  kind?: 'radio' | 'tab'
 }) {
   const refs = useRef<(HTMLButtonElement | null)[]>([])
   const n = options.length
@@ -31,7 +34,7 @@ export function Segmented<T extends string>({
     else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') move(e, index - 1)
   }
   return (
-    <div role="radiogroup" aria-label={label} onKeyDown={onKeyDown} className={cn('rounded-2xl bg-surface-2 p-1', className)}>
+    <div role={kind === 'tab' ? 'tablist' : 'radiogroup'} aria-label={label} onKeyDown={onKeyDown} className={cn('rounded-2xl bg-surface-2 p-1', className)}>
       <div className="relative grid" style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}>
         <span
           aria-hidden="true"
@@ -45,8 +48,8 @@ export function Segmented<T extends string>({
               refs.current[i] = el
             }}
             type="button"
-            role="radio"
-            aria-checked={o.value === value}
+            role={kind === 'tab' ? 'tab' : 'radio'}
+            {...(kind === 'tab' ? { 'aria-selected': o.value === value } : { 'aria-checked': o.value === value })}
             tabIndex={o.value === value ? 0 : -1}
             onClick={() => onChange(o.value)}
             className={cn('relative min-h-11 rounded-xl px-2 text-sm font-extrabold', o.value === value ? 'text-ink' : 'text-muted')}

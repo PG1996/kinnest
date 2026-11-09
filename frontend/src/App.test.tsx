@@ -14,29 +14,27 @@ test('signed-out visitor is sent to the login page', async () => {
 test('signed-in member sees the app navigation', async () => {
   mockApi({ 'GET /api/me': { body: ME_ADMIN } })
   renderApp(<App />, '/')
-  expect(await screen.findByRole('link', { name: en.nav.members })).toBeInTheDocument()
+  expect(await screen.findByRole('link', { name: en.nav.family })).toBeInTheDocument()
 })
 
-test('nav has Health and the old tabs still work', async () => {
+test('Health holds vitals, vaccines, visits and medicines tabs', async () => {
   mockApi({
     'GET /api/me': { body: ME_ADMIN },
     'GET /api/vitals': { body: [] },
     'GET /api/summary': { status: 500 },
   })
   renderApp(<App />, '/')
-  for (const name of [en.nav.home, en.nav.medicines, en.nav.health, en.nav.members, en.nav.settings])
-    expect(await screen.findByRole('link', { name })).toBeInTheDocument()
-  await userEvent.click(screen.getByRole('link', { name: en.nav.health }))
+  await userEvent.click(await screen.findByRole('link', { name: en.nav.health }))
   expect(await screen.findByRole('heading', { name: en.health.title })).toBeInTheDocument()
-  for (const name of [en.health.tabs.vitals, en.health.tabs.vaccines, en.health.tabs.visits])
+  for (const name of [en.health.tabs.vitals, en.health.tabs.vaccines, en.health.tabs.visits, en.health.tabs.medicines])
     expect(screen.getByRole('tab', { name })).toBeInTheDocument()
-  await userEvent.click(screen.getByRole('link', { name: en.nav.medicines }))
+  await userEvent.click(screen.getByRole('tab', { name: en.health.tabs.medicines }))
   expect(await screen.findByRole('heading', { name: en.medicines.page.title })).toBeInTheDocument()
 })
 
 test('theme control switches the data-theme attribute', async () => {
   mockApi({ 'GET /api/me': { body: ME_ADMIN } })
-  renderApp(<App />, '/')
+  renderApp(<App />, '/family?tab=settings')
   await userEvent.click(await screen.findByRole('radio', { name: en.theme.dark }))
   expect(document.documentElement.dataset.theme).toBe('dark')
   await userEvent.click(screen.getByRole('radio', { name: en.theme.light }))
@@ -50,7 +48,7 @@ test('signing out removes this phone push subscription first', async () => {
     'DELETE /api/push/subscribe': { body: { ok: true } },
     'POST /api/auth/logout': { body: { ok: true } },
   })
-  renderApp(<App />, '/')
+  renderApp(<App />, '/family?tab=settings')
   await userEvent.click(await screen.findByRole('button', { name: en.common.signOut }))
   await waitFor(() => expect(calls.some((c) => c.key === 'POST /api/auth/logout')).toBe(true))
   const keys = calls.map((c) => c.key)
@@ -62,7 +60,7 @@ test('signing out removes this phone push subscription first', async () => {
 
 test('signing out still works when push is unavailable or never becomes ready', async () => {
   const calls = mockApi({ 'GET /api/me': { body: ME_ADMIN }, 'POST /api/auth/logout': { body: { ok: true } } })
-  renderApp(<App />, '/')
+  renderApp(<App />, '/family?tab=settings')
   await userEvent.click(await screen.findByRole('button', { name: en.common.signOut }))
   await waitFor(() => expect(calls.some((c) => c.key === 'POST /api/auth/logout')).toBe(true))
 })

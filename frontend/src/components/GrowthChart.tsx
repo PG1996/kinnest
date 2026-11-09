@@ -46,7 +46,7 @@ export default function GrowthChart({ kind, hidden }: { kind: GrowthKind; hidden
       {data === null || data === undefined ? (
         <p className="text-sm text-muted">
           <span>{t('vitals.charts.noBirthDate')}</span>{' '}
-          <Link to="/settings" className="text-primary underline">
+          <Link to="/family?tab=settings" className="text-primary underline">
             {t('vitals.charts.noBirthDateLink')}
           </Link>
         </p>
