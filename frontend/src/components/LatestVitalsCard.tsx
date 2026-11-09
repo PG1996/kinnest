@@ -23,7 +23,7 @@ export default function LatestVitalsCard({ latest, canLog }: { latest: NonNullab
         <p className="text-sm text-muted">{t('vitals.card.empty')}</p>
       ) : (
         <>
-          <p className="text-lg font-semibold">{items.map((i) => formatValue(t, i.key, i.value)).join(' · ')}</p>
+          <p className="text-base font-semibold">{items.map((i) => formatValue(t, i.key, i.value)).join(' · ')}</p>
           <ul className="space-y-0.5 text-xs text-muted">
             {items.map((i) => (
               <li key={i.key}>

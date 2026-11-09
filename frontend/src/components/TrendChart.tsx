@@ -2,8 +2,9 @@ import { useTranslation } from 'react-i18next'
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { PlaceKind, Vital } from '../api/hooks'
 import { PLACE_COLORS } from '../lib/placeColors'
-import { MEASUREMENTS, type MeasurementKey } from '../lib/vitals'
-import { formatPlace, formatWhen } from '../lib/vitalsFormat'
+import { MEASUREMENTS, shownUnit, shownValue, type MeasurementKey } from '../lib/vitals'
+import { formatPlace, formatValue, formatWhen } from '../lib/vitalsFormat'
+import { useTempUnit } from '../lib/tempUnit'
 import { Card } from './ui/card'
 
 const FEVER_C = 38
@@ -14,10 +15,12 @@ type Row = { t: number; value: number; place_kind: PlaceKind; id: string; measur
 export default function TrendChart({ measurement, vitals }: { measurement: MeasurementKey; vitals: Vital[] }) {
   const { t } = useTranslation()
   const m = MEASUREMENTS.find((x) => x.key === measurement)!
-  const unit = t(m.unit)
+  useTempUnit() // re-render when °F / °C changes
+  const unit = t(shownUnit(m))
+  const fever = formatValue(t, 'temperature_c', FEVER_C)
   const rows: Row[] = vitals
     .filter((v) => v[measurement] != null)
-    .map((v) => ({ t: Date.parse(v.measured_at), value: v[measurement] as number, place_kind: v.place_kind, id: v.id, measured_at: v.measured_at }))
+    .map((v) => ({ t: Date.parse(v.measured_at), value: shownValue(measurement, v[measurement] as number), place_kind: v.place_kind, id: v.id, measured_at: v.measured_at }))
     .sort((a, b) => a.t - b.t)
   return (
     <Card role="figure" aria-label={t(m.label)} className="space-y-2 p-4">
@@ -40,11 +43,11 @@ export default function TrendChart({ measurement, vitals }: { measurement: Measu
               <YAxis domain={['auto', 'auto']} tick={{ fontSize: 11 }} />
               {measurement === 'temperature_c' && (
                 <ReferenceLine
-                  y={FEVER_C}
+                  y={shownValue('temperature_c', FEVER_C)}
                   stroke="var(--danger)"
                   strokeDasharray="6 4"
                   ifOverflow="extendDomain"
-                  label={{ value: t('vitals.charts.feverLine'), position: 'insideTopLeft', fontSize: 10 }}
+                  label={{ value: t('vitals.charts.feverLine', { value: fever }), position: 'insideTopLeft', fontSize: 10 }}
                 />
               )}
               <Line
@@ -71,7 +74,7 @@ export default function TrendChart({ measurement, vitals }: { measurement: Measu
           </ResponsiveContainer>
         </div>
       )}
-      {measurement === 'temperature_c' && <p className="text-xs text-muted">{t('vitals.charts.feverNote')}</p>}
+      {measurement === 'temperature_c' && <p className="text-xs text-muted">{t('vitals.charts.feverNote', { value: fever })}</p>}
     </Card>
   )
 }

@@ -5,7 +5,7 @@ import type { DraftRow, ScanDraft } from '../api/scan'
 import type { PlaceKind, VitalInput } from '../api/hooks'
 import { BulkError, useBulkVitals } from '../hooks/log'
 import { toLocalDate } from '../lib/time'
-import { MEASUREMENTS, validateVital, type MeasurementKey } from '../lib/vitals'
+import { MEASUREMENTS, shownUnit, shownValue, storedValue, validateVital, type MeasurementKey } from '../lib/vitals'
 import { PLACES } from '../lib/vitalsFormat'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
@@ -23,7 +23,7 @@ const toRow = (r: DraftRow, i: number): Row => {
     include: true,
     date: ok ? toLocalDate(when) : '',
     time: ok ? `${pad(when.getHours())}:${pad(when.getMinutes())}` : '09:00',
-    values: Object.fromEntries(Object.entries(r.values).filter(([, v]) => v != null).map(([k, v]) => [k, String(v)])),
+    values: Object.fromEntries(Object.entries(r.values).filter(([, v]) => v != null).map(([k, v]) => [k, String(shownValue(k as MeasurementKey, v as number))])),
     unsure: new Set(r.unsure),
   }
 }
@@ -47,7 +47,7 @@ export default function ScanReview({ draft, photoUrl, photoAlt, onDone }: { draf
     const input: VitalInput = { id: crypto.randomUUID(), measured_at: when && !Number.isNaN(when.getTime()) ? when.toISOString() : '', place_kind: place }
     for (const m of MEASUREMENTS) {
       const raw = (r.values[m.key] ?? '').trim().replace(',', '.')
-      input[m.key] = raw === '' ? null : Number(raw)
+      input[m.key] = raw === '' ? null : storedValue(m.key, Number(raw))
     }
     return input
   }
@@ -102,7 +102,7 @@ export default function ScanReview({ draft, photoUrl, photoAlt, onDone }: { draf
         ))}
       </ChipGroup>
       <div className="space-y-1">
-        <label htmlFor="scan-default-date" className="block text-sm font-extrabold text-muted">
+        <label htmlFor="scan-default-date" className="block text-[13px] font-semibold text-muted">
           {t('scan.defaultDate')}
         </label>
         <Input id="scan-default-date" type="date" value={defaultDate} onChange={(e) => setDefaultDate(e.target.value)} />
@@ -131,8 +131,8 @@ export default function ScanReview({ draft, photoUrl, photoAlt, onDone }: { draf
                 {MEASUREMENTS.filter((m) => r.values[m.key] !== undefined || r.unsure.has(m.key)).map((m) => (
                   <label key={m.key} className="block text-xs text-muted">
                     <span className="flex items-center gap-1">
-                      {`${t(m.label)} (${t(m.unit)})`}
-                      {r.unsure.has(m.key) && <span className="rounded-full bg-warn-bg px-1.5 text-[11px] font-extrabold text-warn-ink">{t('scan.check')}</span>}
+                      {`${t(m.label)} (${t(shownUnit(m))})`}
+                      {r.unsure.has(m.key) && <span className="rounded-full bg-warn-bg px-1.5 text-[11px] font-bold text-warn-ink">{t('scan.check')}</span>}
                     </span>
                     <input
                       type="number"

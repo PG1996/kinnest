@@ -1,5 +1,6 @@
 import i18n from '../i18n'
 import type { VitalInput } from '../api/hooks'
+import { cToF, fToC, getTempUnit } from './tempUnit'
 
 export type MeasurementKey = 'weight_kg' | 'height_cm' | 'head_cm' | 'temperature_c' | 'heart_rate' | 'resp_rate' | 'spo2'
 
@@ -15,6 +16,20 @@ export const MEASUREMENTS: Measurement[] = [
   { key: 'resp_rate', label: 'vitals.measurements.resp_rate', unit: 'vitals.units.resp_rate', min: 5, max: 120, decimals: 0 },
   { key: 'spo2', label: 'vitals.measurements.spo2', unit: 'vitals.units.spo2', min: 50, max: 100, decimals: 0 },
 ]
+
+/** Measurements a parent records every day; the rest wait behind "More vitals". */
+export const MAIN_KEYS: MeasurementKey[] = ['weight_kg', 'height_cm', 'head_cm', 'temperature_c']
+export const MORE_KEYS: MeasurementKey[] = ['heart_rate', 'resp_rate', 'spo2']
+
+const showsF = (key: MeasurementKey) => key === 'temperature_c' && getTempUnit() === 'F'
+/** A stored value as the user sees it (temperature in °F when chosen). */
+export const shownValue = (key: MeasurementKey, v: number) => (showsF(key) ? cToF(v) : v)
+/** A value the user typed, as it is stored (temperature back to °C). */
+export const storedValue = (key: MeasurementKey, v: number) => (showsF(key) ? fToC(v) : v)
+/** The i18n key of the unit the user sees. */
+export const shownUnit = (m: Measurement) => (showsF(m.key) ? 'vitals.units.temperature_f' : m.unit)
+/** The allowed range in the unit the user sees. */
+export const shownRange = (m: Measurement) => (showsF(m.key) ? { min: cToF(m.min), max: cToF(m.max) } : { min: m.min, max: m.max })
 
 const MAX_FUTURE_MS = 5 * 60_000
 
@@ -36,8 +51,9 @@ export function validateVital(input: Partial<VitalInput>): Record<string, string
       continue
     }
     if (v < m.min || v > m.max) {
-      let msg = t('vitals.errors.range', { label: t(m.label), min: m.min, max: m.max, unit: t(m.unit) })
-      if (m.key === 'temperature_c' && v >= 86 && v <= 113)
+      const r = shownRange(m)
+      let msg = t('vitals.errors.range', { label: t(m.label), min: r.min, max: r.max, unit: t(shownUnit(m)) })
+      if (m.key === 'temperature_c' && !showsF(m.key) && v >= 86 && v <= 113)
         msg += ' ' + t('vitals.errors.fahrenheit', { value: v, celsius: (((v - 32) * 5) / 9).toFixed(1) })
       errors[m.key] = msg
     }

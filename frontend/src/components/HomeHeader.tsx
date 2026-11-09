@@ -19,7 +19,7 @@ export default function HomeHeader({ now }: { now: number }) {
   return (
     <header className="flex items-center justify-between gap-3">
       <div className="min-w-0">
-        <h1 className="truncate text-xl font-extrabold">{kid?.name || t('app.name')}</h1>
+        <h1 className="truncate text-lg font-bold">{kid?.name || t('app.name')}</h1>
         <p className="text-sm text-muted">{days != null ? `${t('home.daysOld', { count: days })} · ${date}` : date}</p>
       </div>
       <div className="flex items-center gap-1">

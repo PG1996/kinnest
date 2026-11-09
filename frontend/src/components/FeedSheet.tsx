@@ -107,12 +107,12 @@ export default function FeedSheet({ last, saving, failed, onSave, onClose }: Pro
 
         {isBottle ? (
           <div className="space-y-2 rounded-card bg-surface p-4">
-            <p className="text-sm font-extrabold text-muted">{t('home.amountLabel')}</p>
+            <p className="text-[13px] font-semibold text-muted">{t('home.amountLabel')}</p>
             <Stepper label={t('home.amount')} unit="ml" value={ml} step={10} min={0} max={300} onChange={setMl} />
           </div>
         ) : (
           <div className="space-y-3 rounded-card bg-surface p-4">
-            <label htmlFor="feed-duration" className="block text-sm font-extrabold text-muted">
+            <label htmlFor="feed-duration" className="block text-[13px] font-semibold text-muted">
               {t('home.duration')}
             </label>
             <Input id="feed-duration" type="number" inputMode="numeric" min={0} value={duration} onChange={(e) => setDuration(e.target.value)} />
@@ -140,13 +140,13 @@ export default function FeedSheet({ last, saving, failed, onSave, onClose }: Pro
         )}
 
         <div className="space-y-2">
-          <label htmlFor="feed-time" className="block text-sm font-extrabold text-muted">
+          <label htmlFor="feed-time" className="block text-[13px] font-semibold text-muted">
             {t('home.time')}
           </label>
           <Input id="feed-time" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
         </div>
         <div className="space-y-2">
-          <label htmlFor="feed-note" className="block text-sm font-extrabold text-muted">
+          <label htmlFor="feed-note" className="block text-[13px] font-semibold text-muted">
             {t('home.note')}
           </label>
           <Input id="feed-note" value={note} onChange={(e) => setNote(e.target.value)} />

@@ -4,7 +4,9 @@ import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
 import { useMe } from '../api/hooks'
 import { Button } from '../components/ui/button'
+import { Segmented } from '../components/ui/segmented'
 import { Switch } from '../components/ui/switch'
+import { useTempUnit, type TempUnit } from '../lib/tempUnit'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/field'
 import PushPrompt from '../components/PushPrompt'
@@ -33,6 +35,7 @@ export default function Settings() {
   const { t } = useTranslation()
   const qc = useQueryClient()
   const signOut = useSignOut()
+  const [tempUnit, setTempUnit] = useTempUnit()
   const isAdmin = useMe().data?.role === 'admin'
   const kid = useQuery({ queryKey: ['kid'], queryFn: () => api<Kid>('/api/kid') })
   const [form, setForm] = useState({ name: '', birth_date: '', feed: '180', diaper: '240' })
@@ -121,6 +124,16 @@ export default function Settings() {
       </Card>
       <h2 className="font-medium">{t('theme.label')}</h2>
       <ThemeToggle />
+      <h2 className="font-medium">{t('settings.tempUnit')}</h2>
+      <Segmented<TempUnit>
+        label={t('settings.tempUnit')}
+        value={tempUnit}
+        onChange={setTempUnit}
+        options={[
+          { value: 'F', label: '°F' },
+          { value: 'C', label: '°C' },
+        ]}
+      />
       <Button variant="outline" className="w-full" onClick={signOut}>
         {t('common.signOut')}
       </Button>

@@ -35,7 +35,7 @@ export default function QuickLog({
   const { t } = useTranslation()
   return (
     <section aria-label={t('home.quickLog')} className="space-y-2">
-      <h2 className="text-sm font-extrabold text-muted">{t('home.quickLog')}</h2>
+      <h2 className="text-[13px] font-semibold text-muted">{t('home.quickLog')}</h2>
       <div className="grid grid-cols-3 gap-2.5">
         <button type="button" className={TILE} onClick={onFeed}>
           <Tile Icon={Baby} tint="text-feed">{t('home.feed')}</Tile>

@@ -2,7 +2,7 @@ import { Fragment, useState, type ClipboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { PlaceKind, VitalInput } from '../api/hooks'
 import { BulkError, useBulkVitals } from '../hooks/log'
-import { MEASUREMENTS, validateVital, type MeasurementKey } from '../lib/vitals'
+import { MEASUREMENTS, shownUnit, storedValue, validateVital, type MeasurementKey } from '../lib/vitals'
 import { PLACES } from '../lib/vitalsFormat'
 import { Button } from './ui/button'
 
@@ -21,7 +21,7 @@ function toInput(r: Row): VitalInput {
   out.measured_at = Number.isNaN(when.getTime()) ? '' : when.toISOString()
   for (const m of MEASUREMENTS) {
     const raw = r[m.key].trim().replace(',', '.')
-    out[m.key] = raw === '' ? null : Number(raw)
+    out[m.key] = raw === '' ? null : storedValue(m.key, Number(raw))
   }
   return out
 }
@@ -105,7 +105,7 @@ export default function BulkVitals({ onDone }: { onDone?: () => void }) {
               <th>{t('vitals.bulk.time')}</th>
               <th>{t('vitals.bulk.place')}</th>
               {MEASUREMENTS.map((m) => (
-                <th key={m.key}>{`${t(m.label)} (${t(m.unit)})`}</th>
+                <th key={m.key}>{`${t(m.label)} (${t(shownUnit(m))})`}</th>
               ))}
               <th />
             </tr>

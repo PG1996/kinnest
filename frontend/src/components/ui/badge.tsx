@@ -13,7 +13,7 @@ const BG: Record<Tone, string> = {
 }
 
 export function Badge({ tone = 'plain', className, children }: { tone?: Tone; className?: string; children: React.ReactNode }) {
-  return <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-extrabold', BG[tone], className)}>{children}</span>
+  return <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold', BG[tone], className)}>{children}</span>
 }
 
 const PLACE_TONE: Record<PlaceKind, Tone> = { home: 'diaper', hospital: 'feed', clinic: 'med', other: 'plain' }

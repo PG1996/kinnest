@@ -27,7 +27,7 @@ export default function GlassNav() {
           aria-label={t(`nav.${key}`)}
           className={({ isActive }) =>
             cn(
-              'flex h-12 items-center justify-center gap-2 rounded-full text-sm font-extrabold transition-all',
+              'flex h-12 items-center justify-center gap-2 rounded-full text-sm font-bold transition-all',
               isActive ? 'bg-primary-soft px-4 text-med-ink' : 'w-12 text-muted',
             )
           }

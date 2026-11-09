@@ -42,14 +42,14 @@ export default function LastFeedCard({
       <div className="flex items-center justify-between gap-2">
         <Eyebrow tone="feed">{overdue ? t('home.overdue') : t('home.lastFedLabel')}</Eyebrow>
         {due !== null && !overdue && (
-          <span className="rounded-full bg-surface px-2.5 py-1 text-xs font-extrabold text-feed-ink">
+          <span className="rounded-full bg-surface px-2.5 py-1 text-xs font-bold text-feed-ink">
             {t('home.nextDue', { time: formatClock(summary.next_feed_due_at!) })}
           </span>
         )}
       </div>
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0 space-y-0.5">
-          <p className="text-[2.1rem] leading-none font-extrabold tabular-nums">
+          <p className="text-[1.75rem] leading-none font-bold tabular-nums">
             {overdue ? t('home.dueAgo', { ago: formatAgo(now - due!) }) : t('home.agoShort', { ago: formatAgo(shown * MIN) })}
           </p>
           <p className="text-sm text-muted">{detail}</p>
@@ -57,7 +57,7 @@ export default function LastFeedCard({
         </div>
         {due !== null && !overdue && leftMin !== null && (
           <HalfGauge fraction={fraction} tone="feed" label={t('home.gaugeLabel', { percent: Math.round(Math.min(1, fraction) * 100), left: formatAgo(leftMin * MIN) })}>
-            <span className="text-lg font-extrabold tabular-nums">{formatAgo(leftMin * MIN)}</span>
+            <span className="text-base font-bold tabular-nums">{formatAgo(leftMin * MIN)}</span>
             <span className="text-xs font-bold text-muted">{t('home.toNextFeed')}</span>
           </HalfGauge>
         )}

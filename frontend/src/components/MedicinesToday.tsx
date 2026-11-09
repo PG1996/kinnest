@@ -256,7 +256,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
         type="button"
         aria-expanded={!!open[key]}
         onClick={() => flip(key)}
-        className="flex min-h-11 w-full items-center justify-between rounded-tile bg-surface/70 px-3 text-sm font-extrabold text-med-ink"
+        className="flex min-h-11 w-full items-center justify-between rounded-tile bg-surface/70 px-3 text-sm font-bold text-med-ink"
       >
         {label}
         <ChevronDown size={18} aria-hidden="true" className={open[key] ? 'rotate-180 transition' : 'transition'} />
@@ -282,7 +282,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
         )}
         {missed.length > 0 && (
           <div className="space-y-2 rounded-tile bg-warn-bg p-3 text-warn-ink">
-            <p className="text-sm font-extrabold">
+            <p className="text-sm font-bold">
               {t('medicines.missedList', {
                 count: missed.length,
                 times: missed
@@ -364,7 +364,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
           <h2 className="font-medium">{t('medicines.title')}</h2>
           {scheduledMeds.map((m) => (
             <Card key={m.id} tone="med" className="space-y-3">
-              <p className="text-lg font-medium">{title(m)}</p>
+              <p className="text-base font-semibold">{title(m)}</p>
               {scheduledView(m)}
             </Card>
           ))}
@@ -375,7 +375,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
           <h2 className="font-medium">{t('medicines.sosTitle')}</h2>
           {sosMeds.map((m) => (
             <Card key={m.id} tone="med" className="space-y-3">
-              <p className="text-lg font-medium">{title(m)}</p>
+              <p className="text-base font-semibold">{title(m)}</p>
               {asNeededRow(m)}
               {sosWait(m) && <p className="text-sm font-bold text-warn-ink">{sosWait(m)}</p>}
             </Card>

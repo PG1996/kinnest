@@ -36,7 +36,7 @@ export default function VisitsTab() {
           <span>{formatWhen(v.scheduled_at)}</span>
           {v.status !== 'upcoming' && <span>{t(`visits.status.${v.status}`)}</span>}
         </div>
-        <p className="text-lg font-extrabold">{[v.doctor, v.place].filter(Boolean).join(' · ')}</p>
+        <p className="text-base font-bold">{[v.doctor, v.place].filter(Boolean).join(' · ')}</p>
         {v.reason && <p className="text-sm">{v.reason}</p>}
         {v.notes && <p className="text-sm">{t('visits.notesLabel', { text: v.notes })}</p>}
         {v.prescription_notes && <p className="text-sm">{t('visits.prescriptionLabel', { text: v.prescription_notes })}</p>}
@@ -91,13 +91,13 @@ export default function VisitsTab() {
       {visits.length === 0 && <p className="text-sm text-muted">{t('visits.empty')}</p>}
       {upcoming.length > 0 && (
         <section className="space-y-2">
-          <h3 className="text-sm font-extrabold uppercase tracking-wide text-muted">{t('visits.upcoming')}</h3>
+          <h3 className="text-sm font-bold uppercase tracking-wide text-muted">{t('visits.upcoming')}</h3>
           <ul className="space-y-2">{upcoming.map(row)}</ul>
         </section>
       )}
       {past.length > 0 && (
         <section className="space-y-2">
-          <h3 className="text-sm font-extrabold uppercase tracking-wide text-muted">{t('visits.past')}</h3>
+          <h3 className="text-sm font-bold uppercase tracking-wide text-muted">{t('visits.past')}</h3>
           <ul className="space-y-2">{past.map(row)}</ul>
         </section>
       )}

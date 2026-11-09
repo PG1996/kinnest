@@ -58,7 +58,7 @@ function DoseForm({ medicine, dose, onClose }: { medicine: Medicine; dose?: Dose
     <Sheet title={t(dose ? 'medicines.history.editTitle' : 'medicines.history.addTitle')} onClose={onClose}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <div className="space-y-1">
-          <label htmlFor="dose-form-when" className="block text-sm font-extrabold text-muted">
+          <label htmlFor="dose-form-when" className="block text-[13px] font-semibold text-muted">
             {t('medicines.history.form.when')}
           </label>
           <Input id="dose-form-when" type="datetime-local" value={when} max={toLocalInput(new Date())} onChange={(e) => setWhen(e.target.value)} />
@@ -73,7 +73,7 @@ function DoseForm({ medicine, dose, onClose }: { medicine: Medicine; dose?: Dose
         </ChipGroup>
         {slots.length > 0 && (
           <div className="space-y-1">
-            <label htmlFor="dose-form-slot" className="block text-sm font-extrabold text-muted">
+            <label htmlFor="dose-form-slot" className="block text-[13px] font-semibold text-muted">
               {t('medicines.history.form.slot')}
             </label>
             <Select id="dose-form-slot" value={slotValue} onChange={(e) => setSlotValue(e.target.value)}>
@@ -88,7 +88,7 @@ function DoseForm({ medicine, dose, onClose }: { medicine: Medicine; dose?: Dose
         )}
         {status === 'given' && (
           <div className="space-y-1">
-            <label htmlFor="dose-form-amount" className="block text-sm font-extrabold text-muted">
+            <label htmlFor="dose-form-amount" className="block text-[13px] font-semibold text-muted">
               {t('medicines.history.form.amount')}
             </label>
             <div className="flex items-center gap-2">
@@ -98,7 +98,7 @@ function DoseForm({ medicine, dose, onClose }: { medicine: Medicine; dose?: Dose
           </div>
         )}
         <div className="space-y-1">
-          <label htmlFor="dose-form-note" className="block text-sm font-extrabold text-muted">
+          <label htmlFor="dose-form-note" className="block text-[13px] font-semibold text-muted">
             {t('medicines.history.form.note')}
           </label>
           <Input id="dose-form-note" value={note} onChange={(e) => setNote(e.target.value)} />
@@ -123,7 +123,7 @@ export default function DoseHistory({ medicine, canEdit, onClose }: { medicine: 
 
   return (
     <Sheet variant="full" title={t('medicines.history.title')} onClose={onClose}>
-      <p className="text-lg font-extrabold">{medicine.name}</p>
+      <p className="text-base font-bold">{medicine.name}</p>
       {canEdit && (
         <Button className="w-full" onClick={() => setForm({})}>
           {t('medicines.history.add')}
@@ -136,7 +136,7 @@ export default function DoseHistory({ medicine, canEdit, onClose }: { medicine: 
             <Card className="space-y-1 p-4">
               <div className="flex items-baseline justify-between gap-2">
                 <span className="font-bold">{formatWhen(d.given_at)}</span>
-                <span className="text-sm font-extrabold text-med-ink">
+                <span className="text-sm font-bold text-med-ink">
                   {d.status === 'given' ? (d.amount != null ? formatDose(d.amount, medicine.dose_unit ?? '', t) : t('medicines.history.given')) : t('medicines.history.skipped')}
                 </span>
               </div>

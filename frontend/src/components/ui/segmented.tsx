@@ -52,7 +52,7 @@ export function Segmented<T extends string>({
             {...(kind === 'tab' ? { 'aria-selected': o.value === value } : { 'aria-checked': o.value === value })}
             tabIndex={o.value === value ? 0 : -1}
             onClick={() => onChange(o.value)}
-            className={cn('relative min-h-11 rounded-xl px-2 text-sm font-extrabold', o.value === value ? 'text-ink' : 'text-muted')}
+            className={cn('relative min-h-11 rounded-xl px-2 text-sm font-semibold', o.value === value ? 'text-ink' : 'text-muted')}
           >
             {o.label}
           </button>

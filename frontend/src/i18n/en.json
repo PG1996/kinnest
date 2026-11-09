@@ -122,7 +122,8 @@
     "medicineReminders": "Medicine reminders",
     "birthDateHint": "Growth charts and the vaccine schedule need the birth date.",
     "vaccineReminders": "Vaccine reminders",
-    "visitReminders": "Doctor visit reminders"
+    "visitReminders": "Doctor visit reminders",
+    "tempUnit": "Temperature"
   },
   "feedTypes": {
     "breast_left": "Breast · left",
@@ -334,7 +335,8 @@
       "temperature_c": "°C",
       "heart_rate": "bpm",
       "resp_rate": "/min",
-      "spo2": "%"
+      "spo2": "%",
+      "temperature_f": "°F"
     },
     "errors": {
       "range": "{{label}} must be {{min}} to {{max}} {{unit}}",
@@ -360,7 +362,8 @@
       "measuredBy": "Measured by (optional)",
       "note": "Note",
       "save": "Save",
-      "range": "{{min}}–{{max}} {{unit}}"
+      "range": "{{min}}–{{max}} {{unit}}",
+      "more": "More vitals"
     },
     "list": {
       "edit": "Edit",
@@ -395,15 +398,16 @@
       "info": "Percentile lines are information, not medical advice.",
       "noBirthDate": "Growth charts need the birth date.",
       "noBirthDateLink": "Add it in Settings",
-      "feverLine": "38.0 °C fever line (information, not medical advice)",
+      "feverLine": "{{value}} fever line (information, not medical advice)",
       "noData": "No readings yet",
       "showPlaces": "Show readings from",
       "range": "Date range",
       "bandLegend": "WHO 3rd–97th percentile",
       "medianLegend": "Median",
-      "feverNote": "Fever line at 38.0 °C. Call your doctor for a fever under 3 months.",
+      "feverNote": "Fever line at {{value}}. Call your doctor for a fever under 3 months.",
       "metrics": "Chart",
-      "view": "View"
+      "view": "View",
+      "more": "More vitals"
     },
     "bulk": {
       "title": "Add past readings",

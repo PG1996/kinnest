@@ -101,7 +101,7 @@ export default function VaccinesTab() {
         if (items.length === 0) return null
         return (
           <section key={g} className="space-y-2">
-            <h3 className={cn('text-sm font-extrabold uppercase tracking-wide text-muted', g === 'overdue' && 'text-warn-ink')}>
+            <h3 className={cn('text-sm font-bold uppercase tracking-wide text-muted', g === 'overdue' && 'text-warn-ink')}>
               {t(`vaccines.groups.${g}`)}
             </h3>
             <ul className="space-y-2">
@@ -120,7 +120,7 @@ export default function VaccinesTab() {
                       </span>
                       <span
                         className={cn(
-                          'rounded-full px-2.5 py-0.5 text-xs font-extrabold',
+                          'rounded-full px-2.5 py-0.5 text-xs font-bold',
                           v.overdue ? 'bg-surface text-warn-ink' : v.status === 'given' ? 'bg-diaper-bg text-diaper-ink' : 'bg-surface-2',
                         )}
                       >

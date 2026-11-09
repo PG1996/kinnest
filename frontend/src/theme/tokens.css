@@ -31,8 +31,8 @@
   --heat-2: #a99be8;
   --heat-3: #7a68d6;
   --heat-4: #45369e;
-  --radius: 1.5rem;
-  --radius-tile: 1.125rem;
+  --radius: 1.25rem;
+  --radius-tile: 1rem;
 }
 
 :root[data-theme='dark'] {
