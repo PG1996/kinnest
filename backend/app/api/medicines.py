@@ -104,6 +104,8 @@ class DosePatch(BaseModel):
     amount: Decimal | None = Field(default=None, gt=0, le=MAX_DOSE, decimal_places=2)
     given_at: AwareDatetime | None = None
     note: str | None = Field(default=None, max_length=2000)
+    # the dose slot this counts for; an explicit null takes the dose off its slot
+    scheduled_for: AwareDatetime | None = None
 
 
 FIELDS = ("name", "dose_amount", "dose_unit", "schedule_kind", "times", "interval_hours", "first_dose_at", "min_gap_hours", "start_date", "end_date", "notes")
@@ -421,8 +423,10 @@ def fix_dose(
     body: DosePatch,
     member: Member = Depends(require_admin),
     db: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+    now: datetime = Depends(get_now),
 ) -> dict:
-    """Admin only: correct the amount, time, note or given/skipped state of a recorded dose."""
+    """Admin only: correct the amount, time, note, given/skipped state or dose slot of a recorded dose."""
     med = _medicine(db, member, medicine_id)
     dose = db.get(MedicineDose, dose_id)
     if dose is None or dose.medicine_id != med.id or dose.family_id != member.family_id or dose.deleted_at is not None:
@@ -430,6 +434,15 @@ def fix_dose(
     changes = body.model_dump(exclude_unset=True)
     if not changes:
         raise HTTPException(422, "nothing to change")
+    if "scheduled_for" in changes:
+        target = changes["scheduled_for"]
+        if target is not None and target != dose.scheduled_for:
+            if med.schedule_kind == "as_needed":
+                raise HTTPException(422, "as-needed doses have no slot")
+            others = [d for d in recent_doses(db, med.id) if d.id != dose.id]
+            if not schedule.valid_slot(med, others, target, now, settings.app_timezone):
+                raise HTTPException(422, "that is not a dose slot of this medicine")
+        dose.scheduled_for = target
     if "given_at" in changes:
         if changes["given_at"] is None:
             raise HTTPException(422, "given_at cannot be empty")
