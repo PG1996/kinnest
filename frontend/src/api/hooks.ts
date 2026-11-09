@@ -2,6 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import type { TimelineItem, TimelineKind } from '../lib/timeline'
 import { ApiError, api } from './client'
 
+/** A feed being timed right now. The server keeps the start (and the stop); each phone works out the elapsed time. */
+export type FeedTimerInfo = { id: string; type: FeedType; started_at: string; ended_at: string | null; started_by_name: string }
+
 export type Role = 'admin' | 'caregiver' | 'viewer'
 export const RELATIONS = ['mom', 'dad', 'grandparent', 'relative', 'nanny', 'other'] as const
 export type Relation = (typeof RELATIONS)[number]
@@ -100,6 +103,7 @@ export type Summary = {
   next_feed_due_at: string | null
   last_diaper: Diaper | null
   feeds_today: number
+  feed_timer?: FeedTimerInfo | null
   diapers_today: Record<DiaperKind, number>
   sleep: SummarySleep
   vitals?: {

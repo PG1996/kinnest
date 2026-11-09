@@ -12,6 +12,8 @@ export type FeedInput = {
   note?: string
   /** only when someone else gave the feed; the server records the logger otherwise */
   fed_by_user_id?: string
+  /** the running timer this feed was timed with: saving the feed ends the timer */
+  timer_id?: string
 }
 /** `changed_by_user_id` only when someone other than the person logging it changed the diaper. */
 export type DiaperInput = { id: string; kind: DiaperKind; at: string; note?: string; changed_by_user_id?: string }
@@ -49,6 +51,25 @@ export function useLogFeed() {
     mutationFn: (body: FeedInput) => post('feed', '/api/feeds', body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['summary'] }),
   })
+}
+
+/** The feed timer on the server, shared by every phone. Each call refreshes the summary, which carries the timer. */
+export function useFeedTimerActions() {
+  const qc = useQueryClient()
+  const refresh = () => qc.invalidateQueries({ queryKey: ['summary'] })
+  const start = useMutation({
+    mutationFn: (b: { id: string; type: FeedType; started_at: string }) => api('/api/feed-timer', { json: b }),
+    onSettled: refresh, // a 409 (someone else started one first) refreshes to theirs
+  })
+  const change = useMutation({
+    mutationFn: (b: { type?: FeedType; ended_at?: string | null }) => api('/api/feed-timer', { method: 'PATCH', json: b }),
+    onSettled: refresh,
+  })
+  const discard = useMutation({
+    mutationFn: () => api('/api/feed-timer', { method: 'DELETE' }),
+    onSettled: refresh,
+  })
+  return { start, change, discard }
 }
 
 export function useUpdateFeed() {

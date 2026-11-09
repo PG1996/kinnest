@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useKid, useMe, useMedicines, useSummary, useTimeline, useVaccines, useVisits, type DiaperKind } from '../api/hooks'
 import DiaperSheet from '../components/DiaperSheet'
 import FeedSheet from '../components/FeedSheet'
+import FeedTimerBanner from '../components/FeedTimerBanner'
 import HomeHeader from '../components/HomeHeader'
 import PushPrompt from '../components/PushPrompt'
 import QuickLog from '../components/QuickLog'
@@ -139,6 +140,7 @@ export default function Home() {
       )}
       {summary && (
         <>
+          {summary.feed_timer && canLog && <FeedTimerBanner timer={summary.feed_timer} onOpen={() => setSheet('feed')} />}
           <LastFeedCard summary={summary} now={now} canLog={canLog} onLogFeed={() => setSheet('feed')} />
           <LastDiaperCard summary={summary} now={now} wetPerDay={wetSeries} />
           <SleepCard sleep={summary.sleep} now={now} />
