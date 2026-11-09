@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.auth.deps import Member, current_member, require_caregiver
 from app.db import get_session
 from app.models import Feed
-from app.services.entries import ensure_family_member, recent_other, reject_future, user_names
+from app.services.entries import ensure_feeder, moms_user_id, recent_other, reject_future, user_names
 
 router = APIRouter(prefix="/api")
 
@@ -71,11 +71,13 @@ def create_feed(
     reject_future(body.started_at)
     me = member.user.id
     if body.fed_by_user_id:
-        ensure_family_member(db, member.family_id, body.fed_by_user_id)
+        ensure_feeder(db, member.family_id, body.fed_by_user_id)
+    # breast milk is always mom's: the feed says so whoever logs it (without a mom set, it is the logger)
+    fed_by = (moms_user_id(db, member.family_id) if body.type.startswith("breast") else None) or body.fed_by_user_id or me
     feed = Feed(
         id=body.id, family_id=member.family_id, kid_id=member.kid_id, type=body.type,
         started_at=body.started_at, duration_min=body.duration_min, quantity_ml=body.quantity_ml,
-        note=body.note, fed_by_user_id=body.fed_by_user_id or me, created_by=me, updated_by=me,
+        note=body.note, fed_by_user_id=fed_by, created_by=me, updated_by=me,
     )
     warning = recent_other(db, Feed, member.kid_id, me, body.id)
     db.add(feed)
@@ -117,10 +119,14 @@ def patch_feed(
     if "started_at" in data and data["started_at"]:
         reject_future(data["started_at"])
     if data.get("fed_by_user_id"):
-        ensure_family_member(db, member.family_id, data["fed_by_user_id"])
+        ensure_feeder(db, member.family_id, data["fed_by_user_id"])
     for k, v in data.items():
         if v is not None or k in ("duration_min", "quantity_ml"):
             setattr(feed, k, v)
+    if feed.type.startswith("breast"):
+        mom = moms_user_id(db, member.family_id)
+        if mom is not None:
+            feed.fed_by_user_id = mom
     feed.updated_by = member.user.id
     db.commit()
     return feed_json(feed, user_names(db, {feed.fed_by_user_id}))

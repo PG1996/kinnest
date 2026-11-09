@@ -46,6 +46,18 @@ def ensure_family_member(db: Session, family_id: uuid.UUID, user_id: uuid.UUID) 
         raise HTTPException(422, "unknown user")
 
 
+def ensure_feeder(db: Session, family_id: uuid.UUID, user_id: uuid.UUID) -> None:
+    """A bottle can be given by any admin or caregiver of the family, not by a viewer."""
+    role = db.scalar(select(Membership.role).where(Membership.family_id == family_id, Membership.user_id == user_id))
+    if role not in ("admin", "caregiver"):
+        raise HTTPException(422, "unknown user")
+
+
+def moms_user_id(db: Session, family_id: uuid.UUID) -> uuid.UUID | None:
+    """The user who is the baby's mom, if one is set: she is who a breast feed is always credited to."""
+    return db.scalar(select(Membership.user_id).where(Membership.family_id == family_id, Membership.relation == "mom"))
+
+
 def recent_doses(db: Session, medicine_id: uuid.UUID) -> list[MedicineDose]:
     """The most recent live doses of a medicine, newest first: enough for slot, next-due and last-dose calculations."""
     return list(

@@ -45,7 +45,7 @@ def complete_login(db: Session, settings: Settings, email: str, name: str = "") 
             db.add(Membership(family_id=family.id, user_id=user.id, role="admin"))
         else:
             invite = _open_invite(db, email)
-            db.add(Membership(family_id=invite.family_id, user_id=user.id, role=invite.role))
+            db.add(Membership(family_id=invite.family_id, user_id=user.id, role=invite.role, relation=invite.relation))
             invite.accepted_at = datetime.now(UTC)
         db.flush()
     return user

@@ -10,22 +10,43 @@ from sqlalchemy.orm import Session
 from app.auth.deps import Member, current_member, require_admin
 from app.config import Settings, get_settings
 from app.db import get_session
-from app.models import Invite, Kid, Membership, User
+from app.models import PARENT_RELATIONS, RELATIONS, Invite, Kid, Membership, User
 from app.services.email import send_email
 from app.services.vaccines import follow_birth_date
 
 router = APIRouter(prefix="/api")
 
 Role = Literal["admin", "caregiver", "viewer"]
+Relation = Literal["mom", "dad", "grandparent", "relative", "nanny", "other"]
 
 
 class InviteBody(BaseModel):
     email: EmailStr
     role: Role
+    relation: Relation | None = None
 
 
-class RoleBody(BaseModel):
-    role: Role
+class MemberPatch(BaseModel):
+    """Change a member's role and/or relation to the baby. A relation of null clears it."""
+
+    role: Role | None = None
+    relation: Relation | None = None
+
+
+def parents(db: Session, family_id: uuid.UUID) -> list[Membership]:
+    return list(db.scalars(select(Membership).where(Membership.family_id == family_id, Membership.relation.in_(PARENT_RELATIONS))))
+
+
+def _check_parent_rules(db: Session, family_id: uuid.UUID, row: Membership | None, new_relation: str | None) -> None:
+    """One mom and one dad per family, and the last of them is never cleared, changed or removed."""
+    if new_relation in PARENT_RELATIONS:
+        taken = db.scalar(
+            select(Membership).where(Membership.family_id == family_id, Membership.relation == new_relation, Membership.id != (row.id if row else None))
+        )
+        if taken is not None:
+            raise HTTPException(409, f"the baby already has a {new_relation}")
+    if row is not None and row.relation in PARENT_RELATIONS and new_relation != row.relation and len(parents(db, family_id)) <= 1:
+        raise HTTPException(409, "the baby needs a mom or a dad")
 
 
 class KidPatch(BaseModel):
@@ -70,14 +91,14 @@ def list_members(member: Member = Depends(current_member), db: Session = Depends
         )
     ).all()
     out = [
-        {"user_id": str(u.id), "email": u.email, "name": u.name, "role": m.role, "pending": False}
+        {"user_id": str(u.id), "email": u.email, "name": u.name, "role": m.role, "relation": m.relation, "pending": False}
         for m, u in rows
     ]
     invites = db.scalars(
         select(Invite).where(Invite.family_id == member.family_id, Invite.accepted_at.is_(None))
     ).all()
     out += [
-        {"user_id": None, "email": i.email, "name": "", "role": i.role, "pending": True} for i in invites
+        {"user_id": None, "email": i.email, "name": "", "role": i.role, "relation": i.relation, "pending": True} for i in invites
     ]
     return out
 
@@ -90,6 +111,7 @@ def invite(
     settings: Settings = Depends(get_settings),
 ) -> dict[str, bool]:
     email = body.email.lower()
+    _check_parent_rules(db, member.family_id, None, body.relation)
     existing = db.scalar(select(User).where(User.email == email))
     if existing and db.scalar(
         select(Membership).where(Membership.family_id == member.family_id, Membership.user_id == existing.id)
@@ -102,8 +124,9 @@ def invite(
     )
     if row:
         row.role = body.role
+        row.relation = body.relation
     else:
-        db.add(Invite(family_id=member.family_id, email=email, role=body.role))
+        db.add(Invite(family_id=member.family_id, email=email, role=body.role, relation=body.relation))
     db.commit()
     send_email(
         settings,
@@ -116,16 +139,21 @@ def invite(
 
 
 @router.patch("/family/members/{user_id}")
-def change_role(
+def change_member(
     user_id: uuid.UUID,
-    body: RoleBody,
+    body: MemberPatch,
     member: Member = Depends(require_admin),
     db: Session = Depends(get_session),
 ) -> dict[str, bool]:
     row = _membership(db, member, user_id)
-    if row.role == "admin" and body.role != "admin" and _admin_count(db, member.family_id) <= 1:
-        raise HTTPException(409, "cannot demote the last admin")
-    row.role = body.role
+    sent = body.model_fields_set
+    if "role" in sent and body.role is not None:
+        if row.role == "admin" and body.role != "admin" and _admin_count(db, member.family_id) <= 1:
+            raise HTTPException(409, "cannot demote the last admin")
+        row.role = body.role
+    if "relation" in sent:
+        _check_parent_rules(db, member.family_id, row, body.relation)
+        row.relation = body.relation
     db.commit()
     return {"ok": True}
 
@@ -139,6 +167,7 @@ def remove_member(
     row = _membership(db, member, user_id)
     if row.role == "admin" and _admin_count(db, member.family_id) <= 1:
         raise HTTPException(409, "cannot remove the last admin")
+    _check_parent_rules(db, member.family_id, row, None)
     user = db.get(User, user_id)
     db.delete(row)
     user.session_version += 1
