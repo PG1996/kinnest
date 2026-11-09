@@ -4,7 +4,17 @@ import App from '../App'
 import en from '../i18n/en.json'
 import { toLocalInput } from '../lib/time'
 import { ME_ADMIN, ME_VIEWER, mockApi, renderApp } from '../test/utils'
+import { afterAll, beforeAll, vi } from 'vitest'
 import Home from './Home'
+
+// these fixtures sit at fixed hours of today: pin the clock to noon so they are never in the future, whenever the suite runs
+beforeAll(() => {
+  const noon = new Date()
+  noon.setHours(12, 0, 0, 0)
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(noon)
+})
+afterAll(() => vi.useRealTimers())
 
 const today = (h: number, m = 0) => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, m) }
 const yest = (h: number, m = 0) => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1, h, m) }
@@ -66,7 +76,7 @@ test('adding a past sleep posts its start and end', async () => {
   renderApp(<App />, '/sleep')
   await userEvent.click(await screen.findByRole('button', { name: en.sleep.addPast }))
   const form = await screen.findByRole('dialog', { name: en.sleep.addTitle })
-  const start = today(3, 0) < new Date() ? today(3, 0) : yest(3, 0)
+  const start = yest(3, 0) // always in the past, whatever the time of day the suite runs
   const end = new Date(start.getTime() + 90 * 60_000)
   fireEvent.change(within(form).getByLabelText(en.sleep.form.start), { target: { value: toLocalInput(start) } })
   fireEvent.change(within(form).getByLabelText(en.sleep.form.end), { target: { value: toLocalInput(end) } })

@@ -175,7 +175,7 @@ def _medicine_chain(db: Session, kid: Kid, med: Medicine, anchor: datetime, now:
     }
     urgency = "high" if level == 2 else "normal"
     recipients = _recipients(db, kid, "medicine", admins_only=level == 2)
-    if not _deliver(db, sender, recipients, MED_TITLE_KEYS[level], params, urgency, "/?log=medicine", "medicine", level, sent):
+    if not _deliver(db, sender, recipients, MED_TITLE_KEYS[level], params, urgency, f"/?log=medicine&med={med.id}", "medicine", level, sent):
         return  # try the same level again next tick
     if state is None:
         db.add(ReminderState(kid_id=kid.id, kind="medicine", subject_id=med.id, anchor_at=anchor, level=level, last_sent_at=now))
@@ -230,7 +230,7 @@ def _fire_nudges(db: Session, kid: Kid, now: datetime, sender: Sender, tz: str, 
                 "time": _clock(n.scheduled_for, tz),
             }
             recipients = _recipients(db, kid, "medicine", admins_only=False)
-            if _deliver(db, sender, recipients, "med_nudge", params, "normal", "/?log=medicine", "medicine", 0, sent):
+            if _deliver(db, sender, recipients, "med_nudge", params, "normal", f"/?log=medicine&med={med.id}", "medicine", 0, sent):
                 n.fired_at = now
         db.commit()
 

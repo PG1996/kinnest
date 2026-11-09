@@ -74,9 +74,10 @@ test('a viewer can read the timeline', async () => {
 
 // --- correcting entries from the timeline -------------------------------------------------------------------------
 
+const tenMinAgo = new Date(Date.now() - 600_000).toISOString()
 const SLEEP_FULL = { id: 's1', started_at: at(10, 30), ended_at: at(12, 20), duration_min: 110, started_by_name: 'Nanny', note: '' }
 const FULL = [
-  { kind: 'feed', id: 'f1', at: at(14, 5), data: { id: 'f1', type: 'formula', quantity_ml: 60, duration_min: null, fed_by_name: 'Mom', note: '', started_at: at(14, 5) } },
+  { kind: 'feed', id: 'f1', at: tenMinAgo, data: { id: 'f1', type: 'formula', quantity_ml: 60, duration_min: null, fed_by_name: 'Mom', note: '', started_at: tenMinAgo } }, // never in the future, whatever the time of day
   { kind: 'diaper', id: 'd1', at: at(13, 10), data: { id: 'd1', kind: 'wet', at: at(13, 10), changed_by_name: 'Nani', note: '' } },
   { kind: 'sleep', id: 's1', at: at(10, 30), data: SLEEP_FULL },
   { kind: 'dose', id: 'p1', at: at(9, 20), data: { id: 'p1', medicine_id: 'm1', status: 'given', amount: 0.25, dose_unit: 'ml', medicine_name: 'Vitamin D3', by_name: 'Dad', given_at: at(9, 20), scheduled_for: null, note: '' } },
