@@ -57,3 +57,22 @@ test('only the admin can change roles, invite and edit the baby', async () => {
   expect(await screen.findByLabelText(en.settings.kidName)).toBeEnabled()
   expect(screen.getByRole('button', { name: en.settings.save })).toBeInTheDocument()
 })
+
+test('member rows give the name and email their own full line and put the admin controls underneath', async () => {
+  mockApi(api(ME_ADMIN))
+  renderApp(<App />, '/family')
+  const email = await screen.findByText('mom@x.com')
+  expect(email.className).not.toContain('truncate') // a long address wraps instead of becoming "mom…"
+  const row = email.closest('li')!
+  const actions = within(row).getByTestId('member-actions')
+  expect(within(actions).getByLabelText(en.members.roleFor.replace('{{email}}', 'mom@x.com'))).toBeInTheDocument()
+  expect(within(actions).getByRole('button', { name: en.members.remove })).toBeInTheDocument()
+  expect(row.querySelector('[data-testid="member-actions"]')!.parentElement).toBe(row) // its own row, not squeezed beside the name
+})
+
+test('the Family page has one heading, not a repeat inside Members', async () => {
+  mockApi(api(ME_ADMIN))
+  renderApp(<App />, '/family')
+  await screen.findByText('mom@x.com')
+  expect(screen.getAllByRole('heading', { name: en.family.title })).toHaveLength(1)
+})
