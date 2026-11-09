@@ -664,5 +664,28 @@
     "save": "Save {{count}} readings",
     "saved": "Saved {{count}} readings.",
     "none": "Nothing was read from this photo."
+  },
+  "diapers": {
+    "title": "Diapers",
+    "prevDay": "Previous day",
+    "nextDay": "Next day",
+    "listLabel": "Diapers this day",
+    "none": "No diapers logged this day.",
+    "total": "total",
+    "addPast": "Add a past diaper",
+    "addTitle": "Add a past diaper",
+    "edit": "Edit",
+    "editTitle": "Edit diaper",
+    "delete": "Delete",
+    "confirmDelete": "Yes, delete",
+    "keep": "Keep",
+    "saveError": "Couldn't save the diaper.",
+    "form": {
+      "kind": "Kind",
+      "when": "Time",
+      "note": "Note",
+      "save": "Save",
+      "future": "That time is in the future."
+    }
   }
 }

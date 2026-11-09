@@ -15,7 +15,7 @@ export default function LastDiaperCard({ summary, now, wetPerDay }: { summary: S
   const avg = finished.length ? finished.reduce((a, b) => a + b, 0) / finished.length : null
   return (
     <Card tone="diaper" className="py-4">
-      <Link to="/patterns" className="flex items-center justify-between gap-3">
+      <Link to="/diapers" className="flex items-center justify-between gap-3">
         <div className="space-y-0.5">
           <Eyebrow tone="diaper">{t('home.lastDiaperLabel')}</Eyebrow>
           <p className="text-xl font-bold">{t('home.agoShort', { ago: formatAgo(now - Date.parse(d.at)) })}</p>

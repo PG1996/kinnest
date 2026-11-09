@@ -50,11 +50,16 @@ export function useLogFeed() {
   })
 }
 
+const refreshDiapers = (qc: ReturnType<typeof useQueryClient>) => {
+  qc.invalidateQueries({ queryKey: ['summary'] })
+  qc.invalidateQueries({ queryKey: ['diapers'] })
+}
+
 export function useLogDiaper() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body: DiaperInput) => post('diaper', '/api/diapers', body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['summary'] }),
+    onSuccess: () => refreshDiapers(qc),
   })
 }
 
@@ -62,7 +67,15 @@ export function useUndoDiaper() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => api(`/api/diapers/${id}`, { method: 'DELETE' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['summary'] }),
+    onSuccess: () => refreshDiapers(qc),
+  })
+}
+
+export function useUpdateDiaper() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...b }: { id: string; kind?: DiaperKind; at?: string; note?: string }) => api(`/api/diapers/${id}`, { method: 'PATCH', json: b }),
+    onSuccess: () => refreshDiapers(qc),
   })
 }
 
