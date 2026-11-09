@@ -16,7 +16,8 @@ export function mockApi(routes: Routes) {
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input).split('?')[0]
       const key = `${init?.method ?? 'GET'} ${url}`
-      const body = init?.body ? JSON.parse(String(init.body)) : undefined
+      // JSON bodies are parsed for assertions; a FormData upload is passed through as is
+      const body = init?.body instanceof FormData ? init.body : init?.body ? JSON.parse(String(init.body)) : undefined
       calls.push({ key, body })
       const r = routes[key]
       const reply = typeof r === 'function' ? r(body) : (r ?? { status: 404, body: { detail: 'nope' } })

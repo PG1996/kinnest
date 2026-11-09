@@ -490,5 +490,31 @@
   "patterns": {
     "title": "Patterns",
     "soon": "Feeding and sleep patterns for the last 7 days will show here."
+  },
+  "scan": {
+    "snap": "Snap a record",
+    "title": "Snap a record",
+    "notice": "The photo is sent to the Anthropic API to read it. You can crop out her name first. Nothing is saved until you confirm.",
+    "continue": "Continue",
+    "mode": "What is in the photo",
+    "oneReading": "One reading",
+    "bulkHistory": "Bulk history",
+    "takePhoto": "Take a photo",
+    "chooseFile": "Choose a file",
+    "badFile": "Choose a photo or a PDF, up to 10 MB.",
+    "reading": "Reading the photo…",
+    "failed": "Couldn't read that photo. It's still here, so you can try again.",
+    "retry": "Try again",
+    "enterByHand": "Enter by hand",
+    "limit": "Daily scan limit reached. Try again tomorrow, or enter the readings by hand.",
+    "photoAlt": "Your photo of the record",
+    "check": "Check",
+    "include": "Include row",
+    "defaultDate": "Date for rows without one",
+    "placeLabel": "Taken at",
+    "draftTitle": "Draft: tap a value to fix it",
+    "save": "Save {{count}} readings",
+    "saved": "Saved {{count}} readings.",
+    "none": "Nothing was read from this photo."
   }
 }
