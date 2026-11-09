@@ -8,7 +8,8 @@ export function useSync() {
   useEffect(() => {
     const run = async () => {
       const result = await flush().catch(() => null)
-      if (result?.sent) qc.invalidateQueries({ queryKey: ['summary'] })
+      // the flush runs outside the mutation path, so refresh everything an entry can appear in
+      if (result?.sent) for (const key of ['summary', 'timeline', 'medicines', 'vitals', 'growth']) qc.invalidateQueries({ queryKey: [key] })
     }
     const onVisible = () => document.visibilityState === 'visible' && run()
     run()

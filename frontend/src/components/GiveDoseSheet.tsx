@@ -56,7 +56,7 @@ export default function GiveDoseSheet({ medicine, slot, max, onGive, onSkip, onC
               {t('medicines.cancel')}
             </Button>
           )}
-          <SlideToConfirm label={t('medicines.slideToGive', { amount: fmt(shown) })} onConfirm={() => onGive(shown, mode === 'partial' ? nudge : null)} />
+          <SlideToConfirm label={t('medicines.slideToGive', { amount: fmt(shown) })} armedLabel={t('medicines.tapAgain', { amount: fmt(shown) })} onConfirm={() => onGive(shown, mode === 'partial' ? nudge : null)} />
         </div>
       }
     >

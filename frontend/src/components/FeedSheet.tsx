@@ -57,12 +57,15 @@ export default function FeedSheet({ last, saving, failed, onSave, onClose }: Pro
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
+    // Save while the timer still runs counts as Stop: the feed started when the timer did and lasted until now
+    const running = timerStart !== null
+    const runMinutes = running ? Math.max(1, Math.round((Date.now() - timerStart) / 60_000)) : null
     onSave({
       id: crypto.randomUUID(),
       type,
       // untouched time means "now", taken at the moment of saving
-      started_at: when === initialWhen ? new Date().toISOString() : new Date(when).toISOString(),
-      duration_min: !isBottle && duration ? Number(duration) : undefined,
+      started_at: running ? new Date(timerStart).toISOString() : when === initialWhen ? new Date().toISOString() : new Date(when).toISOString(),
+      duration_min: !isBottle && (runMinutes ?? (duration ? Number(duration) : null)) != null ? (runMinutes ?? Number(duration)) : undefined,
       quantity_ml: isBottle ? ml : undefined,
       note: note || undefined,
       ...(fedBy && me && fedBy !== me.user.id ? { fed_by_user_id: fedBy } : {}),

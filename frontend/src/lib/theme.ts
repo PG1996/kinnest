@@ -34,26 +34,33 @@ export function initTheme() {
   applyMode(readMode())
 }
 
-export function useThemeMode(): [ThemeMode, (m: ThemeMode) => void] {
-  const [mode, setModeState] = useState<ThemeMode>(readMode)
+/**
+ * Keeps the theme right while the app stays open: `night` flips at 22:00 and 06:00, `auto` when the phone does.
+ * Mount it once, in the app shell (the settings screen is not always open).
+ */
+export function useThemeSync() {
   useEffect(() => {
-    applyMode(mode)
-    // `night` flips at 22:00 and 06:00, `auto` when the phone does
-    const id = window.setInterval(() => applyMode(mode), 60_000)
+    const run = () => applyMode(readMode())
+    run()
+    const id = window.setInterval(run, 60_000)
     const mq = window.matchMedia?.('(prefers-color-scheme: dark)')
-    const onChange = () => applyMode(mode)
-    mq?.addEventListener?.('change', onChange)
+    mq?.addEventListener?.('change', run)
     return () => {
       window.clearInterval(id)
-      mq?.removeEventListener?.('change', onChange)
+      mq?.removeEventListener?.('change', run)
     }
-  }, [mode])
+  }, [])
+}
+
+export function useThemeMode(): [ThemeMode, (m: ThemeMode) => void] {
+  const [mode, setModeState] = useState<ThemeMode>(readMode)
   const setMode = (m: ThemeMode) => {
     try {
       localStorage.setItem(KEY, m)
     } catch {
       /* ignore */
     }
+    applyMode(m)
     setModeState(m)
   }
   return [mode, setMode]

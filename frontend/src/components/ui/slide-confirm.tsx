@@ -1,5 +1,5 @@
 import { ChevronRight } from 'lucide-react'
-import { useRef, useState, type MouseEvent, type PointerEvent } from 'react'
+import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
 import { cn } from '../../lib/cn'
 
 const THUMB = 48
@@ -11,15 +11,24 @@ const PAD = 4
  */
 export function SlideToConfirm({
   label,
+  armedLabel,
   onConfirm,
   disabled,
 }: {
   label: string
+  /** shown after a single tap on the handle; a second tap then confirms (for people who cannot drag) */
+  armedLabel?: string
   onConfirm: () => void
   disabled?: boolean
 }) {
   const [x, setX] = useState(0)
   const [dragging, setDragging] = useState(false)
+  const [armed, setArmed] = useState(false)
+  useEffect(() => {
+    if (!armed) return
+    const id = window.setTimeout(() => setArmed(false), 4000)
+    return () => window.clearTimeout(id)
+  }, [armed])
   const start = useRef(0)
   const max = useRef(1)
 
@@ -45,10 +54,18 @@ export function SlideToConfirm({
     setX(0)
     if (reached) onConfirm()
   }
-  // A pointer tap has detail >= 1 and must not confirm. Enter, Space and screen-reader activation click with detail 0.
+  // Enter, Space and screen-reader activation click with detail 0 and confirm at once. A pointer tap only arms the
+  // handle (so an accidental touch does nothing); a second tap within a few seconds confirms. Dragging always works.
   const click = (e: MouseEvent) => {
-    if (!disabled && e.detail === 0) onConfirm()
+    if (disabled) return
+    if (e.detail === 0 || armed) {
+      setArmed(false)
+      onConfirm()
+    } else {
+      setArmed(true)
+    }
   }
+  const shownLabel = armed && armedLabel ? armedLabel : label
 
   return (
     <div
@@ -68,11 +85,11 @@ export function SlideToConfirm({
         className="absolute inset-0 flex items-center justify-center pl-12 text-base font-extrabold text-med-ink"
         style={{ opacity: Math.max(0, 1 - x / 120) }}
       >
-        {label}
+        {shownLabel}
       </span>
       <button
         type="button"
-        aria-label={label}
+        aria-label={shownLabel}
         disabled={disabled}
         onClick={click}
         className="absolute flex items-center justify-center rounded-full bg-primary text-primary-ink shadow-md"

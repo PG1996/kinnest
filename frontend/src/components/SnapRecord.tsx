@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../api/client'
 import { useScan, useUploadFile, type ScanDraft } from '../api/scan'
@@ -21,6 +21,13 @@ export default function SnapRecord({ onClose, onManual }: { onClose: () => void;
   const [preview, setPreview] = useState('')
   const [fileId, setFileId] = useState<string | null>(null)
   const [draft, setDraft] = useState<ScanDraft | null>(null)
+  const alive = useRef(true) // false once the screen is closed: a late upload must not go on to scan
+  useEffect(() => {
+    alive.current = true
+    return () => {
+      alive.current = false
+    }
+  }, [])
   const upload = useUploadFile()
   const scan = useScan()
 
@@ -30,12 +37,15 @@ export default function SnapRecord({ onClose, onManual }: { onClose: () => void;
       let id = existingId
       if (!id) {
         id = (await upload.mutateAsync(await downscale(f))).id
+        if (!alive.current) return
         setFileId(id)
       }
       const r = await scan.mutateAsync({ kind: 'vitals', file_id: id })
+      if (!alive.current) return
       setDraft(r.draft)
       setStage('review')
     } catch (e) {
+      if (!alive.current) return
       setStage(e instanceof ApiError && e.status === 429 ? 'limit' : 'failed')
     }
   }

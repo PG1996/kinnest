@@ -10,7 +10,9 @@ export default function LastDiaperCard({ summary, now, wetPerDay }: { summary: S
   const d = summary.last_diaper
   if (!d) return <Card tone="diaper">{t('home.noDiaper')}</Card>
   const c = summary.diapers_today
-  const avg = wetPerDay && wetPerDay.length ? wetPerDay.reduce((a, b) => a + b, 0) / wetPerDay.length : null
+  // the average of finished days that have data: not today (still going) and not days before logging began
+  const finished = (wetPerDay ?? []).slice(0, -1).filter((n) => n > 0)
+  const avg = finished.length ? finished.reduce((a, b) => a + b, 0) / finished.length : null
   return (
     <Card tone="diaper" className="py-4">
       <Link to="/patterns" className="flex items-center justify-between gap-3">
@@ -22,12 +24,14 @@ export default function LastDiaperCard({ summary, now, wetPerDay }: { summary: S
           </p>
           <p className="text-sm text-muted">{t('home.todayDiapers', { wet: c.wet, dirty: c.dirty, both: c.both })}</p>
         </div>
-        {wetPerDay && wetPerDay.length > 1 && avg !== null && (
+        {wetPerDay && wetPerDay.length > 1 && (
           <div className="flex flex-col items-end gap-1">
             <Sparkline values={wetPerDay} label={t('home.sparkLabel', { values: wetPerDay.join(', ') })} className="text-diaper" />
-            <span className="rounded-full bg-surface px-2 py-0.5 text-xs font-extrabold text-diaper-ink">
-              {t('home.sparkAvg', { avg: avg.toFixed(1) })}
-            </span>
+            {avg !== null && (
+              <span className="rounded-full bg-surface px-2 py-0.5 text-xs font-extrabold text-diaper-ink">
+                {t('home.sparkAvg', { avg: avg.toFixed(1) })}
+              </span>
+            )}
           </div>
         )}
       </Link>
