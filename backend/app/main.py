@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.api import auth, diapers, family, feeds, medicines, push, sleep, summary, timeline, vaccines, visits, vitals
+from app.api import auth, diapers, family, feed_timer, feeds, medicines, push, sleep, summary, timeline, vaccines, visits, vitals
 from app.config import get_settings
 
 app = FastAPI(title="Kinnest")
@@ -10,6 +10,7 @@ app.add_middleware(SessionMiddleware, secret_key=get_settings().session_secret, 
 app.include_router(auth.router)
 app.include_router(family.router)
 app.include_router(feeds.router)
+app.include_router(feed_timer.router)
 app.include_router(diapers.router)
 app.include_router(summary.router)
 app.include_router(push.router)

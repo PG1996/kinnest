@@ -293,6 +293,25 @@ class SleepSession(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class FeedTimer(Base):
+    """A feed being timed right now. The server keeps only when it started (and, once stopped, when it ended); every
+    phone works out the elapsed time from that, so a refresh or a sleeping phone never loses it."""
+
+    __tablename__ = "feed_timers"
+    __table_args__ = (
+        UniqueConstraint("kid_id"),  # one at a time
+        CheckConstraint("type in ('breast_left','breast_right','breast_both','expressed','formula')", name="ck_feed_timer_type"),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True)  # client-supplied
+    family_id: Mapped[uuid.UUID] = _fk("families")
+    kid_id: Mapped[uuid.UUID] = _fk("kids")
+    type: Mapped[str] = mapped_column(String(20))
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    started_by_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _created()
+
+
 class MedicineNudge(Base):
     """A one-off "remind me about the rest of this dose" reminder."""
 

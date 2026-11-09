@@ -11,6 +11,7 @@ from app.models import (
     Diaper,
     DoctorVisit,
     Feed,
+    FeedTimer,
     Kid,
     Medicine,
     MedicineNudge,
@@ -112,6 +113,8 @@ def _feed_chain(db: Session, kid: Kid, now: datetime, sender: Sender, tz: str, s
     )
     if last is None:
         return
+    if db.scalar(select(FeedTimer.id).where(FeedTimer.kid_id == kid.id)) is not None:
+        return  # a feed is being timed right now: no nagging about feeding
     due = feed_due_at(last, kid.feed_interval_minutes)
     state = _state(db, kid, "feed", due)
     level = 0 if state is None else state.level + 1  # lowest level not yet sent
