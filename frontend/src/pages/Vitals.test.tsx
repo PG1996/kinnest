@@ -114,12 +114,12 @@ test('filters list by place', async () => {
   )
 })
 
-const homeSummary = (latest: object) => ({
+const homeSummary = (latest: object, previous: object = {}) => ({
   last_feed: null, next_feed_due_at: null, last_diaper: null, feeds_today: 0,
-  diapers_today: { wet: 0, dirty: 0, both: 0 }, sleep: { open: null, last: null }, vitals: { latest },
+  diapers_today: { wet: 0, dirty: 0, both: 0 }, sleep: { open: null, last: null }, vitals: { latest, previous },
 })
-const homeCard = async (latest: object, me = ME_ADMIN) => {
-  mockApi({ 'GET /api/me': { body: me }, 'GET /api/summary': { body: homeSummary(latest) }, 'GET /api/medicines': { body: [] } })
+const homeCard = async (latest: object, me = ME_ADMIN, previous: object = {}) => {
+  mockApi({ 'GET /api/me': { body: me }, 'GET /api/summary': { body: homeSummary(latest, previous) }, 'GET /api/medicines': { body: [] } })
   renderApp(<Home />)
   return within(await screen.findByRole('region', { name: en.vitals.card.title }))
 }
@@ -249,4 +249,21 @@ test('the list filters give the place a row of its own and the two dates share t
   expect(place.closest('div')!.parentElement).not.toBe(from.closest('div')!.parentElement)
   expect(from.closest('div')!.parentElement).toBe(to.closest('div')!.parentElement)
   expect(from.closest('div')!.parentElement!.className).toContain('grid-cols-2')
+})
+
+
+test('Home vitals tiles sit three over two and show the change since the reading before', async () => {
+  const card = await homeCard(
+    { weight_kg: VITAL({ weight_kg: 3.56 }), height_cm: VITAL({ id: 'v2', height_cm: 51 }), temperature_c: VITAL({ id: 'v3', temperature_c: 36.8 }), heart_rate: VITAL({ id: 'v4', heart_rate: 150 }), spo2: VITAL({ id: 'v5', spo2: 98 }) },
+    ME_ADMIN,
+    { weight_kg: 3.42, height_cm: 51, temperature_c: null, heart_rate: 160, spo2: null },
+  )
+  const tile = (label: string) => card.getByText(label).closest('[data-testid="vital-tile"]') as HTMLElement
+  expect(tile(en.vitals.measurements.weight_kg).className).toContain('col-span-2')
+  expect(tile(en.vitals.measurements.spo2).className).toContain('col-span-3')
+  expect(within(tile(en.vitals.measurements.weight_kg)).getByTestId('stat-delta')).toHaveTextContent('▲ 0.14 kg')
+  expect(within(tile(en.vitals.measurements.heart_rate)).getByTestId('stat-delta')).toHaveTextContent('▼ 10')
+  expect(within(tile(en.vitals.measurements.height_cm)).getByTestId('stat-delta')).toHaveTextContent(en.vitals.charts.noChange)
+  expect(within(tile(en.vitals.measurements.spo2)).queryByTestId('stat-delta')).toBeNull()
+  expect(card.queryByRole('img')).toBeNull() // no trend lines on Home
 })

@@ -78,3 +78,19 @@ def latest_vitals(db: Session, kid_id) -> dict[str, VitalEntry | None]:
             .limit(1)
         )
     return out
+
+
+def previous_vitals(db: Session, kid_id) -> dict[str, float | None]:
+    """For each headline measurement, the value of the reading before the latest one: Home shows the change."""
+    out: dict[str, float | None] = {}
+    for key in LATEST_VITALS:
+        col = getattr(VitalEntry, key)
+        value = db.scalar(
+            select(col)
+            .where(VitalEntry.kid_id == kid_id, VitalEntry.deleted_at.is_(None), col.is_not(None))
+            .order_by(VitalEntry.measured_at.desc())
+            .offset(1)
+            .limit(1)
+        )
+        out[key] = float(value) if value is not None else None
+    return out

@@ -210,3 +210,13 @@ def test_summary_latest_per_measurement(family, clock):
     assert latest["spo2"] is None  # its only entry was deleted
     assert latest["heart_rate"]["id"] == beat["id"]
     assert "head_cm" not in latest  # head circumference is not a headline measurement
+
+
+def test_summary_gives_the_reading_before_the_latest_for_each_measurement(family, clock):
+    for hours, kg in ((30, 3.3), (10, 3.42), (2, 3.56)):
+        family.mom.post("/api/vitals", json=vital(clock, hours_ago=hours, weight_kg=kg))
+    family.mom.post("/api/vitals", json=vital(clock, hours_ago=1, temperature_c=37.2))
+    previous = family.aunt.get("/api/summary").json()["vitals"]["previous"]
+    assert previous["weight_kg"] == 3.42
+    assert previous["temperature_c"] is None  # only one reading
+    assert previous["spo2"] is None

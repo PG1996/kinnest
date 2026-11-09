@@ -2,8 +2,8 @@ import { useRef, type KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Vital } from '../api/hooks'
 import { cn } from '../lib/cn'
-import { MEASUREMENTS, shownUnit, shownValue, type MeasurementKey } from '../lib/vitals'
-import { formatValue } from '../lib/vitalsFormat'
+import { MEASUREMENTS, shownValue, type MeasurementKey } from '../lib/vitals'
+import { formatDelta, formatValue } from '../lib/vitalsFormat'
 import { Sparkline } from './ui/sparkline'
 
 const TREND_POINTS = 10
@@ -53,8 +53,6 @@ export default function StatTabs<K extends MeasurementKey>({
         const all = series(vitals, k)
         const latest = all.at(-1)
         const prev = all.at(-2)
-        const step = 10 ** -m.decimals
-        const diff = latest != null && prev != null ? Math.round((shownValue(k, latest) - shownValue(k, prev)) / step) * step : null
         const selected = k === value
         return (
           <button
@@ -80,9 +78,9 @@ export default function StatTabs<K extends MeasurementKey>({
               {latest != null ? formatValue(t, k, latest) : '–'}
             </span>
             <span className="flex items-center justify-between gap-1">
-              {diff !== null ? (
+              {latest != null && prev != null ? (
                 <span data-testid="stat-delta" className="truncate rounded-full bg-surface-2 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-muted">
-                  {diff === 0 ? t('vitals.charts.noChange') : `${diff > 0 ? '▲' : '▼'} ${Number(Math.abs(diff).toFixed(m.decimals))} ${t(shownUnit(m))}`}
+                  {formatDelta(t, k, latest, prev)}
                 </span>
               ) : (
                 <span />
