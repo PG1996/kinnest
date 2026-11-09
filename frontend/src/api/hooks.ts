@@ -44,7 +44,7 @@ export type Feed = {
   fed_by_user_id?: string
   fed_by_name: string
 }
-export type Diaper = { id: string; kind: DiaperKind; at: string; changed_by_name: string; note?: string }
+export type Diaper = { id: string; kind: DiaperKind; at: string; changed_by_name: string; changed_by_user_id?: string; note?: string }
 export type Sleep = {
   id: string
   started_at: string

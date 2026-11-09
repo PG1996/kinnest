@@ -141,3 +141,40 @@ test('the diapers screen shows the week and asks for seven days of diapers', asy
   const sixDaysAgo = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - 6).getTime()
   expect(froms).toContain(sixDaysAgo)
 })
+
+
+// --- who changed it ---------------------------------------------------------------------------------------------------
+
+const PEOPLE = [
+  { user_id: 'u1', email: 'owner@x.com', name: 'Owner', role: 'admin', relation: 'dad', pending: false },
+  { user_id: 'u3', email: 'nanny@x.com', name: 'Nanny', role: 'caregiver', relation: 'nanny', pending: false },
+  { user_id: 'u4', email: 'aunt@x.com', name: 'Aunt', role: 'viewer', relation: null, pending: false },
+]
+const withPeople = (extra: object = {}) => api(ME_ADMIN, { 'GET /api/family/members': { body: PEOPLE }, ...extra })
+
+test('adding a past diaper can name who changed it', async () => {
+  const calls = mockApi(withPeople())
+  renderApp(<App />, '/diapers')
+  await userEvent.click(await screen.findByRole('button', { name: en.diapers.addPast }))
+  const form = await screen.findByRole('dialog', { name: en.diapers.addTitle })
+  expect(await within(form).findByRole('button', { name: 'Owner', pressed: true })).toBeInTheDocument()
+  expect(within(form).queryByRole('button', { name: 'Aunt' })).not.toBeInTheDocument()
+  await userEvent.click(within(form).getByRole('button', { name: 'Nanny' }))
+  await userEvent.click(within(form).getByRole('button', { name: en.diapers.form.save }))
+  await waitFor(() => expect(calls.find((c) => c.key === 'POST /api/diapers')?.body).toMatchObject({ changed_by_user_id: 'u3' }))
+})
+
+test('editing a diaper shows who changed it and sends a new person only when picked', async () => {
+  const calls = mockApi(
+    withPeople({
+      'GET /api/timeline': { body: { items: [{ kind: 'diaper', id: 'd1', at: D[0]!.at, data: { ...D[0], changed_by_user_id: 'u3' } }] } },
+    }),
+  )
+  renderApp(<App />, '/timeline?entry=diaper:d1')
+  await userEvent.click(await screen.findByRole('button', { name: en.timeline.edit }))
+  const form = await screen.findByRole('dialog', { name: en.diapers.editTitle })
+  expect(await within(form).findByRole('button', { name: 'Nanny', pressed: true })).toBeInTheDocument()
+  await userEvent.click(within(form).getByRole('button', { name: 'Owner' }))
+  await userEvent.click(within(form).getByRole('button', { name: en.diapers.form.save }))
+  await waitFor(() => expect(calls.find((c) => c.key === 'PATCH /api/diapers/d1')?.body).toEqual({ changed_by_user_id: 'u1' }))
+})

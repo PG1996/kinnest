@@ -728,7 +728,8 @@
     "weekTitle": "Last 7 days",
     "weekLabel": "Diapers per day for the last 7 days, by kind",
     "wetTarget": "6 wet",
-    "weekTip": "{{day}}: {{wet}} wet, {{both}} both, {{dirty}} dirty"
+    "weekTip": "{{day}}: {{wet}} wet, {{both}} both, {{dirty}} dirty",
+    "changedBy": "Changed by"
   },
   "relations": {
     "mom": "Mom",

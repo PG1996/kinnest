@@ -13,7 +13,8 @@ export type FeedInput = {
   /** only when someone else gave the feed; the server records the logger otherwise */
   fed_by_user_id?: string
 }
-export type DiaperInput = { id: string; kind: DiaperKind; at: string; note?: string }
+/** `changed_by_user_id` only when someone other than the person logging it changed the diaper. */
+export type DiaperInput = { id: string; kind: DiaperKind; at: string; note?: string; changed_by_user_id?: string }
 export type LogResult = {
   id: string
   recent_other: { user_name: string; at: string } | null

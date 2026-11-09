@@ -114,3 +114,24 @@ def test_changing_a_feed_to_breast_makes_it_mom_s_and_bottle_keeps_who_fed(famil
     assert r.json()["fed_by_user_id"] == _uid(family.owner)
     r = family.owner.patch(f"/api/feeds/{made['id']}", json={"fed_by_user_id": _uid(family.aunt)})
     assert r.status_code == 422
+
+
+def _diaper(**kw):
+    body = {"id": str(uuid.uuid4()), "kind": "wet", "at": (datetime.now(UTC) - timedelta(minutes=5)).isoformat()}
+    body.update(kw)
+    return body
+
+
+def test_a_diaper_can_be_changed_by_any_admin_or_caregiver_but_not_a_viewer(family):
+    # dad logs it, the nanny (a caregiver) changed it
+    r = family.owner.post("/api/diapers", json=_diaper(changed_by_user_id=_uid(family.mom)))
+    assert r.status_code == 201 and r.json()["changed_by_user_id"] == _uid(family.mom)
+    assert family.owner.post("/api/diapers", json=_diaper(changed_by_user_id=_uid(family.aunt))).status_code == 422
+    assert family.owner.post("/api/diapers", json=_diaper()).json()["changed_by_user_id"] == _uid(family.owner)  # unnamed: the logger
+
+
+def test_editing_a_diaper_can_change_who_changed_it(family):
+    made = family.owner.post("/api/diapers", json=_diaper()).json()
+    r = family.owner.patch(f"/api/diapers/{made['id']}", json={"changed_by_user_id": _uid(family.mom)})
+    assert r.json()["changed_by_user_id"] == _uid(family.mom)
+    assert family.owner.patch(f"/api/diapers/{made['id']}", json={"changed_by_user_id": _uid(family.aunt)}).status_code == 422

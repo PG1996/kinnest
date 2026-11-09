@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Diaper, DiaperKind } from '../api/hooks'
+import { useMe, type Diaper, type DiaperKind } from '../api/hooks'
 import { useLogDiaper, useUpdateDiaper } from '../hooks/log'
 import { toLocalInput } from '../lib/time'
+import PersonPicker from './PersonPicker'
 import Sheet from './Sheet'
 import { Button } from './ui/button'
 import { Chip, ChipGroup } from './ui/chip'
@@ -20,6 +21,8 @@ export default function DiaperForm({ diaper, onClose }: { diaper?: Diaper; onClo
   const [when, setWhen] = useState(initialWhen)
   const [kind, setKind] = useState<DiaperKind>(diaper?.kind ?? 'wet')
   const [note, setNote] = useState(diaper?.note ?? '')
+  const [by, setBy] = useState<string | null>(null)
+  const me = useMe().data
   const [error, setError] = useState('')
 
   const submit = (e: FormEvent) => {
@@ -34,11 +37,12 @@ export default function DiaperForm({ diaper, onClose }: { diaper?: Diaper; onClo
         ...(kind !== diaper.kind ? { kind } : {}),
         ...(whenChanged ? { at: at.toISOString() } : {}),
         ...(note !== (diaper.note ?? '') ? { note } : {}),
+        ...(by && by !== diaper.changed_by_user_id ? { changed_by_user_id: by } : {}),
       }
       if (Object.keys(changes).length === 0) return onClose()
       update.mutate({ id: diaper.id, ...changes }, done)
     } else {
-      add.mutate({ id: crypto.randomUUID(), kind, at: at.toISOString(), ...(note ? { note } : {}) }, done)
+      add.mutate({ id: crypto.randomUUID(), kind, at: at.toISOString(), ...(note ? { note } : {}), ...(by && by !== me?.user.id ? { changed_by_user_id: by } : {}) }, done)
     }
   }
 
@@ -52,6 +56,7 @@ export default function DiaperForm({ diaper, onClose }: { diaper?: Diaper; onClo
             </Chip>
           ))}
         </ChipGroup>
+        <PersonPicker label={t('diapers.changedBy')} value={by ?? diaper?.changed_by_user_id ?? null} onChange={setBy} />
         <div className="space-y-1">
           <label htmlFor="diaper-when" className="block text-[13px] font-semibold text-muted">
             {t('diapers.form.when')}

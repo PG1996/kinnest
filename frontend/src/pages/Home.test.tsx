@@ -83,6 +83,41 @@ test('viewer sees no log buttons', async () => {
   expect(screen.queryByRole('button', { name: en.home.logFeedNow })).not.toBeInTheDocument()
 })
 
+const NANNY = { user_id: 'u3', email: 'nanny@x.com', name: 'Nanny', role: 'caregiver', relation: 'nanny', pending: false }
+const DAD = { user_id: 'u1', email: 'owner@x.com', name: 'Owner', role: 'admin', relation: 'dad', pending: false }
+const AUNT = { user_id: 'u4', email: 'aunt@x.com', name: 'Aunt', role: 'viewer', relation: null, pending: false }
+
+test('the diaper sheet asks who changed it: me by default, any admin or caregiver, never a viewer', async () => {
+  const calls = mockApi({
+    ...base(),
+    'GET /api/family/members': { body: [DAD, NANNY, AUNT] },
+    'POST /api/diapers': { status: 201, body: { id: 'x', recent_other: null } },
+  })
+  renderApp(<Home />)
+  await userEvent.click(await screen.findByRole('button', { name: en.home.diaper }))
+  const dialog = await screen.findByRole('dialog')
+  expect(await within(dialog).findByRole('button', { name: 'Owner', pressed: true })).toBeInTheDocument()
+  expect(within(dialog).queryByRole('button', { name: 'Aunt' })).not.toBeInTheDocument()
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Nanny' }))
+  await userEvent.click(within(dialog).getByRole('button', { name: en.diaperKinds.dirty }))
+  const post = await waitFor(() => calls.find((c) => c.key === 'POST /api/diapers')!)
+  expect(post.body).toMatchObject({ kind: 'dirty', changed_by_user_id: 'u3' })
+})
+
+test('logging a diaper as myself sends no changed-by', async () => {
+  const calls = mockApi({
+    ...base(),
+    'GET /api/family/members': { body: [DAD, NANNY] },
+    'POST /api/diapers': { status: 201, body: { id: 'x', recent_other: null } },
+  })
+  renderApp(<Home />)
+  await userEvent.click(await screen.findByRole('button', { name: en.home.diaper }))
+  await within(await screen.findByRole('dialog')).findByRole('button', { name: 'Nanny' })
+  await userEvent.click(screen.getByRole('button', { name: en.diaperKinds.wet }))
+  const post = await waitFor(() => calls.find((c) => c.key === 'POST /api/diapers')!)
+  expect(post.body).not.toHaveProperty('changed_by_user_id')
+})
+
 test('diaper wet button posts immediately and offers undo', async () => {
   const calls = mockApi({
     ...base(),
