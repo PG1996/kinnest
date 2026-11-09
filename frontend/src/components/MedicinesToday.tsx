@@ -63,7 +63,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
     }
   }
 
-  const submit = (m: Medicine, status: 'given' | 'skipped', slot?: Slot, amount?: number) =>
+  const submit = (m: Medicine, status: 'given' | 'skipped', slot?: Slot, amount?: number, nudgeMinutes: number | null = null) =>
     give.mutate(
       { id: crypto.randomUUID(), medicine_id: m.id, status, scheduled_for: slot?.due_at, amount },
       {
@@ -73,7 +73,11 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
           if (slot && amount !== undefined && status === 'given') {
             const left = r.slot ? r.slot.remaining : round2(effectiveRemaining(m, slot) - amount)
             const partlyGiven = r.slot ? r.slot.status === 'partial' : r.queued && (left ?? 0) > 0
-            if (partlyGiven && left) setNudgeFor({ medicine: m, slot, left })
+            if (partlyGiven && left) {
+              // a reminder already chosen on the dose screen is created now; otherwise offer one
+              if (nudgeMinutes) makeNudge(m, slot, nudgeMinutes)
+              else setNudgeFor({ medicine: m, slot, left })
+            }
           }
         },
         onError: failed(m),
@@ -87,16 +91,19 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
     else submit(m, 'given', undefined, amount)
   }
 
-  const pickNudge = (minutes: number) => {
-    if (!nudgeFor) return
+  const makeNudge = (m: Medicine, slot: Slot, minutes: number) => {
     const remindAt = new Date(Date.now() + minutes * 60_000)
     createNudge.mutate(
-      { id: crypto.randomUUID(), medicine_id: nudgeFor.medicine.id, scheduled_for: nudgeFor.slot.due_at, remind_at: remindAt.toISOString() },
+      { id: crypto.randomUUID(), medicine_id: m.id, scheduled_for: slot.due_at, remind_at: remindAt.toISOString() },
       {
         onSuccess: () => onToast({ message: t('medicines.reminderSet', { time: formatClock(remindAt.toISOString()) }) }),
         onError: () => onToast({ message: t('home.saveError') }),
       },
     )
+  }
+  const pickNudge = (minutes: number) => {
+    if (!nudgeFor) return
+    makeNudge(nudgeFor.medicine, nudgeFor.slot, minutes)
     setNudgeFor(null)
   }
 
@@ -262,14 +269,23 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
       ))}
       {partial && (
         <GiveDoseSheet
-          unit={partial.medicine.dose_unit ?? ''}
+          medicine={partial.medicine}
+          slot={partial.slot}
           max={partial.max}
-          initial={Math.min(partial.max, round2(partial.max / 2))}
           onCancel={() => setPartial(null)}
-          onGive={(amount) => {
+          onSkip={
+            partial.slot
+              ? () => {
+                  const { medicine, slot } = partial
+                  setPartial(null)
+                  submit(medicine, 'skipped', slot)
+                }
+              : undefined
+          }
+          onGive={(amount, nudgeMinutes) => {
             const { medicine, slot } = partial
             setPartial(null)
-            if (slot) submit(medicine, 'given', slot, amount)
+            if (slot) submit(medicine, 'given', slot, amount, nudgeMinutes)
             else giveAsNeeded(medicine, amount)
           }}
         />
