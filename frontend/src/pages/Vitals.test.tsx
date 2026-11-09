@@ -129,14 +129,17 @@ test('Home card shows each latest measurement as a compact value tile', async ()
   const card = await homeCard({
     weight_kg: VITAL({ weight_kg: 4.2 }),
     height_cm: VITAL({ id: 'v2', height_cm: 54 }),
-    head_cm: null,
     temperature_c: VITAL({ id: 'v3', temperature_c: 36.8 }),
+    heart_rate: VITAL({ id: 'v4', heart_rate: 142 }),
+    spo2: null,
   })
   const tile = (label: string) => card.getByText(label).parentElement!
   expect(tile(en.vitals.measurements.weight_kg)).toHaveTextContent('4.2 kg')
   expect(tile(en.vitals.measurements.height_cm)).toHaveTextContent('54 cm')
   expect(tile(en.vitals.measurements.temperature_c)).toHaveTextContent('98.2 °F')
-  expect(card.queryByText(en.vitals.measurements.head_cm)).not.toBeInTheDocument() // nothing recorded yet: no empty tile
+  expect(tile(en.vitals.measurements.heart_rate)).toHaveTextContent('142')
+  expect(card.queryByText(en.vitals.measurements.spo2)).not.toBeInTheDocument() // nothing recorded yet: no empty tile
+  expect(card.queryByText(en.vitals.measurements.head_cm)).not.toBeInTheDocument()
 })
 
 test('Home card no longer lists a date and place for every measurement', async () => {

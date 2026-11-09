@@ -63,7 +63,7 @@ def build_summary(db: Session, kid: Kid, now: datetime, tz: str = "Asia/Kolkata"
     )
 
 
-LATEST_VITALS = ("weight_kg", "height_cm", "head_cm", "temperature_c")
+LATEST_VITALS = ("weight_kg", "height_cm", "temperature_c", "heart_rate", "spo2")
 
 
 def latest_vitals(db: Session, kid_id) -> dict[str, VitalEntry | None]:

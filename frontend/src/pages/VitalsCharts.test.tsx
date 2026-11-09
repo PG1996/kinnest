@@ -75,7 +75,9 @@ test('missing birth date shows the settings hint', async () => {
   renderApp(<VitalsCharts />)
   const links = await screen.findAllByRole('link', { name: en.vitals.charts.noBirthDateLink })
   expect(links[0]).toHaveAttribute('href', '/family?tab=settings')
-  expect(screen.getAllByText(en.vitals.charts.noBirthDate).length).toBe(3)
+  await waitFor(() => expect(screen.getAllByText(en.vitals.charts.noBirthDate).length).toBe(2)) // weight and height
+  await userEvent.click(screen.getByRole('button', { name: en.vitals.charts.more }))
+  await waitFor(() => expect(screen.getAllByText(en.vitals.charts.noBirthDate).length).toBe(3)) // and head under More
 })
 
 test('temperature chart has the fever line labelled as information', async () => {
@@ -170,13 +172,13 @@ test('bulk shows a message when the whole request is refused or there is no conn
 
 // --- chart-led layout -------------------------------------------------------------------------------------------
 
-const FULL = (id: string, hours: number, over: object = {}) => ({ ...VITAL(id, 'home', 36.8, hours), weight_kg: 3.42, height_cm: 51.2, head_cm: 35.1, ...over })
+const FULL = (id: string, hours: number, over: object = {}) => ({ ...VITAL(id, 'home', 36.8, hours), weight_kg: 3.42, height_cm: 51.2, head_cm: 35.1, heart_rate: 142, spo2: 98, ...over })
 const withFull = () => ({ ...routes(), 'GET /api/vitals': { body: [FULL('f1', 5), VITAL('t2', 'hospital', 38.4, 3)] } })
 
-test('metric tabs show the latest value of weight, height, head and temperature', async () => {
+test('metric tabs show the latest value of weight, height, temperature, heart rate and SpO2', async () => {
   mockApi(withFull())
   renderApp(<VitalsCharts />)
-  for (const [key, value] of [['weight_kg', '3.42'], ['height_cm', '51.2'], ['head_cm', '35.1'], ['temperature_c', '38.4']] as const) {
+  for (const [key, value] of [['weight_kg', '3.42'], ['height_cm', '51.2'], ['temperature_c', '38.4'], ['heart_rate', '142'], ['spo2', '98']] as const) {
     await waitFor(() => expect(screen.getByRole('tab', { name: new RegExp(en.vitals.measurements[key]) })).toHaveTextContent(value))
   }
 })

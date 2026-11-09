@@ -72,34 +72,38 @@ test('settings switch the unit between °F and °C', async () => {
   expect(localStorage.getItem('kinnest.tempUnit')).toBe('C')
 })
 
-test('heart rate, breathing rate and SpO2 wait under More vitals in the form', async () => {
+test('head circumference and breathing rate wait under More vitals in the form', async () => {
   mockApi(api([]))
   renderApp(<App />, '/health?tab=vitals')
   await userEvent.click(await screen.findByRole('button', { name: en.vitals.add }))
   const form = screen.getByRole('dialog')
-  expect(within(form).getByRole('button', { name: en.vitals.measurements.weight_kg })).toBeInTheDocument()
-  expect(within(form).queryByRole('button', { name: en.vitals.measurements.resp_rate })).not.toBeInTheDocument()
+  for (const k of ['weight_kg', 'height_cm', 'temperature_c', 'heart_rate', 'spo2'] as const)
+    expect(within(form).getByRole('button', { name: en.vitals.measurements[k] })).toBeInTheDocument()
+  for (const k of ['head_cm', 'resp_rate'] as const) expect(within(form).queryByRole('button', { name: en.vitals.measurements[k] })).not.toBeInTheDocument()
   const more = within(form).getByRole('button', { name: en.vitals.form.more })
   expect(more).toHaveAttribute('aria-expanded', 'false')
   await userEvent.click(more)
-  for (const k of ['heart_rate', 'resp_rate', 'spo2'] as const)
-    expect(within(form).getByRole('button', { name: en.vitals.measurements[k] })).toBeInTheDocument()
+  for (const k of ['head_cm', 'resp_rate'] as const) expect(within(form).getByRole('button', { name: en.vitals.measurements[k] })).toBeInTheDocument()
 })
 
-test('editing an entry that has a heart rate opens More vitals by itself', async () => {
-  mockApi(api([VITAL({ heart_rate: 140 })]))
+test('editing an entry that has a head circumference opens More vitals by itself', async () => {
+  mockApi(api([VITAL({ head_cm: 35 })]))
   renderApp(<App />, '/health?tab=vitals')
   await userEvent.click(await screen.findByRole('radio', { name: en.vitals.charts.list }))
   await userEvent.click(await screen.findByRole('button', { name: en.vitals.list.edit }))
   const form = screen.getByRole('dialog')
-  expect(within(form).getByRole('button', { name: en.vitals.measurements.heart_rate, pressed: true })).toBeInTheDocument()
+  expect(within(form).getByRole('button', { name: en.vitals.measurements.head_cm, pressed: true })).toBeInTheDocument()
 })
 
-test('the charts keep heart rate, breathing rate and SpO2 under More vitals', async () => {
+test('the charts keep head circumference and breathing rate under More vitals', async () => {
   mockApi(api())
   renderApp(<App />, '/health?tab=vitals')
   await screen.findByRole('figure', { name: en.vitals.measurements.temperature_c })
   expect(screen.queryByRole('figure', { name: en.vitals.measurements.resp_rate })).not.toBeInTheDocument()
+  expect(screen.getByRole('tab', { name: new RegExp(en.vitals.measurements.heart_rate) })).toBeInTheDocument()
+  expect(screen.getByRole('tab', { name: new RegExp(en.vitals.measurements.spo2) })).toBeInTheDocument()
+  expect(screen.queryByRole('tab', { name: new RegExp(en.vitals.measurements.head_cm) })).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: en.vitals.charts.more }))
   expect(screen.getByRole('figure', { name: en.vitals.measurements.resp_rate })).toBeInTheDocument()
+  expect(screen.getByRole('figure', { name: en.vitals.charts.growth.head })).toBeInTheDocument()
 })

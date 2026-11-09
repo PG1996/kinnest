@@ -18,8 +18,8 @@ export const MEASUREMENTS: Measurement[] = [
 ]
 
 /** Measurements a parent records every day; the rest wait behind "More vitals". */
-export const MAIN_KEYS: MeasurementKey[] = ['weight_kg', 'height_cm', 'head_cm', 'temperature_c']
-export const MORE_KEYS: MeasurementKey[] = ['heart_rate', 'resp_rate', 'spo2']
+export const MAIN_KEYS: MeasurementKey[] = ['weight_kg', 'height_cm', 'temperature_c', 'heart_rate', 'spo2']
+export const MORE_KEYS: MeasurementKey[] = ['head_cm', 'resp_rate']
 
 const showsF = (key: MeasurementKey) => key === 'temperature_c' && getTempUnit() === 'F'
 /** A stored value as the user sees it (temperature in °F when chosen). */

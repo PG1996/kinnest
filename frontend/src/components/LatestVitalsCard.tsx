@@ -8,10 +8,10 @@ import { MEASUREMENTS } from '../lib/vitals'
 import { formatValue } from '../lib/vitalsFormat'
 import { Card } from './ui/card'
 
-const KEYS = ['weight_kg', 'height_cm', 'head_cm', 'temperature_c'] as const
+const KEYS = ['weight_kg', 'height_cm', 'temperature_c', 'heart_rate', 'spo2'] as const
 const FEVER_C = 38
 
-/** Home card: the latest weight, height, head and temperature as small value tiles, with one "updated" note. */
+/** Home card: the latest weight, height, temperature, heart rate and SpO2 as small value tiles, with one "updated" note. */
 export default function LatestVitalsCard({ latest, canLog, now = Date.now() }: { latest: NonNullable<Summary['vitals']>['latest']; canLog: boolean; now?: number }) {
   const { t } = useTranslation()
   const items = KEYS.flatMap((k) => {
@@ -40,7 +40,7 @@ export default function LatestVitalsCard({ latest, canLog, now = Date.now() }: {
       {items.length === 0 ? (
         <p className="text-sm text-muted">{t('vitals.card.empty')}</p>
       ) : (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
           {items.map((i) => {
             const fever = i.key === 'temperature_c' && i.value >= FEVER_C
             return (
