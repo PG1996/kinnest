@@ -250,7 +250,13 @@
     "medicineCard": "{{name}} · {{dose}}",
     "slotAt": "{{time}} slot",
     "upTo": "Up to {{left}}. More than what is left can't be saved.",
-    "tapAgain": "Tap again to give {{amount}}"
+    "tapAgain": "Tap again to give {{amount}}",
+    "missedEarlier_one": "{{count}} earlier dose not recorded",
+    "missedEarlier_other": "{{count}} earlier doses not recorded",
+    "skipAllMissed": "Skip all missed",
+    "laterToday": "Later: {{times}}",
+    "nextDose": "Next dose at {{time}}",
+    "doneCount": "Done ({{count}})"
   },
   "units": {
     "ml": "ml",

@@ -386,3 +386,56 @@ test('Settings saves the medicine reminders toggle with the other preferences', 
   await userEvent.click(await screen.findByRole('switch', { name: en.settings.medicineReminders }))
   await waitFor(() => expect(calls.find((c) => c.key === 'PUT /api/notification-prefs')?.body).toEqual({ feed: true, diaper: true, medicine: false }))
 })
+
+// --- one dose at a time: missed, later and done doses are tucked away ------------------------------------------------
+
+const multi = (slots: object[]) => med({ slots })
+
+test('only the latest due dose has buttons; earlier unrecorded doses are tucked away', async () => {
+  mockApi(base([multi([slot({ due_at: minsAgo(26 * 60) }), slot({ due_at: minsAgo(14 * 60) }), slot({ due_at: minsAgo(60) })])]))
+  renderApp(<Home />)
+  expect(await screen.findAllByRole('button', { name: en.medicines.giveFull })).toHaveLength(1)
+  const toggle = screen.getByRole('button', { name: text(en.medicines.missedEarlier_other, { count: '2' }) })
+  expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  await userEvent.click(toggle)
+  expect(toggle).toHaveAttribute('aria-expanded', 'true')
+  expect(screen.getAllByRole('button', { name: en.medicines.giveFull })).toHaveLength(3)
+})
+
+test('skip all missed skips every earlier dose and leaves the current one', async () => {
+  const early = slot({ due_at: minsAgo(26 * 60) })
+  const mid = slot({ due_at: minsAgo(14 * 60) })
+  const now = slot({ due_at: minsAgo(60) })
+  const calls = mockApi({ ...base([multi([early, mid, now])]), 'POST /api/medicines/m1/doses': posted({ slot: { status: 'skipped', given_amount: 0, remaining: 5 } }) })
+  renderApp(<Home />)
+  await userEvent.click(await screen.findByRole('button', { name: text(en.medicines.missedEarlier_other, { count: '2' }) }))
+  await userEvent.click(screen.getByRole('button', { name: en.medicines.skipAllMissed }))
+  await waitFor(() => expect(calls.filter((c) => c.key === 'POST /api/medicines/m1/doses')).toHaveLength(2))
+  const bodies = calls.filter((c) => c.key === 'POST /api/medicines/m1/doses').map((c) => c.body as Record<string, unknown>)
+  expect(bodies.map((b) => b.scheduled_for).sort()).toEqual([early.due_at, mid.due_at].sort())
+  expect(bodies.every((b) => b.status === 'skipped')).toBe(true)
+})
+
+test('later doses are one line of times, not rows with buttons', async () => {
+  mockApi(base([multi([slot({ due_at: minsAgo(30) }), slot({ due_at: minsFromNow(180) }), slot({ due_at: minsFromNow(600) })])]))
+  renderApp(<Home />)
+  expect(await screen.findAllByRole('button', { name: en.medicines.giveFull })).toHaveLength(1)
+  expect(screen.getByText(new RegExp(en.medicines.laterToday.replace('{{times}}', '.+')))).toBeInTheDocument()
+})
+
+test('with nothing due the next dose is one calm line and there are no buttons', async () => {
+  mockApi(base([multi([slot({ due_at: minsFromNow(180) })])]))
+  renderApp(<Home />)
+  expect(await screen.findByText(new RegExp(en.medicines.nextDose.replace('{{time}}', '.+')))).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: en.medicines.giveFull })).not.toBeInTheDocument()
+})
+
+test('given and skipped doses are collapsed under Done', async () => {
+  const done = slot({ due_at: minsAgo(5 * 60), status: 'given', given_amount: 5, remaining: 0, dose_id: 'd1', given_at: minsAgo(5 * 60), by_name: 'Mom', doses: [] })
+  mockApi(base([multi([done, slot({ due_at: minsAgo(30) })])]))
+  renderApp(<Home />)
+  const toggle = await screen.findByRole('button', { name: text(en.medicines.doneCount, { count: '1' }) })
+  expect(screen.queryByText(new RegExp('Mom'))).not.toBeInTheDocument()
+  await userEvent.click(toggle)
+  expect(screen.getByText(new RegExp('Mom'))).toBeInTheDocument()
+})
