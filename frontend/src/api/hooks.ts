@@ -102,7 +102,7 @@ export type Summary = {
   feeds_today: number
   diapers_today: Record<DiaperKind, number>
   sleep: SummarySleep
-  vitals?: { latest: Partial<Record<'weight_kg' | 'height_cm' | 'head_cm' | 'temperature_c', Vital | null>> }
+  vitals?: { latest: Partial<Record<'weight_kg' | 'height_cm' | 'temperature_c' | 'heart_rate' | 'spo2', Vital | null>> }
 }
 
 export type KidInfo = {

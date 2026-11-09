@@ -197,12 +197,16 @@ def test_summary_latest_per_measurement(family, clock):
     old = vital(clock, hours_ago=30, weight_kg=3.3, height_cm=51, place_kind="hospital")
     new = vital(clock, hours_ago=2, weight_kg=3.5)
     temp = vital(clock, hours_ago=1, temperature_c=36.9)
-    gone = vital(clock, hours_ago=0.5, head_cm=35)
-    for x in (old, new, temp, gone):
+    gone = vital(clock, hours_ago=0.5, spo2=97)
+    beat = vital(clock, hours_ago=0.4, heart_rate=140)
+    head = vital(clock, hours_ago=0.3, head_cm=35)
+    for x in (old, new, temp, gone, beat, head):
         family.mom.post("/api/vitals", json=x)
     family.mom.delete(f"/api/vitals/{gone['id']}")
     latest = family.aunt.get("/api/summary").json()["vitals"]["latest"]
     assert latest["weight_kg"]["id"] == new["id"] and latest["weight_kg"]["weight_kg"] == 3.5
     assert latest["height_cm"]["id"] == old["id"] and latest["height_cm"]["place_kind"] == "hospital"
     assert latest["temperature_c"]["id"] == temp["id"]
-    assert latest["head_cm"] is None
+    assert latest["spo2"] is None  # its only entry was deleted
+    assert latest["heart_rate"]["id"] == beat["id"]
+    assert "head_cm" not in latest  # head circumference is not a headline measurement

@@ -14,9 +14,9 @@ import { PLACES } from '../lib/vitalsFormat'
 const dayStart = (d: string) => (d ? new Date(`${d}T00:00:00`).toISOString() : undefined)
 const dayEnd = (d: string) => (d ? new Date(`${d}T23:59:59.999`).toISOString() : undefined)
 
-const TABS = ['weight_kg', 'height_cm', 'head_cm', 'temperature_c'] as const
+const TABS = ['weight_kg', 'height_cm', 'temperature_c', 'heart_rate', 'spo2'] as const
 type Tab = (typeof TABS)[number]
-const OTHERS: MeasurementKey[] = ['heart_rate', 'resp_rate', 'spo2']
+
 
 /** The most recent value of one measurement, by time taken. */
 const latest = (vitals: Vital[], key: MeasurementKey): number | null => {
@@ -45,8 +45,9 @@ export default function VitalsCharts() {
   const charts: Record<Tab, ReactNode> = {
     weight_kg: <GrowthChart key="weight" kind="weight" hidden={hidden} />,
     height_cm: <GrowthChart key="height" kind="height" hidden={hidden} />,
-    head_cm: <GrowthChart key="head" kind="head" hidden={hidden} />,
     temperature_c: <TrendChart key="temperature_c" measurement="temperature_c" vitals={vitals} />,
+    heart_rate: <TrendChart key="heart_rate" measurement="heart_rate" vitals={vitals} />,
+    spo2: <TrendChart key="spo2" measurement="spo2" vitals={vitals} />,
   }
   const options = TABS.map((k) => {
     const m = MEASUREMENTS.find((x) => x.key === k)!
@@ -99,7 +100,12 @@ export default function VitalsCharts() {
       >
         {t('vitals.charts.more')}
       </button>
-      {more && OTHERS.map((k) => <TrendChart key={k} measurement={k} vitals={vitals} />)}
+      {more && (
+        <>
+          <GrowthChart kind="head" hidden={hidden} />
+          <TrendChart measurement="resp_rate" vitals={vitals} />
+        </>
+      )}
     </div>
   )
 }
