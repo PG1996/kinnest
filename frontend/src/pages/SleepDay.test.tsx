@@ -132,3 +132,41 @@ test('the sleep card on Home opens the day screen', async () => {
   renderApp(<Home />)
   expect(await screen.findByRole('link', { name: new RegExp(en.sleep.title) })).toHaveAttribute('href', '/sleep')
 })
+
+// --- editing short sleeps and clearing the wake-up time ----------------------------------------------------------------
+
+const SHORT = { id: 's9', started_at: new Date(today(0, 30).getTime() + 37_000).toISOString(), ended_at: new Date(today(0, 30).getTime() + 40_000).toISOString(), started_by_name: 'Mom', ended_by_name: 'Mom', duration_min: 0, note: '' }
+const shortApi = (extra: object = {}) => api(ME_ADMIN, { 'GET /api/sleep': { body: [SHORT] }, 'PATCH /api/sleep/s9': (b: unknown) => ({ body: { ...SHORT, ...(b as object) } }), ...extra })
+
+test('editing only the note of a sleep a few seconds long saves without a time error', async () => {
+  const calls = mockApi(shortApi())
+  renderApp(<App />, '/sleep')
+  await userEvent.click(await screen.findByRole('button', { name: en.sleep.edit }))
+  const form = await screen.findByRole('dialog', { name: en.sleep.editTitle })
+  await userEvent.type(within(form).getByLabelText(en.sleep.form.note), 'tap test')
+  await userEvent.click(within(form).getByRole('button', { name: en.sleep.form.save }))
+  await waitFor(() => expect(calls.some((c) => c.key === 'PATCH /api/sleep/s9')).toBe(true))
+  const body = calls.find((c) => c.key === 'PATCH /api/sleep/s9')!.body as Record<string, unknown>
+  expect(body).toEqual({ note: 'tap test' }) // untouched times are not rounded to the minute and resent
+})
+
+test('emptying Woke up on a finished sleep marks it as still asleep', async () => {
+  const calls = mockApi(shortApi())
+  renderApp(<App />, '/sleep')
+  await userEvent.click(await screen.findByRole('button', { name: en.sleep.edit }))
+  const form = await screen.findByRole('dialog', { name: en.sleep.editTitle })
+  fireEvent.change(within(form).getByLabelText(en.sleep.form.end), { target: { value: '' } })
+  await userEvent.click(within(form).getByRole('button', { name: en.sleep.form.save }))
+  await waitFor(() => expect(calls.some((c) => c.key === 'PATCH /api/sleep/s9')).toBe(true))
+  expect(calls.find((c) => c.key === 'PATCH /api/sleep/s9')!.body).toMatchObject({ ended_at: null })
+})
+
+test('when another sleep is already going, reopening says so instead of a vague error', async () => {
+  mockApi(shortApi({ 'PATCH /api/sleep/s9': { status: 409, body: { detail: 'already asleep', open: { ...SHORT, id: 'other', started_by_name: 'Nanny' } } } }))
+  renderApp(<App />, '/sleep')
+  await userEvent.click(await screen.findByRole('button', { name: en.sleep.edit }))
+  const form = await screen.findByRole('dialog', { name: en.sleep.editTitle })
+  fireEvent.change(within(form).getByLabelText(en.sleep.form.end), { target: { value: '' } })
+  await userEvent.click(within(form).getByRole('button', { name: en.sleep.form.save }))
+  expect(await within(form).findByText(en.sleep.alreadyAsleep.replace('{{name}}', 'Nanny'))).toBeInTheDocument()
+})

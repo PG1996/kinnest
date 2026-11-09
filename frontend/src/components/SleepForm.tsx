@@ -15,24 +15,31 @@ export default function SleepForm({ sleep, onClose }: { sleep?: Sleep; onClose: 
   const { t } = useTranslation()
   const add = useAddPastSleep()
   const update = useUpdateSleep()
-  const [start, setStart] = useState(() => (sleep ? toLocalInput(new Date(sleep.started_at)) : ''))
-  const [end, setEnd] = useState(() => (sleep?.ended_at ? toLocalInput(new Date(sleep.ended_at)) : ''))
+  // the inputs show minutes only: an untouched field keeps the exact stored time instead of a rounded one
+  const [initialStart] = useState(() => (sleep ? toLocalInput(new Date(sleep.started_at)) : ''))
+  const [initialEnd] = useState(() => (sleep?.ended_at ? toLocalInput(new Date(sleep.ended_at)) : ''))
+  const [start, setStart] = useState(initialStart)
+  const [end, setEnd] = useState(initialEnd)
   const [note, setNote] = useState(sleep?.note ?? '')
   const [error, setError] = useState('')
-  const ongoing = !!sleep && !sleep.ended_at
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    const a = new Date(start)
-    const b = end ? new Date(end) : null
+    const startChanged = !sleep || start !== initialStart
+    const endChanged = !sleep || end !== initialEnd
+    const a = startChanged ? new Date(start) : new Date(sleep!.started_at)
+    // an empty "Woke up" means still asleep (when editing); a new past sleep needs both times
+    const b = end ? (endChanged ? new Date(end) : new Date(sleep!.ended_at!)) : null
     const soon = Date.now() + 2 * 60_000
-    if (Number.isNaN(a.getTime()) || (b && Number.isNaN(b.getTime())) || (!b && !ongoing)) return setError(t('sleep.form.endBeforeStart'))
+    if (Number.isNaN(a.getTime()) || (b && Number.isNaN(b.getTime())) || (!b && !sleep)) return setError(t('sleep.form.endBeforeStart'))
     if (a.getTime() > soon || (b && b.getTime() > soon)) return setError(t('sleep.form.future'))
     if (b && b <= a) return setError(t('sleep.form.endBeforeStart'))
     if (b && b.getTime() - a.getTime() > MAX_MS) return setError(t('sleep.form.tooLong'))
     setError('')
     const failed = (err: unknown) => {
-      const other = err instanceof ApiError && err.status === 409 ? (err.body as { overlaps?: Sleep } | undefined)?.overlaps : undefined
+      const body = err instanceof ApiError && err.status === 409 ? (err.body as { overlaps?: Sleep; open?: Sleep } | undefined) : undefined
+      const other = body?.overlaps
+      if (body?.open) return setError(t('sleep.alreadyAsleep', { name: body.open.started_by_name }))
       setError(
         other
           ? t('sleep.overlaps', { range: t('sleep.range', { from: formatTime(other.started_at), to: other.ended_at ? formatTime(other.ended_at) : t('sleep.ongoing') }) })
@@ -40,8 +47,14 @@ export default function SleepForm({ sleep, onClose }: { sleep?: Sleep; onClose: 
       )
     }
     if (sleep) {
+      const changes = {
+        ...(startChanged ? { started_at: a.toISOString() } : {}),
+        ...(endChanged ? { ended_at: b ? b.toISOString() : null } : {}),
+        ...(note !== (sleep.note ?? '') ? { note } : {}),
+      }
+      if (Object.keys(changes).length === 0) return onClose()
       update.mutate(
-        { id: sleep.id, started_at: a.toISOString(), ...(b ? { ended_at: b.toISOString() } : {}), note },
+        { id: sleep.id, ...changes },
         { onSuccess: onClose, onError: failed },
       )
     } else {
@@ -63,7 +76,7 @@ export default function SleepForm({ sleep, onClose }: { sleep?: Sleep; onClose: 
             {t('sleep.form.end')}
           </label>
           <Input id="sleep-end" type="datetime-local" value={end} max={toLocalInput(new Date())} onChange={(e) => setEnd(e.target.value)} />
-          {ongoing && <p className="text-xs text-muted">{t('sleep.form.endHint')}</p>}
+          {sleep && <p className="text-xs text-muted">{t('sleep.form.endHint')}</p>}
         </div>
         <div className="space-y-1">
           <label htmlFor="sleep-note" className="block text-[13px] font-semibold text-muted">
