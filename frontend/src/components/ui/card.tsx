@@ -30,6 +30,7 @@ export function Card({
 }: HTMLAttributes<HTMLDivElement> & { tone?: Tone; interactive?: boolean }) {
   return (
     <div
+      data-tone={tone}
       className={cn('rounded-card border p-5 shadow-sm', TONES[tone], interactive && 'transition active:scale-[0.99]', className)}
       {...props}
     />
