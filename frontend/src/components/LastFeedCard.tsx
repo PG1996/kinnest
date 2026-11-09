@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 import type { Summary } from '../api/hooks'
 import { useCountUp } from '../lib/motion'
 import { formatAgo, formatClock } from '../lib/time'
@@ -40,6 +41,7 @@ export default function LastFeedCard({
   const leftMin = due !== null ? Math.max(0, Math.ceil((due - now) / MIN)) : null
   return (
     <Card tone="feed" className="space-y-3 shadow-[0_8px_24px_-12px_rgba(180,88,46,0.35)]">
+      <Link to="/feeds" aria-label={t('feeds.title')} className="block space-y-3">
       <div className="flex items-center justify-between gap-2">
         <Eyebrow tone="feed">{overdue ? t('home.overdue') : t('home.lastFedLabel')}</Eyebrow>
         {due !== null && !overdue && (
@@ -63,6 +65,7 @@ export default function LastFeedCard({
           </HalfGauge>
         )}
       </div>
+      </Link>
       {overdue && canLog && (
         <Button size="lg" className="w-full bg-feed-ink text-surface" onClick={onLogFeed}>
           {t('home.logFeedNow')}

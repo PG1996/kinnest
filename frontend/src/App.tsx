@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useMe } from './api/hooks'
 import Layout from './components/Layout'
 import DiaperDay from './pages/DiaperDay'
+import FeedDay from './pages/FeedDay'
 import Family from './pages/Family'
 import Health from './pages/Health'
 import Home from './pages/Home'
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="patterns" element={<Patterns />} />
         <Route path="sleep" element={<SleepDay />} />
         <Route path="diapers" element={<DiaperDay />} />
+        <Route path="feeds" element={<FeedDay />} />
         <Route path="family" element={<Family />} />
         <Route path="medicines" element={<Redirect to="/health?tab=medicines" />} />
         <Route path="members" element={<Redirect to="/family?tab=members" />} />
