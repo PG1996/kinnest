@@ -284,12 +284,15 @@
         "amount": "Amount",
         "status": "Status",
         "note": "Note",
-        "save": "Save"
+        "save": "Save",
+        "slot": "Counts for dose"
       },
-      "saveError": "Couldn't save the dose. Check the time and amount."
+      "saveError": "Couldn't save the dose. Check the time and amount.",
+      "noSlot": "No slot (history only)"
     },
     "sosTitle": "SOS medicines",
-    "sosWait": "Wait until {{time}} before the next dose"
+    "sosWait": "Wait until {{time}} before the next dose",
+    "today": "today"
   },
   "units": {
     "ml": "ml",
