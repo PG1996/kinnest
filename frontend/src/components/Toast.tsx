@@ -1,3 +1,4 @@
+import { Check } from 'lucide-react'
 import { useEffect } from 'react'
 import { Button } from './ui/button'
 
@@ -11,11 +12,12 @@ export default function Toast({ toast, onClose, ms = 5000 }: { toast: ToastData;
   return (
     <div
       role="status"
-      className="fixed inset-x-4 bottom-20 z-20 mx-auto flex max-w-md items-center justify-between gap-3 rounded-2xl bg-ink px-4 py-2 text-app shadow-lg"
+      className="fixed inset-x-4 bottom-24 z-40 mx-auto flex max-w-md items-center gap-3 rounded-2xl bg-ink py-1.5 pr-2 pl-4 text-app shadow-xl"
     >
-      <span>{toast.message}</span>
+      <Check size={20} aria-hidden="true" className="shrink-0 text-diaper" />
+      <span className="flex-1 font-bold">{toast.message}</span>
       {toast.action && (
-        <Button variant="ghost" className="text-accent" onClick={toast.action.run}>
+        <Button variant="ghost" className="min-h-11 rounded-xl bg-white/15 px-4 text-app hover:bg-white/25" onClick={toast.action.run}>
           {toast.action.label}
         </Button>
       )}
