@@ -331,7 +331,15 @@
     },
     "sosTitle": "SOS medicines",
     "sosWait": "Wait until {{time}} before the next dose",
-    "today": "today"
+    "today": "today",
+    "tileDone": "Done",
+    "tileDue": "Due now",
+    "tileNext": "Next {{time}}",
+    "sosBadge": "SOS",
+    "tileMissed": "{{count}} missed",
+    "tileNever": "Not given",
+    "tileLast": "{{ago}} ago",
+    "tileWait": "Wait till {{time}}"
   },
   "units": {
     "ml": "ml",
