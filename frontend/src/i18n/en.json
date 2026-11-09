@@ -728,5 +728,17 @@
   },
   "feed": {
     "fedByMom": "Fed by mom · {{name}}"
+  },
+  "feeds": {
+    "title": "Feeds",
+    "prevDay": "Previous day",
+    "nextDay": "Next day",
+    "listLabel": "Feeds this day",
+    "none": "No feeds logged this day.",
+    "addPast": "Add a past feed",
+    "statFeeds": "feeds",
+    "statBottle": "bottle",
+    "statBreast": "breast",
+    "statGap": "avg gap"
   }
 }

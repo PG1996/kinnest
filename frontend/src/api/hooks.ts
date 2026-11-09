@@ -297,6 +297,14 @@ export function useSleepRange(from: Date, to: Date) {
   })
 }
 
+/** Feeds started between `from` and `to`. Keep `from`/`to` stable between renders. */
+export function useFeedRange(from: Date, to: Date) {
+  return useQuery({
+    queryKey: ['feeds', from.toISOString(), to.toISOString()],
+    queryFn: () => api<Feed[]>(`/api/feeds?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`),
+  })
+}
+
 /** Diapers changed between `from` and `to`. Keep `from`/`to` stable between renders. */
 export function useDiaperRange(from: Date, to: Date) {
   return useQuery({
