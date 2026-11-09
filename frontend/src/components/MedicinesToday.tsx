@@ -276,19 +276,29 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
         {current && later.length > 0 && (
           <p className="text-sm text-muted">{t('medicines.laterToday', { times: later.map((s) => formatClock(s.due_at)).join(', ') })}</p>
         )}
-        {missed.length > 0 &&
-          disclosure(
-            `${m.id}:missed`,
-            t('medicines.missedEarlier', { count: missed.length }),
-            <>
-              {missed.map((s) => slotRow(m, s))}
-              {canLog && (
+        {missed.length > 0 && (
+          <div className="space-y-2 rounded-tile bg-warn-bg p-3 text-warn-ink">
+            <p className="text-sm font-extrabold">
+              {t('medicines.missedList', {
+                count: missed.length,
+                times: missed
+                  .map((s) => formatClock(s.due_at) + (new Date(s.due_at).toDateString() !== new Date(now).toDateString() ? ` (${t('medicines.yesterday')})` : ''))
+                  .join(', '),
+              })}
+            </p>
+            {canLog && (
+              <div className="flex flex-wrap gap-2">
                 <Button variant="outline" disabled={give.isPending} onClick={() => void skipAll(m, missed)}>
                   {t('medicines.skipAllMissed')}
                 </Button>
-              )}
-            </>,
-          )}
+                <Button variant="ghost" aria-expanded={!!open[`${m.id}:missed`]} onClick={() => flip(`${m.id}:missed`)}>
+                  {t('medicines.reviewMissed')}
+                </Button>
+              </div>
+            )}
+            {open[`${m.id}:missed`] && <div className="space-y-3 border-l-2 border-warn-ink/30 pl-3 text-ink">{missed.map((s) => slotRow(m, s))}</div>}
+          </div>
+        )}
         {/* nothing left to do: show the last thing recorded (with Undo); otherwise all done doses wait under "Done" */}
         {!current && done.length > 0 && slotRow(m, done.at(-1)!)}
         {(() => {
