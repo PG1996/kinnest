@@ -1,4 +1,4 @@
-import { act, screen, waitFor } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import en from '../i18n/en.json'
@@ -116,4 +116,28 @@ test('without a mom set, a breast feed still shows who is logging it', async () 
   renderApp(<FeedSheet last={null} saving={false} failed={false} onSave={() => {}} onClose={() => {}} />)
   await userEvent.click(screen.getByRole('radio', { name: en.feedTypes.breast_left }))
   expect(await screen.findByRole('button', { name: 'Owner', pressed: true })).toBeInTheDocument()
+})
+
+// --- the type picker is grouped -----------------------------------------------------------------------------------
+
+test('feed types are grouped: Mom\'s feed with L, R and Both, then Expressed milk and Formula', async () => {
+  mockApi(api())
+  renderApp(<FeedSheet last={null} saving={false} failed={false} onSave={() => {}} onClose={() => {}} />)
+  const mom = screen.getByRole('group', { name: en.feed.momGroup })
+  const radios = within(mom).getAllByRole('radio')
+  expect(radios.map((r) => r.parentElement!.textContent)).toEqual(['L', 'R', 'Both'])
+  // the full wording is what a screen reader hears
+  expect(radios.map((r) => r.getAttribute('aria-label'))).toEqual([en.feedTypes.breast_left, en.feedTypes.breast_right, en.feedTypes.breast_both])
+  const bottle = screen.getByRole('group', { name: en.feed.bottleGroup })
+  expect(within(bottle).getAllByRole('radio').map((r) => r.parentElement!.textContent)).toEqual([en.feedTypes.expressed, en.feedTypes.formula])
+})
+
+test('only one type can be chosen across both groups', async () => {
+  mockApi(api())
+  renderApp(<FeedSheet last={null} saving={false} failed={false} onSave={() => {}} onClose={() => {}} />)
+  await userEvent.click(screen.getByRole('radio', { name: en.feedTypes.breast_right }))
+  expect(screen.getByRole('radio', { name: en.feedTypes.breast_right })).toBeChecked()
+  await userEvent.click(screen.getByRole('radio', { name: en.feedTypes.expressed }))
+  expect(screen.getByRole('radio', { name: en.feedTypes.expressed })).toBeChecked()
+  expect(screen.getByRole('radio', { name: en.feedTypes.breast_right })).not.toBeChecked()
 })

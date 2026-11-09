@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import en from '../i18n/en.json'
 import { formatAgo, formatClock } from '../lib/time'
@@ -36,7 +36,10 @@ test('shows last fed relative time and next due', async () => {
   mockApi(base())
   renderApp(<Home />)
   expect(await screen.findByText(en.home.agoShort.replace('{{ago}}', '2h 10m'))).toBeInTheDocument()
-  expect(screen.getByText(/Mom/)).toHaveTextContent('60 ml')
+  const detail = screen.getByTestId('feed-detail')
+  expect(within(detail).getByText(en.feedTypes.formula)).toBeInTheDocument()
+  expect(within(detail).getByText('60 ml')).toBeInTheDocument()
+  expect(within(detail).getByText(en.home.by.replace('{{name}}', 'Mom'))).toBeInTheDocument()
   const due = SUMMARY().next_feed_due_at
   expect(screen.getByText(en.home.nextDue.replace('{{time}}', formatClock(due)))).toBeInTheDocument()
   expect(screen.getByText(en.home.agoShort.replace('{{ago}}', '1h 5m'))).toBeInTheDocument()

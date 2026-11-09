@@ -25,14 +25,8 @@ export default function LastFeedCard({
   const startedMin = f ? Math.max(0, Math.floor((now - Date.parse(f.started_at)) / MIN)) : 0
   const shown = useCountUp(startedMin)
   if (!f) return <Card tone="feed" className="text-lg font-bold">{t('home.neverFed')}</Card>
-  const detail = [
-    t('home.by', { name: f.fed_by_name }),
-    t(`feedTypes.${f.type}`),
-    f.quantity_ml != null ? `${f.quantity_ml} ml` : null,
-    f.duration_min != null ? `${f.duration_min} min` : null,
-  ]
-    .filter(Boolean)
-    .join(' · ')
+  // what was given, as small pills; who gave it goes underneath
+  const given = [t(`feedTypes.${f.type}`), f.quantity_ml != null ? `${f.quantity_ml} ml` : null, f.duration_min != null ? `${f.duration_min} min` : null].filter(Boolean) as string[]
   const due = summary.next_feed_due_at ? Date.parse(summary.next_feed_due_at) : null
   const overdue = due !== null && due <= now
   // the gauge runs from when the feed ended to when the next one is due
@@ -55,7 +49,16 @@ export default function LastFeedCard({
           <p className="text-[1.75rem] leading-none font-bold tabular-nums">
             {overdue ? t('home.dueAgo', { ago: formatAgo(now - due!) }) : t('home.agoShort', { ago: formatAgo(shown * MIN) })}
           </p>
-          <p className="text-sm text-muted">{detail}</p>
+          <div data-testid="feed-detail" className="space-y-1 pt-0.5">
+            <div className="flex flex-wrap gap-1.5">
+              {given.map((g) => (
+                <span key={g} className="rounded-full bg-surface px-2.5 py-0.5 text-xs font-bold text-feed-ink">
+                  {g}
+                </span>
+              ))}
+            </div>
+            <p className="text-xs text-muted">{t('home.by', { name: f.fed_by_name })}</p>
+          </div>
           {overdue && <p className="text-sm text-muted">{t('home.lastFedAgo', { ago: formatAgo(startedMin * MIN) })}</p>}
         </div>
         {due !== null && !overdue && leftMin !== null && (

@@ -3,15 +3,14 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useKid, useMe, type Feed, type FeedType } from '../api/hooks'
 import type { FeedInput } from '../hooks/log'
-import { cn } from '../lib/cn'
 import { formatAgo, formatTime, toLocalInput } from '../lib/time'
 import Sheet from './Sheet'
 import { Button } from './ui/button'
 import FedBy from './FedBy'
+import FeedTypePicker from './FeedTypePicker'
 import { Input } from './ui/field'
 import { Stepper } from './ui/stepper'
 
-const TYPES: FeedType[] = ['breast_left', 'breast_right', 'breast_both', 'expressed', 'formula']
 const BOTTLE: FeedType[] = ['expressed', 'formula']
 const clock = formatTime
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
@@ -88,22 +87,7 @@ export default function FeedSheet({ last, saving, failed, onSave, onClose }: Pro
       }
     >
       <form id="feed-form" onSubmit={submit} className="space-y-5">
-        <fieldset className="m-0 border-0 p-0" aria-label={t('home.feedType')}>
-          <div className="flex flex-wrap gap-2">
-            {TYPES.map((k) => (
-              <label
-                key={k}
-                className={cn(
-                  'flex min-h-11 cursor-pointer items-center rounded-full border-2 px-4 text-sm font-bold',
-                  type === k ? 'border-primary bg-primary text-primary-ink' : 'border-line bg-surface',
-                )}
-              >
-                <input type="radio" name="feed-type" className="sr-only" checked={type === k} onChange={() => setType(k)} />
-                {t(`feedTypes.${k}`)}
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        <FeedTypePicker value={type} onChange={setType} />
 
         {isBottle ? (
           <div className="space-y-2 rounded-card bg-surface p-4">
