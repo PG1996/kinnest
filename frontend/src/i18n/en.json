@@ -131,9 +131,9 @@
     "tempUnit": "Temperature"
   },
   "feedTypes": {
-    "breast_left": "Breast · left",
-    "breast_right": "Breast · right",
-    "breast_both": "Breast · both",
+    "breast_left": "Mom's feed · L",
+    "breast_right": "Mom's feed · R",
+    "breast_both": "Mom's feed · Both",
     "expressed": "Expressed milk",
     "formula": "Formula"
   },
@@ -749,10 +749,10 @@
     "addPast": "Add a past feed",
     "statFeeds": "feeds",
     "statBottle": "bottle",
-    "statBreast": "breast",
+    "statBreast": "mom's feed",
     "statGap": "avg gap",
     "clockLabel": "{{count}} feeds through the day",
-    "legendBreast": "Breast (length = duration)",
+    "legendBreast": "Mom's feed (length = duration)",
     "legendBottle": "Bottle",
     "gapsTitle": "Time between feeds",
     "gapsLabel": "Bars of the time between feeds, with the feed interval marked",
