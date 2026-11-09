@@ -10,7 +10,7 @@ export type Routes = Record<string, Reply | ((body: unknown) => Reply)>
 
 /** Stub fetch; keys look like "GET /api/me". Unlisted calls answer 404. Returns the call log. */
 export function mockApi(routes: Routes) {
-  const calls: { key: string; body: unknown }[] = []
+  const calls: { key: string; body: unknown; url: string }[] = []
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -18,7 +18,7 @@ export function mockApi(routes: Routes) {
       const key = `${init?.method ?? 'GET'} ${url}`
       // JSON bodies are parsed for assertions; a FormData upload is passed through as is
       const body = init?.body instanceof FormData ? init.body : init?.body ? JSON.parse(String(init.body)) : undefined
-      calls.push({ key, body })
+      calls.push({ key, body, url: String(input) })
       const r = routes[key]
       const reply = typeof r === 'function' ? r(body) : (r ?? { status: 404, body: { detail: 'nope' } })
       return new Response(JSON.stringify(reply.body ?? {}), {
