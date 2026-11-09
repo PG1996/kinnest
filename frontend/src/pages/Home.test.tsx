@@ -252,3 +252,23 @@ test('empty family home has calm empty states and no NaN', async () => {
   expect(screen.getByText(en.home.noDiaper)).toBeInTheDocument()
   expect(document.body.textContent).not.toMatch(/NaN|undefined/)
 })
+
+
+test('a feed being timed shows on Home with who started it and opens the feed sheet', async () => {
+  const timer = { id: 'tm1', type: 'breast_left', started_at: minsAgo(4), ended_at: null, started_by_name: 'Pankhuri' }
+  mockApi(base(ME_ADMIN, SUMMARY({ feed_timer: timer })))
+  renderApp(<Home />)
+  const banner = await screen.findByTestId('feed-timer-banner')
+  expect(within(banner).getByText(en.feedTypes.breast_left)).toBeInTheDocument()
+  expect(within(banner).getByText(en.home.by.replace('{{name}}', 'Pankhuri'))).toBeInTheDocument()
+  expect(within(banner).getByTestId('feed-timer-elapsed').textContent).toMatch(/^4:\d\d$/)
+  await userEvent.click(within(banner).getByRole('button', { name: en.home.timerOpen }))
+  expect(await screen.findByRole('dialog', { name: en.home.feed })).toBeInTheDocument()
+})
+
+test('no banner when nothing is being timed', async () => {
+  mockApi(base(ME_ADMIN, SUMMARY({ feed_timer: null })))
+  renderApp(<Home />)
+  await screen.findByText(en.home.agoShort.replace('{{ago}}', '2h 10m'))
+  expect(screen.queryByTestId('feed-timer-banner')).not.toBeInTheDocument()
+})

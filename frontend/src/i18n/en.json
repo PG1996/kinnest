@@ -91,7 +91,13 @@
     "todayLabel": "Today",
     "todayWet": "{{n}} wet",
     "todayDirty": "{{n}} dirty",
-    "todayBoth": "{{n}} both"
+    "todayBoth": "{{n}} both",
+    "timerResume": "Resume",
+    "timerDiscard": "Discard timer",
+    "timerFailed": "Couldn't start the timer. Check your connection.",
+    "timerOpen": "Open",
+    "timerBanner": "Feeding now",
+    "timerStopped": "Stopped at {{time}}"
   },
   "roles": {
     "admin": "Admin",

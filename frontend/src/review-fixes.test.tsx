@@ -12,7 +12,6 @@ import { enqueue } from './offline/queue'
 import { useSync } from './offline/useSync'
 import Home from './pages/Home'
 import LastFeedCard from './components/LastFeedCard'
-import FeedSheet from './components/FeedSheet'
 import Toast from './components/Toast'
 import { ME_ADMIN, mockApi, renderApp } from './test/utils'
 
@@ -79,20 +78,7 @@ test('the sleep tile is disabled while a start is in flight', async () => {
   expect(calls.filter((c) => c.key === 'POST /api/sleep')).toHaveLength(0) // the stub took over before mockApi logged it
 })
 
-// 6. Save while the timer runs keeps the timer's time and duration
-test('saving with the timer still running uses the timer', async () => {
-  vi.useFakeTimers({ shouldAdvanceTime: true })
-  mockApi({ 'GET /api/me': { body: ME_ADMIN } })
-  const onSave = vi.fn()
-  renderApp(<FeedSheet last={null} saving={false} failed={false} onSave={onSave} onClose={() => {}} />)
-  const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
-  await user.click(screen.getByRole('button', { name: en.home.timerStart }))
-  await act(async () => void vi.advanceTimersByTime(5 * 60_000))
-  await user.click(screen.getByRole('button', { name: en.home.saveFeed }))
-  const sent = onSave.mock.calls[0]![0] as { duration_min?: number; started_at: string }
-  expect(sent.duration_min).toBe(5)
-  expect(Date.now() - Date.parse(sent.started_at)).toBeGreaterThan(4 * 60_000)
-})
+// 6. Save while the timer runs keeps the timer's time and duration: now covered against the server timer in FeedSheet.test.tsx
 
 // 7. The overdue call to action must be readable
 const hex = (css: string, name: string, block: string) => {

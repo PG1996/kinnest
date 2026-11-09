@@ -1,4 +1,4 @@
-import { act, screen, waitFor, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import en from '../i18n/en.json'
@@ -67,15 +67,104 @@ test('the next-feed hint counts from the end of a breastfeed', async () => {
   await waitFor(async () => expect(await hint()).not.toBe(before)) // an hour of feeding pushes the due time an hour later
 })
 
-test('the timer fills the duration and the start time', async () => {
-  vi.useFakeTimers({ shouldAdvanceTime: true })
-  mockApi(api())
+// --- the timer lives on the server -----------------------------------------------------------------------------------
+
+const SUMMARY = (timer: object | null) => ({
+  last_feed: null, next_feed_due_at: null, last_diaper: null, feeds_today: 0, diapers_today: { wet: 0, dirty: 0, both: 0 },
+  sleep: { open: null, last: null }, feed_timer: timer,
+})
+const running = (minsAgo: number, over: object = {}) => ({ id: 'tm1', type: 'breast_left', started_at: new Date(Date.now() - minsAgo * 60_000 - 5_000).toISOString(), ended_at: null, started_by_name: 'Mom', ...over })
+/** The summary answers with whatever `state.timer` is now, like the server, so a started or stopped timer shows after the refetch. */
+const timerApi = (state: { timer: object | null }) => ({
+  ...api(),
+  'GET /api/summary': () => ({ body: SUMMARY(state.timer) }),
+  'POST /api/feed-timer': (b: unknown) => { state.timer = { ...(b as object), ended_at: null, started_by_name: 'Owner' }; return { status: 201, body: state.timer } },
+  'PATCH /api/feed-timer': (b: unknown) => { state.timer = { ...(state.timer as object), ...(b as object) }; return { body: state.timer } },
+  'DELETE /api/feed-timer': () => { state.timer = null; return { body: { ok: true } } },
+})
+const sheet = (onSave = vi.fn()) => renderApp(<FeedSheet last={null} saving={false} failed={false} onSave={onSave} onClose={() => {}} />)
+
+test('Start timer starts it on the server, with the chosen type and the moment it was tapped', async () => {
+  const state = { timer: null as object | null }
+  const calls = mockApi(timerApi(state))
+  sheet()
+  await userEvent.click(screen.getByRole('radio', { name: en.feedTypes.breast_right }))
+  await userEvent.click(await screen.findByRole('button', { name: en.home.timerStart }))
+  await waitFor(() => expect(calls.find((c) => c.key === 'POST /api/feed-timer')).toBeTruthy())
+  const body = calls.find((c) => c.key === 'POST /api/feed-timer')!.body as { id: string; type: string; started_at: string }
+  expect(body.type).toBe('breast_right')
+  expect(body.id).toMatch(/^[0-9a-f-]{36}$/)
+  expect(Math.abs(Date.parse(body.started_at) - Date.now())).toBeLessThan(5_000)
+  expect(await screen.findByRole('button', { name: new RegExp(en.home.timerStop) })).toBeInTheDocument() // now running, from the server's copy
+})
+
+test('a timer already running (started on another phone, or before a refresh) picks up where it was', async () => {
+  const state = { timer: running(7) }
+  mockApi(timerApi(state))
+  sheet()
+  expect(await screen.findByRole('button', { name: new RegExp(`${en.home.timerStop} · 7:0`) })).toBeInTheDocument()
+  expect(screen.getByLabelText(en.home.duration)).toHaveValue(7) // and the duration follows it
+  expect(screen.getByRole('radio', { name: en.feedTypes.breast_left })).toBeChecked() // the type it was started with
+})
+
+test('Stop timer stops it on the server and keeps the time; Resume carries on', async () => {
+  const state = { timer: running(7) }
+  const calls = mockApi(timerApi(state))
+  sheet()
+  await userEvent.click(await screen.findByRole('button', { name: new RegExp(en.home.timerStop) }))
+  await waitFor(() => expect(calls.find((c) => c.key === 'PATCH /api/feed-timer')?.body).toMatchObject({ ended_at: expect.any(String) }))
+  expect(await screen.findByRole('button', { name: new RegExp(en.home.timerResume) })).toBeInTheDocument()
+  expect(screen.getByLabelText(en.home.duration)).toHaveValue(7)
+  await userEvent.click(screen.getByRole('button', { name: new RegExp(en.home.timerResume) }))
+  await waitFor(() => expect(calls.filter((c) => c.key === 'PATCH /api/feed-timer').at(-1)?.body).toEqual({ ended_at: null }))
+})
+
+test('changing the type while timing tells the server', async () => {
+  const state = { timer: running(2) }
+  const calls = mockApi(timerApi(state))
+  sheet()
+  await screen.findByRole('button', { name: new RegExp(en.home.timerStop) })
+  await userEvent.click(screen.getByRole('radio', { name: en.feedTypes.breast_both }))
+  await waitFor(() => expect(calls.find((c) => c.key === 'PATCH /api/feed-timer')?.body).toEqual({ type: 'breast_both' }))
+})
+
+test('saving while it runs logs the feed from when the timer began and names the timer, so the server ends it', async () => {
+  const state = { timer: running(7) }
+  mockApi(timerApi(state))
   const onSave = vi.fn()
-  renderApp(<FeedSheet last={null} saving={false} failed={false} onSave={onSave} onClose={() => {}} />)
-  await act(async () => userEvent.setup({ advanceTimers: vi.advanceTimersByTime }).click(screen.getByRole('button', { name: en.home.timerStart })))
-  await act(async () => vi.advanceTimersByTime(5 * 60_000))
-  await act(async () => userEvent.setup({ advanceTimers: vi.advanceTimersByTime }).click(screen.getByRole('button', { name: new RegExp(en.home.timerStop) })))
-  expect(screen.getByLabelText(en.home.duration)).toHaveValue(5)
+  sheet(onSave)
+  await screen.findByRole('button', { name: new RegExp(en.home.timerStop) })
+  await userEvent.click(screen.getByRole('button', { name: en.home.saveFeed }))
+  const saved = onSave.mock.calls[0]![0]
+  expect(saved).toMatchObject({ type: 'breast_left', timer_id: 'tm1', duration_min: 7 })
+  expect(saved.started_at).toBe((state.timer as { started_at: string }).started_at)
+})
+
+test('Discard timer throws it away on the server', async () => {
+  const state = { timer: running(3) }
+  const calls = mockApi(timerApi(state))
+  sheet()
+  await userEvent.click(await screen.findByRole('button', { name: en.home.timerDiscard }))
+  await waitFor(() => expect(calls.some((c) => c.key === 'DELETE /api/feed-timer')).toBe(true))
+  expect(await screen.findByRole('button', { name: en.home.timerStart })).toBeInTheDocument()
+})
+
+test('closing the sheet leaves the timer running', async () => {
+  const state = { timer: running(3) }
+  const calls = mockApi(timerApi(state))
+  const onClose = vi.fn()
+  renderApp(<FeedSheet last={null} saving={false} failed={false} onSave={() => {}} onClose={onClose} />)
+  await screen.findByRole('button', { name: new RegExp(en.home.timerStop) })
+  await userEvent.keyboard('{Escape}')
+  expect(onClose).toHaveBeenCalled()
+  expect(calls.some((c) => c.key === 'DELETE /api/feed-timer')).toBe(false)
+})
+
+test('if the timer cannot be started it says so', async () => {
+  mockApi({ ...timerApi({ timer: null }), 'POST /api/feed-timer': { status: 500, body: {} } })
+  sheet()
+  await userEvent.click(await screen.findByRole('button', { name: en.home.timerStart }))
+  expect(await screen.findByText(en.home.timerFailed)).toBeInTheDocument()
 })
 
 // --- who fed: breast is always mom -----------------------------------------------------------------------------------
