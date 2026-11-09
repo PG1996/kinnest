@@ -199,7 +199,8 @@
       "from": "From {{date}}",
       "until": "until {{date}}",
       "readOnly": "Only the admin can change medicines.",
-      "setDose": "Set a proper dose for this medicine"
+      "setDose": "Set a proper dose for this medicine",
+      "addSos": "Add SOS medicine"
     },
     "form": {
       "name": "Medicine name",
@@ -207,7 +208,7 @@
       "kind": {
         "fixed": "Same times every day",
         "interval": "Every few hours",
-        "as_needed": "Only when needed"
+        "as_needed": "SOS · only when needed"
       },
       "timeN": "Time {{n}}",
       "addTime": "Add a time",
@@ -286,7 +287,9 @@
         "save": "Save"
       },
       "saveError": "Couldn't save the dose. Check the time and amount."
-    }
+    },
+    "sosTitle": "SOS medicines",
+    "sosWait": "Wait until {{time}} before the next dose"
   },
   "units": {
     "ml": "ml",
