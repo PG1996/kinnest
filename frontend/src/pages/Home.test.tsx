@@ -35,17 +35,18 @@ test('formatAgo renders minutes, hours and days', () => {
 test('shows last fed relative time and next due', async () => {
   mockApi(base())
   renderApp(<Home />)
-  expect(await screen.findByText(en.home.lastFed.replace('{{ago}}', '2h 10m'))).toBeInTheDocument()
+  expect(await screen.findByText(en.home.agoShort.replace('{{ago}}', '2h 10m'))).toBeInTheDocument()
   expect(screen.getByText(/Mom/)).toHaveTextContent('60 ml')
   const due = SUMMARY().next_feed_due_at
   expect(screen.getByText(en.home.nextDue.replace('{{time}}', formatClock(due)))).toBeInTheDocument()
-  expect(screen.getByText(en.home.lastDiaper.replace('{{ago}}', '1h 5m'))).toBeInTheDocument()
+  expect(screen.getByText(en.home.agoShort.replace('{{ago}}', '1h 5m'))).toBeInTheDocument()
 })
 
 test('flags an overdue feed', async () => {
   mockApi(base(ME_ADMIN, SUMMARY({ next_feed_due_at: minsAgo(20) })))
   renderApp(<Home />)
-  expect(await screen.findByText(en.home.overdue.replace('{{ago}}', '20m'))).toBeInTheDocument()
+  expect(await screen.findByText(en.home.dueAgo.replace('{{ago}}', '20m'))).toBeInTheDocument()
+  expect(screen.getByText(en.home.overdue)).toBeInTheDocument()
 })
 
 test('shows empty states before anything is logged', async () => {
@@ -58,9 +59,11 @@ test('shows empty states before anything is logged', async () => {
 test('viewer sees no log buttons', async () => {
   mockApi(base(ME_VIEWER))
   renderApp(<Home />)
-  await screen.findByText(en.home.lastFed.replace('{{ago}}', '2h 10m'))
-  expect(screen.queryByRole('button', { name: en.home.feed })).not.toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: en.home.diaper })).not.toBeInTheDocument()
+  await screen.findByText(en.home.agoShort.replace('{{ago}}', '2h 10m'))
+  for (const name of [en.home.feed, en.home.diaper, en.sleep.start, en.home.quick.medicine])
+    expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: en.home.quick.vital })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: en.home.logFeedNow })).not.toBeInTheDocument()
 })
 
 test('diaper wet button posts immediately and offers undo', async () => {
@@ -121,4 +124,62 @@ test('warns when someone else just logged the same thing, and says when', async 
   await userEvent.click(screen.getByRole('button', { name: en.home.saveFeed }))
   const warning = await screen.findByText(/Mom also logged/)
   expect(warning).toHaveTextContent(formatClock(at))
+})
+
+test('feed hero shows the gauge with time to the next feed', async () => {
+  mockApi(base())
+  renderApp(<Home />)
+  expect(await screen.findByRole('img', { name: /72%|7\d%/ })).toBeInTheDocument()
+  expect(screen.getByText('50m')).toBeInTheDocument()
+  expect(screen.getByText(en.home.toNextFeed)).toBeInTheDocument()
+})
+
+test('overdue feed shows log feed now, which opens the feed screen', async () => {
+  mockApi(base(ME_ADMIN, SUMMARY({ next_feed_due_at: minsAgo(20) })))
+  renderApp(<Home />)
+  await userEvent.click(await screen.findByRole('button', { name: en.home.logFeedNow }))
+  expect(await screen.findByRole('dialog')).toBeInTheDocument()
+})
+
+test('diaper card shows a seven-day sparkline and the average', async () => {
+  const day = (back: number, n: number) =>
+    Array.from({ length: n }, (_, i) => {
+      const d = new Date(); d.setDate(d.getDate() - back); d.setHours(8, i, 0, 0)
+      return { kind: 'diaper', id: `d-${back}-${i}`, at: d.toISOString(), data: { kind: 'wet' } }
+    })
+  const items = [0, 1, 2, 3, 4, 5, 6].flatMap((b) => day(b, b === 0 ? 6 : 7))
+  mockApi({ ...base(), 'GET /api/timeline': { body: { items } } })
+  renderApp(<Home />)
+  expect(await screen.findByRole('img', { name: /6, 7, 7, 7, 7, 7, 6|7, 7, 7, 7, 7, 7, 6/ })).toBeInTheDocument()
+  expect(screen.getByText(/6\.9/)).toBeInTheDocument()
+})
+
+test('quick log shows five tiles for a caregiver', async () => {
+  mockApi(base())
+  renderApp(<Home />)
+  for (const name of [en.home.feed, en.home.diaper, en.sleep.start, en.home.quick.medicine])
+    expect(await screen.findByRole('button', { name })).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: en.home.quick.vital })).toHaveAttribute('href', '/health?tab=vitals&add=1')
+})
+
+test('header shows the baby name, age and family', async () => {
+  const born = new Date(Date.now() - 16 * 24 * 3600_000)
+  const iso = `${born.getFullYear()}-${String(born.getMonth() + 1).padStart(2, '0')}-${String(born.getDate()).padStart(2, '0')}`
+  mockApi({
+    ...base(),
+    'GET /api/kid': { body: { id: 'k1', name: 'Aanya', birth_date: iso, feed_interval_minutes: 180, diaper_alert_minutes: 240 } },
+    'GET /api/family/members': { body: [{ user_id: 'u1', email: 'o@x.com', name: 'Owner', role: 'admin', pending: false }, { user_id: 'u2', email: 'm@x.com', name: 'Mom', role: 'caregiver', pending: false }] },
+  })
+  renderApp(<Home />)
+  expect(await screen.findByRole('heading', { name: 'Aanya' })).toBeInTheDocument()
+  expect(screen.getByText(/16 days old/)).toBeInTheDocument()
+  expect(screen.getByRole('group', { name: 'Owner, Mom' })).toBeInTheDocument()
+})
+
+test('empty family home has calm empty states and no NaN', async () => {
+  mockApi(base(ME_ADMIN, SUMMARY({ last_feed: null, next_feed_due_at: null, last_diaper: null, feeds_today: 0, diapers_today: { wet: 0, dirty: 0, both: 0 } })))
+  renderApp(<Home />)
+  expect(await screen.findByText(en.home.neverFed)).toBeInTheDocument()
+  expect(screen.getByText(en.home.noDiaper)).toBeInTheDocument()
+  expect(document.body.textContent).not.toMatch(/NaN|undefined/)
 })

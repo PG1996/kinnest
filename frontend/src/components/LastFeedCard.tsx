@@ -1,12 +1,29 @@
 import { useTranslation } from 'react-i18next'
 import type { Summary } from '../api/hooks'
+import { useCountUp } from '../lib/motion'
 import { formatAgo, formatClock } from '../lib/time'
-import { Card } from './ui/card'
+import { Button } from './ui/button'
+import { Card, Eyebrow } from './ui/card'
+import { HalfGauge } from './ui/gauge'
 
-export default function LastFeedCard({ summary, now }: { summary: Summary; now: number }) {
+const MIN = 60_000
+
+export default function LastFeedCard({
+  summary,
+  now,
+  canLog = false,
+  onLogFeed,
+}: {
+  summary: Summary
+  now: number
+  canLog?: boolean
+  onLogFeed?: () => void
+}) {
   const { t } = useTranslation()
   const f = summary.last_feed
-  if (!f) return <Card className="text-lg">{t('home.neverFed')}</Card>
+  const startedMin = f ? Math.max(0, Math.floor((now - Date.parse(f.started_at)) / MIN)) : 0
+  const shown = useCountUp(startedMin)
+  if (!f) return <Card tone="feed" className="text-lg font-bold">{t('home.neverFed')}</Card>
   const detail = [
     t('home.by', { name: f.fed_by_name }),
     t(`feedTypes.${f.type}`),
@@ -15,18 +32,40 @@ export default function LastFeedCard({ summary, now }: { summary: Summary; now: 
   ]
     .filter(Boolean)
     .join(' · ')
-  const due = summary.next_feed_due_at ? new Date(summary.next_feed_due_at).getTime() : null
+  const due = summary.next_feed_due_at ? Date.parse(summary.next_feed_due_at) : null
   const overdue = due !== null && due <= now
+  const start = Date.parse(f.started_at)
+  const fraction = due !== null && due > start ? (now - start) / (due - start) : 0
+  const leftMin = due !== null ? Math.max(0, Math.ceil((due - now) / MIN)) : null
   return (
-    <Card className="space-y-1">
-      <p className="text-2xl font-semibold">{t('home.lastFed', { ago: formatAgo(now - new Date(f.started_at).getTime()) })}</p>
-      <p className="text-muted">{detail}</p>
-      {due !== null && (
-        <p className={overdue ? 'font-medium text-danger' : 'text-ink'}>
-          {overdue
-            ? t('home.overdue', { ago: formatAgo(now - due) })
-            : t('home.nextDue', { time: formatClock(summary.next_feed_due_at!) })}
-        </p>
+    <Card tone="feed" className="space-y-3 shadow-[0_8px_24px_-12px_rgba(180,88,46,0.35)]">
+      <div className="flex items-center justify-between gap-2">
+        <Eyebrow tone="feed">{overdue ? t('home.overdue') : t('home.lastFedLabel')}</Eyebrow>
+        {due !== null && !overdue && (
+          <span className="rounded-full bg-surface px-2.5 py-1 text-xs font-extrabold text-feed-ink">
+            {t('home.nextDue', { time: formatClock(summary.next_feed_due_at!) })}
+          </span>
+        )}
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0 space-y-0.5">
+          <p className="text-[2.1rem] leading-none font-extrabold tabular-nums">
+            {overdue ? t('home.dueAgo', { ago: formatAgo(now - due!) }) : t('home.agoShort', { ago: formatAgo(shown * MIN) })}
+          </p>
+          <p className="text-sm text-muted">{detail}</p>
+          {overdue && <p className="text-sm text-muted">{t('home.lastFedAgo', { ago: formatAgo(startedMin * MIN) })}</p>}
+        </div>
+        {due !== null && !overdue && leftMin !== null && (
+          <HalfGauge fraction={fraction} tone="feed" label={t('home.gaugeLabel', { percent: Math.round(Math.min(1, fraction) * 100), left: formatAgo(leftMin * MIN) })}>
+            <span className="text-lg font-extrabold tabular-nums">{formatAgo(leftMin * MIN)}</span>
+            <span className="text-xs font-bold text-muted">{t('home.toNextFeed')}</span>
+          </HalfGauge>
+        )}
+      </div>
+      {overdue && canLog && (
+        <Button size="lg" className="w-full bg-feed text-app" onClick={onLogFeed}>
+          {t('home.logFeedNow')}
+        </Button>
       )}
     </Card>
   )
