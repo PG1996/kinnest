@@ -63,7 +63,7 @@ export default function LastFeedCard({
         )}
       </div>
       {overdue && canLog && (
-        <Button size="lg" className="w-full bg-feed text-app" onClick={onLogFeed}>
+        <Button size="lg" className="w-full bg-feed-ink text-surface" onClick={onLogFeed}>
           {t('home.logFeedNow')}
         </Button>
       )}

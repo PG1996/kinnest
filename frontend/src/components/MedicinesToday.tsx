@@ -54,12 +54,12 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
     if (e instanceof ApiError && e.status === 409) {
       qc.invalidateQueries({ queryKey: ['medicines'] }) // the screen was out of date: show what is true now
       const body = e.body as { detail?: string; remaining?: number | null } | undefined
-      if (body?.detail?.includes('skipped')) onToast({ message: t('medicines.slotSkipped') })
-      else if (body?.remaining === 0) onToast({ message: t('medicines.alreadyComplete') })
-      else if (typeof body?.remaining === 'number') onToast({ message: t('medicines.onlyLeft', { left: fmt(m, body.remaining) }) })
-      else onToast({ message: t('medicines.notDue') })
+      if (body?.detail?.includes('skipped')) onToast({ message: t('medicines.slotSkipped'), tone: 'error' })
+      else if (body?.remaining === 0) onToast({ message: t('medicines.alreadyComplete'), tone: 'error' })
+      else if (typeof body?.remaining === 'number') onToast({ message: t('medicines.onlyLeft', { left: fmt(m, body.remaining), tone: 'error' }) })
+      else onToast({ message: t('medicines.notDue'), tone: 'error' })
     } else {
-      onToast({ message: t('home.saveError') })
+      onToast({ message: t('home.saveError'), tone: 'error' })
     }
   }
 
@@ -97,7 +97,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
       { id: crypto.randomUUID(), medicine_id: m.id, scheduled_for: slot.due_at, remind_at: remindAt.toISOString() },
       {
         onSuccess: () => onToast({ message: t('medicines.reminderSet', { time: formatClock(remindAt.toISOString()) }) }),
-        onError: () => onToast({ message: t('home.saveError') }),
+        onError: () => onToast({ message: t('home.saveError'), tone: 'error' }),
       },
     )
   }

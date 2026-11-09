@@ -18,12 +18,15 @@ function Tile({ Icon, tint, children }: { Icon: LucideIcon; tint: string; childr
 /** One-tap logging. Feed and Diaper open their screens; Sleep toggles; Medicine scrolls to today's doses; Vital opens the add form. */
 export default function QuickLog({
   asleep,
+  sleepBusy = false,
   onFeed,
   onDiaper,
   onSleep,
   onMedicine,
 }: {
   asleep: boolean
+  /** a start or end is being saved: the tile waits so a double tap cannot start two sleeps */
+  sleepBusy?: boolean
   onFeed: () => void
   onDiaper: () => void
   onSleep: () => void
@@ -40,7 +43,7 @@ export default function QuickLog({
         <button type="button" className={TILE} onClick={onDiaper}>
           <Tile Icon={Droplets} tint="text-diaper">{t('home.diaper')}</Tile>
         </button>
-        <button type="button" className={cn(TILE, asleep && 'bg-sleep-bg')} onClick={onSleep}>
+        <button type="button" className={cn(TILE, asleep && 'bg-sleep-bg', 'disabled:opacity-50')} disabled={sleepBusy} onClick={onSleep}>
           <Tile Icon={Moon} tint="text-sleep">{asleep ? t('sleep.end') : t('sleep.start')}</Tile>
         </button>
         <button type="button" className={TILE} onClick={onMedicine}>

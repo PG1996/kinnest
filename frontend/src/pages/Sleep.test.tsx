@@ -95,5 +95,5 @@ test('a failed save tells the caregiver', async () => {
   mockApi({ ...base({ open: null, last: null }), 'POST /api/sleep': { status: 422, body: { detail: 'timestamp is in the future' } } })
   renderApp(<Home />)
   await userEvent.click(await screen.findByRole('button', { name: en.sleep.start }))
-  expect(await screen.findByText(en.home.saveError)).toBeInTheDocument()
+  expect((await screen.findByText(en.home.saveError)).closest('[role=status]')).toHaveAttribute('data-tone', 'error')
 })

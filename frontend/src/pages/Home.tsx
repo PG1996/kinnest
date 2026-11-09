@@ -100,7 +100,7 @@ export default function Home() {
     logDiaper.mutate(
       { id, kind, at: new Date().toISOString() },
       {
-        onError: () => setToast({ message: t('home.saveError') }),
+        onError: () => setToast({ message: t('home.saveError'), tone: 'error' }),
         onSuccess: (r) =>
           setToast({
             message: r.queued
@@ -140,6 +140,7 @@ export default function Home() {
       {canLog && (
         <QuickLog
           asleep={sleepActions.open !== null}
+          sleepBusy={sleepActions.pending}
           onFeed={() => setSheet('feed')}
           onDiaper={() => setSheet('diaper')}
           onSleep={sleepActions.toggle}

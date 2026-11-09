@@ -70,7 +70,7 @@
     "gaugeLabel": "{{percent}}% of the feed interval has passed, {{left}} to the next feed",
     "lastDiaperLabel": "Last diaper",
     "sparkLabel": "Wet diapers per day, last 7 days: {{values}}",
-    "sparkAvg": "7-day avg {{avg}}",
+    "sparkAvg": "Daily avg {{avg}}",
     "quickLog": "Quick log",
     "today": "Today",
     "notifications": "Notifications and settings",
@@ -249,7 +249,8 @@
     "remindIn": "Remind everyone about the rest in",
     "medicineCard": "{{name}} · {{dose}}",
     "slotAt": "{{time}} slot",
-    "upTo": "Up to {{left}}. More than what is left can't be saved."
+    "upTo": "Up to {{left}}. More than what is left can't be saved.",
+    "tapAgain": "Tap again to give {{amount}}"
   },
   "units": {
     "ml": "ml",
@@ -539,7 +540,7 @@
   "scan": {
     "snap": "Snap a record",
     "title": "Snap a record",
-    "notice": "The photo is sent to the Anthropic API to read it. You can crop out her name first. Nothing is saved until you confirm.",
+    "notice": "The photo is stored with your family and sent to the Anthropic API to read it. Crop out any names first. Nothing is added to your readings until you confirm.",
     "continue": "Continue",
     "mode": "What is in the photo",
     "oneReading": "One reading",

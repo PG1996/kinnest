@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { I18nextProvider } from 'react-i18next'
@@ -81,11 +81,27 @@ test('slide to confirm thumb confirms with Enter', async () => {
   expect(onConfirm).toHaveBeenCalledTimes(1)
 })
 
-test('a plain tap on the slide thumb does not confirm', async () => {
+test('a first tap on the slide thumb only arms it; a second tap confirms', async () => {
   const onConfirm = vi.fn()
-  wrap(<SlideToConfirm label="Slide to give" onConfirm={onConfirm} />)
+  wrap(<SlideToConfirm label="Slide to give" armedLabel="Tap again to give" onConfirm={onConfirm} />)
   await userEvent.click(screen.getByRole('button', { name: 'Slide to give' }))
   expect(onConfirm).not.toHaveBeenCalled()
+  const armed = screen.getByRole('button', { name: 'Tap again to give' })
+  await userEvent.click(armed)
+  expect(onConfirm).toHaveBeenCalledTimes(1)
+})
+
+test('an armed slide thumb disarms after a few seconds', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  const onConfirm = vi.fn()
+  wrap(<SlideToConfirm label="Slide to give" armedLabel="Tap again to give" onConfirm={onConfirm} />)
+  const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+  await user.click(screen.getByRole('button', { name: 'Slide to give' }))
+  await act(async () => void vi.advanceTimersByTime(5000))
+  expect(screen.getByRole('button', { name: 'Slide to give' })).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Slide to give' }))
+  expect(onConfirm).not.toHaveBeenCalled()
+  vi.useRealTimers()
 })
 
 test('slide to confirm does nothing when disabled', async () => {

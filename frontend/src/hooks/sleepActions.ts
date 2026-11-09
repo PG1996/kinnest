@@ -17,9 +17,9 @@ export function useSleepActions(sleep: SummarySleep | undefined, onToast: (t: To
     if (e instanceof ApiError && e.status === 409) {
       qc.invalidateQueries({ queryKey: ['summary'] }) // another phone got there first: show what is true now
       const who = (e.body as { open?: { started_by_name?: string } } | undefined)?.open?.started_by_name
-      onToast({ message: who ? t('sleep.alreadyAsleep', { name: who }) : t('sleep.alreadyEnded') })
+      onToast({ message: who ? t('sleep.alreadyAsleep', { name: who }) : t('sleep.alreadyEnded'), tone: 'error' })
     } else {
-      onToast({ message: t('home.saveError') })
+      onToast({ message: t('home.saveError'), tone: 'error' })
     }
   }
   const queuedNotice = (r: { queued?: boolean }) => r.queued && onToast({ message: t('home.queued') })

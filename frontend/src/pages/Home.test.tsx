@@ -141,17 +141,34 @@ test('overdue feed shows log feed now, which opens the feed screen', async () =>
   expect(await screen.findByRole('dialog')).toBeInTheDocument()
 })
 
-test('diaper card shows a seven-day sparkline and the average', async () => {
-  const day = (back: number, n: number) =>
+const diaperDays = (counts: number[]) =>
+  counts.flatMap((n, back) =>
     Array.from({ length: n }, (_, i) => {
       const d = new Date(); d.setDate(d.getDate() - back); d.setHours(8, i, 0, 0)
       return { kind: 'diaper', id: `d-${back}-${i}`, at: d.toISOString(), data: { kind: 'wet' } }
-    })
-  const items = [0, 1, 2, 3, 4, 5, 6].flatMap((b) => day(b, b === 0 ? 6 : 7))
-  mockApi({ ...base(), 'GET /api/timeline': { body: { items } } })
+    }),
+  )
+
+test('diaper card shows a seven-day sparkline and the average of finished days', async () => {
+  // counts[0] is today (unfinished), then six earlier days
+  mockApi({ ...base(), 'GET /api/timeline': { body: { items: diaperDays([6, 7, 7, 7, 7, 7, 7]) } } })
   renderApp(<Home />)
-  expect(await screen.findByRole('img', { name: /6, 7, 7, 7, 7, 7, 6|7, 7, 7, 7, 7, 7, 6/ })).toBeInTheDocument()
-  expect(screen.getByText(/6\.9/)).toBeInTheDocument()
+  expect(await screen.findByRole('img', { name: /7, 7, 7, 7, 7, 7, 6/ })).toBeInTheDocument()
+  expect(screen.getByText(en.home.sparkAvg.replace('{{avg}}', '7.0'))).toBeInTheDocument()
+})
+
+test('on day two the average counts only days that have data and not today', async () => {
+  // today 3 so far, yesterday 8: the average is 8, not (3+8)/7
+  mockApi({ ...base(), 'GET /api/timeline': { body: { items: diaperDays([3, 8]) } } })
+  renderApp(<Home />)
+  expect(await screen.findByText(en.home.sparkAvg.replace('{{avg}}', '8.0'))).toBeInTheDocument()
+})
+
+test('no finished day yet hides the average instead of showing a tiny one', async () => {
+  mockApi({ ...base(), 'GET /api/timeline': { body: { items: diaperDays([3]) } } })
+  renderApp(<Home />)
+  await screen.findByText(en.home.agoShort.replace('{{ago}}', '1h 5m'))
+  expect(screen.queryByText(/avg/i)).not.toBeInTheDocument()
 })
 
 test('quick log shows five tiles for a caregiver', async () => {

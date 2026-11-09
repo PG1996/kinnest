@@ -1,10 +1,12 @@
 import { Outlet } from 'react-router-dom'
+import { useThemeSync } from '../lib/theme'
 import { useSync } from '../offline/useSync'
 import GlassNav from './GlassNav'
 import OfflineBanner from './OfflineBanner'
 
 export default function Layout() {
   useSync()
+  useThemeSync()
   return (
     <div className="mx-auto flex min-h-dvh max-w-xl flex-col">
       <OfflineBanner />

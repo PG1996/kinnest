@@ -118,3 +118,22 @@ test('the daily limit has its own message', async () => {
   expect(await screen.findByText(en.scan.limit)).toBeInTheDocument()
   expect(within(screen.getByRole('dialog')).queryByRole('button', { name: en.scan.retry })).not.toBeInTheDocument()
 })
+
+test('closing while the photo is uploading never starts the scan', async () => {
+  let release: (() => void) | undefined
+  const calls = mockApi(base(ME_ADMIN, { ...ON, 'POST /api/scans': { body: DRAFT } }))
+  const real = fetch
+  vi.stubGlobal('fetch', (u: RequestInfo | URL, init?: RequestInit) =>
+    String(u) === '/api/files' ? new Promise<Response>((r) => (release = () => r(new Response(JSON.stringify({ id: 'file1', url: '/f', thumb_url: null, content_type: 'image/jpeg' }), { status: 201, headers: { 'Content-Type': 'application/json' } })))) : real(u, init),
+  )
+  renderApp(<VitalsTab />)
+  await userEvent.click(await screen.findByRole('button', { name: en.scan.snap }))
+  await userEvent.click(await screen.findByRole('button', { name: en.scan.continue }))
+  await userEvent.upload(screen.getByLabelText(en.scan.chooseFile), photo())
+  await screen.findByText(en.scan.reading)
+  await userEvent.keyboard('{Escape}')
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  release?.()
+  await new Promise((r) => setTimeout(r, 50))
+  expect(calls.some((c) => c.key === 'POST /api/scans')).toBe(false)
+})
