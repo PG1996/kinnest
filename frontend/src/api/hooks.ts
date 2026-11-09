@@ -275,3 +275,11 @@ export function useDoseHistory(medicineId: string, days = 30) {
     },
   })
 }
+
+/** Sleeps that started between `from` and `to`. Keep `from`/`to` stable between renders. */
+export function useSleepRange(from: Date, to: Date) {
+  return useQuery({
+    queryKey: ['sleep', from.toISOString(), to.toISOString()],
+    queryFn: () => api<Sleep[]>(`/api/sleep?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`),
+  })
+}

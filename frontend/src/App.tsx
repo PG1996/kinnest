@@ -7,6 +7,7 @@ import Health from './pages/Health'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Patterns from './pages/Patterns'
+import SleepDay from './pages/SleepDay'
 import Timeline from './pages/Timeline'
 
 /** Old addresses (notification links, bookmarks) land on their new home and keep any extra query. */
@@ -35,6 +36,7 @@ export default function App() {
         <Route path="timeline" element={<Timeline />} />
         <Route path="health" element={<Health />} />
         <Route path="patterns" element={<Patterns />} />
+        <Route path="sleep" element={<SleepDay />} />
         <Route path="family" element={<Family />} />
         <Route path="medicines" element={<Redirect to="/health?tab=medicines" />} />
         <Route path="members" element={<Redirect to="/family?tab=members" />} />

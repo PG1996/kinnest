@@ -145,12 +145,43 @@ export function useStartSleep() {
   })
 }
 
+const refreshSleep = (qc: ReturnType<typeof useQueryClient>) => {
+  qc.invalidateQueries({ queryKey: ['sleep'] })
+  qc.invalidateQueries({ queryKey: ['summary'] })
+}
+
+/** A sleep that already ended, logged afterwards (online only: the server checks it does not overlap another). */
+export function useAddPastSleep() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (b: { id: string; started_at: string; ended_at: string; note?: string }) => api('/api/sleep/past', { json: b }),
+    onSuccess: () => refreshSleep(qc),
+  })
+}
+
+export function useUpdateSleep() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...b }: { id: string; started_at?: string; ended_at?: string; note?: string }) =>
+      api(`/api/sleep/${id}`, { method: 'PATCH', json: b }),
+    onSuccess: () => refreshSleep(qc),
+  })
+}
+
+export function useDeleteSleep() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api(`/api/sleep/${id}`, { method: 'DELETE' }),
+    onSuccess: () => refreshSleep(qc),
+  })
+}
+
 export function useEndSleep() {
   const qc = useQueryClient()
   return useMutation({
     // `id` is the session being ended (the queue builds the URL from it); the queue key must differ from the start's
     mutationFn: (b: { id: string; ended_at: string }) => post('sleep_end', `/api/sleep/${b.id}/end`, b, `${b.id}:end`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['summary'] }),
+    onSuccess: () => refreshSleep(qc),
   })
 }
 

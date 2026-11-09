@@ -1,5 +1,6 @@
 import { Moon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 import type { SummarySleep } from '../api/hooks'
 import { formatAgo, formatClock } from '../lib/time'
 import { Card, Eyebrow } from './ui/card'
@@ -10,7 +11,8 @@ export default function SleepCard({ sleep, now }: { sleep: SummarySleep | undefi
   const open = sleep?.open ?? null
   const last = sleep?.last ?? null
   return (
-    <Card tone="sleep" className="flex items-center gap-3 py-4">
+    <Card tone="sleep" className="py-4">
+      <Link to="/sleep" className="flex items-center gap-3">
       <Moon size={26} aria-hidden="true" className="shrink-0 text-sleep" />
       <div className="min-w-0">
         <Eyebrow tone="sleep">{open ? t('sleep.asleepLabel') : t('sleep.title')}</Eyebrow>
@@ -32,6 +34,7 @@ export default function SleepCard({ sleep, now }: { sleep: SummarySleep | undefi
           <p className="text-lg">{t('sleep.none')}</p>
         )}
       </div>
+      </Link>
     </Card>
   )
 }
