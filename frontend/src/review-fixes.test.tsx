@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, renderHook, screen, waitFor } from '@testing-library/react'
+import { act, renderHook, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -74,6 +74,7 @@ test('the sleep tile is disabled while a start is in flight', async () => {
   renderApp(<Home />)
   const tile = await screen.findByRole('button', { name: en.sleep.start })
   await userEvent.click(tile)
+  await userEvent.click(within(await screen.findByRole('dialog', { name: en.sleep.confirmStartTitle })).getByRole('button', { name: en.sleep.confirmStart }))
   await waitFor(() => expect(screen.getByRole('button', { name: en.sleep.start })).toBeDisabled())
   expect(calls.filter((c) => c.key === 'POST /api/sleep')).toHaveLength(0) // the stub took over before mockApi logged it
 })
