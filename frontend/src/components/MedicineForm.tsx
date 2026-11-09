@@ -20,6 +20,8 @@ type Values = {
   intervalHours: string
   firstDose: string
   minGap: string
+  maxPerDay: string
+  usualStart: string
   startDate: string
   endDate: string
   notes: string
@@ -35,6 +37,8 @@ function initial(m?: Medicine, kind?: ScheduleKind): Values {
     intervalHours: m?.interval_hours != null ? String(m.interval_hours) : '8',
     firstDose: m?.first_dose_at ? toLocalInput(new Date(m.first_dose_at)) : toLocalInput(new Date()),
     minGap: m?.min_gap_hours != null ? String(m.min_gap_hours) : '',
+    maxPerDay: m?.max_per_day != null ? String(m.max_per_day) : '',
+    usualStart: m?.day_start ?? '',
     startDate: m?.start_date ?? toLocalInput(new Date()).slice(0, 10),
     endDate: m?.end_date ?? '',
     notes: m?.notes ?? '',
@@ -56,10 +60,20 @@ function toBody(v: Values): Record<string, unknown> | null {
   }
   if (v.kind === 'interval') {
     if (!wholeNumber(v.intervalHours, 1, 72) || !v.firstDose) return null
-    return { ...common, interval_hours: Number(v.intervalHours), first_dose_at: new Date(v.firstDose).toISOString() }
+    if (v.maxPerDay && !wholeNumber(v.maxPerDay, 1, 24)) return null
+    if (v.usualStart && !TIME.test(v.usualStart)) return null
+    return {
+      ...common,
+      interval_hours: Number(v.intervalHours),
+      first_dose_at: new Date(v.firstDose).toISOString(),
+      max_per_day: v.maxPerDay ? Number(v.maxPerDay) : null,
+      // the usual first dose time only matters with a maximum; unset, the server uses the time of the first dose
+      day_start: v.maxPerDay ? v.usualStart || v.firstDose.slice(11, 16) : null,
+    }
   }
   if (v.minGap && !wholeNumber(v.minGap, 1, 48)) return null
-  return { ...common, min_gap_hours: v.minGap ? Number(v.minGap) : null }
+  if (v.maxPerDay && !wholeNumber(v.maxPerDay, 1, 24)) return null
+  return { ...common, min_gap_hours: v.minGap ? Number(v.minGap) : null, max_per_day: v.maxPerDay ? Number(v.maxPerDay) : null }
 }
 
 type Props = { medicine?: Medicine; /** the schedule kind a new medicine starts on (SOS opens on `as_needed`) */ initialKind?: ScheduleKind; saving: boolean; failed: boolean; onSave: (body: Record<string, unknown>) => void; onCancel: () => void }
@@ -84,7 +98,7 @@ export default function MedicineForm({ medicine, initialKind, saving, failed, on
 
   return (
     <Card>
-      <form onSubmit={submit} className="space-y-3">
+      <form onSubmit={submit} noValidate className="space-y-3">
         {label('med-name', t('medicines.form.name'))}
         <Input id="med-name" value={v.name} onChange={(e) => set('name', e.target.value)} />
         <div className="grid grid-cols-2 gap-3">
@@ -156,12 +170,23 @@ export default function MedicineForm({ medicine, initialKind, saving, failed, on
             <Input id="med-hours" type="number" inputMode="numeric" min={1} max={72} value={v.intervalHours} onChange={(e) => set('intervalHours', e.target.value)} />
             {label('med-first', t('medicines.form.firstDose'))}
             <Input id="med-first" type="datetime-local" value={v.firstDose} onChange={(e) => set('firstDose', e.target.value)} />
+            {label('med-max', t('medicines.form.maxPerDay'))}
+            <Input id="med-max" type="number" inputMode="numeric" min={1} max={24} value={v.maxPerDay} onChange={(e) => set('maxPerDay', e.target.value)} />
+            {v.maxPerDay && (
+              <>
+                {label('med-usual', t('medicines.form.usualStart'))}
+                <Input id="med-usual" type="time" value={v.usualStart || v.firstDose.slice(11, 16)} onChange={(e) => set('usualStart', e.target.value)} />
+                <p className="text-xs text-muted">{t('medicines.form.usualStartHint')}</p>
+              </>
+            )}
           </>
         )}
         {v.kind === 'as_needed' && (
           <>
             {label('med-gap', t('medicines.form.minGap'))}
             <Input id="med-gap" type="number" inputMode="numeric" min={1} max={48} value={v.minGap} onChange={(e) => set('minGap', e.target.value)} />
+            {label('med-max-sos', t('medicines.form.maxPerDaySos'))}
+            <Input id="med-max-sos" type="number" inputMode="numeric" min={1} max={24} value={v.maxPerDay} onChange={(e) => set('maxPerDay', e.target.value)} />
           </>
         )}
 

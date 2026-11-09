@@ -263,7 +263,11 @@
       "invalid": "Please check the name, times and dates.",
       "doseAmount": "Dose amount",
       "doseUnit": "Dose unit",
-      "chooseUnit": "Choose a unit"
+      "chooseUnit": "Choose a unit",
+      "maxPerDay": "Most doses in a day (optional)",
+      "maxPerDaySos": "Most doses in 24 hours (optional)",
+      "usualStart": "Usual first dose time",
+      "usualStartHint": "Each day's first reminder comes at this time. Later doses follow when the first one is actually given."
     },
     "giveFull": "Give full dose",
     "givePartial": "Partial dose",
@@ -339,7 +343,11 @@
     "tileMissed": "{{count}} missed",
     "tileNever": "Not given",
     "tileLast": "{{ago}} ago",
-    "tileWait": "Wait till {{time}}"
+    "tileWait": "Wait till {{time}}",
+    "maxTitle": "Maximum reached",
+    "maxBody": "{{count}} of {{max}} doses already given in the last 24 hours.",
+    "tileMax": "Max reached",
+    "dosesToday": "{{count}} of {{max}} doses in the last 24 h"
   },
   "units": {
     "ml": "ml",

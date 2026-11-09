@@ -11,6 +11,7 @@ import { formatDose } from '../lib/units'
 import { queuedAmount, queuedDoseSlots, queuedAsNeeded, slotKey } from '../offline/pending'
 import type { QueueEntry } from '../offline/queue'
 import GiveAsNeededSheet from './GiveAsNeededSheet'
+import Sheet from './Sheet'
 import GiveDoseSheet from './GiveDoseSheet'
 import NudgeSheet from './NudgeSheet'
 import type { ToastData } from './Toast'
@@ -40,6 +41,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
   const [partial, setPartial] = useState<{ medicine: Medicine; slot?: Slot; max: number; mode?: 'full' | 'partial'; askTime?: boolean } | null>(null)
   const [open, setOpen] = useState<Record<string, boolean>>({})
   const [picked, setPicked] = useState<string | null>(null)
+  const [maxAsk, setMaxAsk] = useState<{ medicine: Medicine; run: () => void } | null>(null)
   const [nudgeFor, setNudgeFor] = useState<{ medicine: Medicine; slot: Slot; left: number } | null>(null)
   if (medicines.length === 0) return null
   const queued = queuedDoseSlots(pending)
@@ -67,7 +69,14 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
     }
   }
 
-  const submit = (m: Medicine, status: 'given' | 'skipped', slot?: Slot, amount?: number, nudgeMinutes: number | null = null, givenAt: string | null = null) =>
+  /** True when one more dose would pass the medicine's maximum for the last 24 hours (another piece of a started dose does not). */
+  const overMax = (m: Medicine, slot?: Slot) => m.max_per_day != null && (m.given_last_24h ?? 0) >= m.max_per_day && !(slot && slot.given_amount > 0)
+
+  const submit = (m: Medicine, status: 'given' | 'skipped', slot?: Slot, amount?: number, nudgeMinutes: number | null = null, givenAt: string | null = null, skipMax = false) => {
+    if (status === 'given' && !skipMax && overMax(m, slot)) {
+      setMaxAsk({ medicine: m, run: () => submit(m, status, slot, amount, nudgeMinutes, givenAt, true) })
+      return
+    }
     give.mutate(
       { id: crypto.randomUUID(), medicine_id: m.id, status, scheduled_for: slot?.due_at, amount, ...(givenAt ? { given_at: givenAt } : {}) },
       {
@@ -87,6 +96,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
         onError: failed(m),
       },
     )
+  }
 
   const giveAsNeeded = (m: Medicine, amount: number | undefined, givenAt: string | null = null) => {
     const last = m.last_dose
@@ -370,7 +380,8 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
       return { text: m.last_dose?.status === 'given' ? t('medicines.tileLast', { ago: formatAgo(now - Date.parse(m.last_dose.given_at)) }) : t('medicines.tileNever'), urgent: false }
     }
     const { current, missed, later, done } = groups(m)
-    const extra = missed.length > 0 ? t('medicines.tileMissed', { count: missed.length }) : undefined
+    const atMax = m.max_per_day != null && (m.given_last_24h ?? 0) >= m.max_per_day
+    const extra = missed.length > 0 ? t('medicines.tileMissed', { count: missed.length }) : atMax && !current ? t('medicines.tileMax') : undefined
     if (current) return { text: t('medicines.tileDue'), urgent: true, extra }
     if (later[0]) return { text: t('medicines.tileNext', { time: formatClock(later[0].due_at) }), urgent: false, extra }
     return { text: done.length > 0 ? t('medicines.tileDone') : t('medicines.tileNever'), urgent: false, extra }
@@ -419,6 +430,9 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
         {selected && (
           <Card tone="med" data-testid="medicine-detail" className="space-y-3">
             <p className="text-base font-semibold">{title(selected)}</p>
+            {selected.max_per_day != null && (
+              <p className="text-xs font-semibold text-muted">{t('medicines.dosesToday', { count: selected.given_last_24h ?? 0, max: selected.max_per_day })}</p>
+            )}
             {selected.schedule_kind === 'as_needed' ? (
               <>
                 {asNeededRow(selected)}
@@ -454,6 +468,25 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
             else giveAsNeeded(medicine, amount, givenAt)
           }}
         />
+      )}
+      {maxAsk && (
+        <Sheet title={t('medicines.maxTitle')} onClose={() => setMaxAsk(null)}>
+          <p>{t('medicines.maxBody', { count: maxAsk.medicine.given_last_24h ?? 0, max: maxAsk.medicine.max_per_day ?? 0 })}</p>
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              onClick={() => {
+                const run = maxAsk.run
+                setMaxAsk(null)
+                run()
+              }}
+            >
+              {t('medicines.giveAnyway')}
+            </Button>
+            <Button variant="ghost" onClick={() => setMaxAsk(null)}>
+              {t('medicines.cancel')}
+            </Button>
+          </div>
+        </Sheet>
       )}
       {confirming && (
         <GiveAsNeededSheet
