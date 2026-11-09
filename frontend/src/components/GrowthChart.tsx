@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useGrowth, type GrowthCurves, type GrowthKind, type PlaceKind } from '../api/hooks'
 import { PLACE_COLORS } from '../lib/placeColors'
 import { formatPlace, formatWhen } from '../lib/vitalsFormat'
@@ -64,21 +64,38 @@ function GrowthPlot({ data, hidden, unit }: { data: GrowthCurves; hidden: Set<Pl
   const maxMonth = Math.min(60, Math.max(6, Math.ceil(oldest) + 3))
   const curve = (p: (typeof PERCENTILES)[number]) =>
     data.curves[p].filter(([m]) => m <= maxMonth).map(([month, value]) => ({ month, value }))
+  // the shaded band between the 3rd and 97th percentile, one row per month on the 3rd percentile's grid
+  const hi = new Map(data.curves['97'].map(([m, v]) => [m, v]))
+  const band = data.curves['3']
+    .filter(([m]) => m <= maxMonth && hi.has(m))
+    .map(([month, lo]) => ({ month, range: [lo, hi.get(month)!] as [number, number] }))
   return (
     <>
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart margin={{ top: 8, right: 8, bottom: 8, left: -16 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-line, #ddd)" />
+          <ComposedChart margin={{ top: 8, right: 8, bottom: 8, left: -16 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
             <XAxis type="number" dataKey="month" domain={[0, maxMonth]} allowDecimals={false} tick={{ fontSize: 11 }} />
             <YAxis type="number" dataKey="value" domain={['auto', 'auto']} tick={{ fontSize: 11 }} />
+            <Area
+              data={band}
+              dataKey="range"
+              type="monotone"
+              stroke="none"
+              fill="var(--surface-2)"
+              fillOpacity={1}
+              isAnimationActive={false}
+              activeDot={false}
+              className="who-band"
+            />
             {PERCENTILES.map((p) => (
               <Line
                 key={p}
                 data={curve(p)}
                 dataKey="value"
                 name={t('vitals.charts.percentileLine', { p })}
-                stroke={p === '50' ? '#94a3b8' : '#cbd5e1'}
+                stroke={p === '50' ? 'var(--muted)' : 'var(--line)'}
+                strokeDasharray={p === '50' ? '5 4' : undefined}
                 strokeWidth={p === '50' ? 2 : 1}
                 dot={false}
                 activeDot={false}
@@ -90,7 +107,7 @@ function GrowthPlot({ data, hidden, unit }: { data: GrowthCurves; hidden: Set<Pl
             <Line
               data={points}
               dataKey="value"
-              stroke="#334155"
+              stroke="var(--primary)"
               strokeWidth={2}
               isAnimationActive={false}
               dot={(props: { cx?: number; cy?: number; payload?: Point; index?: number }) => (
@@ -98,17 +115,23 @@ function GrowthPlot({ data, hidden, unit }: { data: GrowthCurves; hidden: Set<Pl
                   key={props.payload?.id ?? props.index}
                   cx={props.cx}
                   cy={props.cy}
-                  r={5}
+                  r={6}
                   fill={PLACE_COLORS[props.payload?.place_kind ?? 'other']}
                   data-point={props.payload?.place_kind}
                 />
               )}
             />
             <Tooltip content={<GrowthTooltipContent unit={unit} />} />
-          </LineChart>
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
-      <p className="text-xs text-muted">{t('vitals.charts.months')}</p>
+      <p className="flex flex-wrap items-center gap-x-4 text-xs text-muted">
+        <span className="flex items-center gap-1.5">
+          <span aria-hidden="true" className="h-2.5 w-4 rounded-sm bg-surface-2 ring-1 ring-line" />
+          {t('vitals.charts.bandLegend')}
+        </span>
+        <span>{t('vitals.charts.months')}</span>
+      </p>
       <p className="text-xs text-muted">
         {t('vitals.charts.source', { name: data.source.name, date: data.source.retrieved_on })}{' '}
         <a href={data.source.url} target="_blank" rel="noreferrer" className="underline">
