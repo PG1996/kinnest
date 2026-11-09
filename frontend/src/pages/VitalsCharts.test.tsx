@@ -208,19 +208,27 @@ test('the temperature chart explains the fever line', async () => {
   expect(within(chart).getByText(en.vitals.charts.feverNote.replace('{{value}}', '38 °C'))).toBeInTheDocument()
 })
 
-test('the five metric tabs scroll sideways instead of squeezing, each with its name over its value', async () => {
+test('all five metrics show at once as stat cards, with no sideways scrolling', async () => {
   mockApi(withFull())
-  renderApp(<VitalsCharts />)
+  const { container } = renderApp(<VitalsCharts />)
   const tabs = await screen.findAllByRole('tab')
   expect(tabs).toHaveLength(5)
-  for (const tab of tabs) {
-    expect(tab.className).toContain('shrink-0') // never narrower than its own text
-    expect(tab.className).toContain('whitespace-nowrap')
-  }
-  expect(tabs[0]!.parentElement!.className).toContain('overflow-x-auto')
+  expect(screen.getByRole('tablist').className).toContain('grid')
+  expect(container.querySelector('.overflow-x-auto')).toBeNull()
   const heart = screen.getByRole('tab', { name: new RegExp(en.vitals.measurements.heart_rate) })
-  await waitFor(() => expect(within(heart).getByTestId('tab-value')).toHaveTextContent('142'))
-  expect(within(heart).getByTestId('tab-name')).toHaveTextContent(en.vitals.measurements.heart_rate)
+  expect(within(heart).getByTestId('stat-name')).toHaveTextContent(en.vitals.measurements.heart_rate)
+  await waitFor(() => expect(within(heart).getByTestId('stat-value')).toHaveTextContent('142'))
+})
+
+test('a stat card shows the change since the previous reading and a small trend line', async () => {
+  mockApi({ ...routes(), 'GET /api/vitals': { body: [FULL('a', 5), FULL('b', 1, { weight_kg: 3.56, spo2: null })] } })
+  renderApp(<VitalsCharts />)
+  const weight = await screen.findByRole('tab', { name: new RegExp(en.vitals.measurements.weight_kg) })
+  await waitFor(() => expect(within(weight).getByTestId('stat-delta')).toHaveTextContent('▲ 0.14 kg'))
+  expect(weight.querySelector('svg')).not.toBeNull()
+  // one reading only: no change to show
+  const spo2 = screen.getByRole('tab', { name: new RegExp(en.vitals.measurements.spo2) })
+  expect(within(spo2).queryByTestId('stat-delta')).toBeNull()
 })
 
 test('arrow keys still move between the metric tabs', async () => {
