@@ -114,26 +114,66 @@ test('filters list by place', async () => {
   )
 })
 
-test('Home card shows the latest value of each measurement with its place', async () => {
-  const summary = {
-    last_feed: null, next_feed_due_at: null, last_diaper: null, feeds_today: 0,
-    diapers_today: { wet: 0, dirty: 0, both: 0 }, sleep: { open: null, last: null },
-    vitals: {
-      latest: {
-        weight_kg: VITAL({ weight_kg: 4.2 }),
-        height_cm: VITAL({ id: 'v2', height_cm: 54, place_kind: 'clinic', place_name: '' }),
-        head_cm: null,
-        temperature_c: VITAL({ id: 'v3', temperature_c: 36.8, place_kind: 'home', place_name: '' }),
-      },
-    },
-  }
-  mockApi({ 'GET /api/me': { body: ME_ADMIN }, 'GET /api/summary': { body: summary }, 'GET /api/medicines': { body: [] } })
+const homeSummary = (latest: object) => ({
+  last_feed: null, next_feed_due_at: null, last_diaper: null, feeds_today: 0,
+  diapers_today: { wet: 0, dirty: 0, both: 0 }, sleep: { open: null, last: null }, vitals: { latest },
+})
+const homeCard = async (latest: object, me = ME_ADMIN) => {
+  mockApi({ 'GET /api/me': { body: me }, 'GET /api/summary': { body: homeSummary(latest) }, 'GET /api/medicines': { body: [] } })
   renderApp(<Home />)
-  const card = await screen.findByRole('region', { name: en.vitals.card.title })
-  expect(within(card).getByText('4.2 kg · 54 cm · 36.8 °C')).toBeInTheDocument()
-  expect(within(card).getByText(new RegExp(en.vitals.places.clinic))).toBeInTheDocument()
-  expect(within(card).getByText(/City Hospital/)).toBeInTheDocument()
-  expect(within(card).getByRole('link', { name: en.vitals.add })).toHaveAttribute('href', '/health?tab=vitals&add=1')
+  return within(await screen.findByRole('region', { name: en.vitals.card.title }))
+}
+
+test('Home card shows each latest measurement as a compact value tile', async () => {
+  localStorage.setItem('kinnest.tempUnit', 'F')
+  const card = await homeCard({
+    weight_kg: VITAL({ weight_kg: 4.2 }),
+    height_cm: VITAL({ id: 'v2', height_cm: 54 }),
+    head_cm: null,
+    temperature_c: VITAL({ id: 'v3', temperature_c: 36.8 }),
+  })
+  const tile = (label: string) => card.getByText(label).parentElement!
+  expect(tile(en.vitals.measurements.weight_kg)).toHaveTextContent('4.2 kg')
+  expect(tile(en.vitals.measurements.height_cm)).toHaveTextContent('54 cm')
+  expect(tile(en.vitals.measurements.temperature_c)).toHaveTextContent('98.2 °F')
+  expect(card.queryByText(en.vitals.measurements.head_cm)).not.toBeInTheDocument() // nothing recorded yet: no empty tile
+})
+
+test('Home card no longer lists a date and place for every measurement', async () => {
+  const card = await homeCard({ weight_kg: VITAL({ weight_kg: 4.2, place_name: 'City Hospital', place_kind: 'hospital' }), height_cm: null, head_cm: null, temperature_c: null })
+  expect(card.queryByText(/City Hospital/)).not.toBeInTheDocument()
+  expect(card.queryByRole('listitem')).not.toBeInTheDocument()
+  expect(card.queryByText(en.vitals.places.hospital)).not.toBeInTheDocument()
+})
+
+test('Home card says once how recent the newest reading is', async () => {
+  const card = await homeCard({ weight_kg: VITAL({ weight_kg: 4.2, measured_at: hoursAgo(50) }), height_cm: VITAL({ id: 'v2', height_cm: 54, measured_at: hoursAgo(2) }), head_cm: null, temperature_c: null })
+  expect(card.getAllByText(/ago/)).toHaveLength(1)
+  expect(card.getByText(en.vitals.card.updated.replace('{{ago}}', '2h 0m'))).toBeInTheDocument()
+})
+
+test('a temperature of 38 °C or more is flagged as a fever', async () => {
+  localStorage.setItem('kinnest.tempUnit', 'F')
+  const card = await homeCard({ weight_kg: null, height_cm: null, head_cm: null, temperature_c: VITAL({ temperature_c: 38.4 }) })
+  expect(card.getByText(en.vitals.card.fever)).toBeInTheDocument()
+  expect(card.getByText(/101\.1 °F/)).toBeInTheDocument()
+})
+
+test('a normal temperature has no fever flag', async () => {
+  const card = await homeCard({ weight_kg: null, height_cm: null, head_cm: null, temperature_c: VITAL({ temperature_c: 36.8 }) })
+  expect(card.queryByText(en.vitals.card.fever)).not.toBeInTheDocument()
+})
+
+test('Home card keeps a small add button for caregivers and none for viewers', async () => {
+  const card = await homeCard({ weight_kg: VITAL({ weight_kg: 4.2 }), height_cm: null, head_cm: null, temperature_c: null })
+  const add = card.getByRole('link', { name: en.vitals.add })
+  expect(add).toHaveAttribute('href', '/health?tab=vitals&add=1')
+  expect(add.className).not.toContain('w-full') // an icon-sized button, not a full-width row
+})
+
+test('Home card shows no add button to a viewer', async () => {
+  const card = await homeCard({ weight_kg: VITAL({ weight_kg: 4.2 }), height_cm: null, head_cm: null, temperature_c: null }, ME_VIEWER)
+  expect(card.queryByRole('link', { name: en.vitals.add })).not.toBeInTheDocument()
 })
 
 test('viewer sees no buttons', async () => {

@@ -427,7 +427,9 @@
     },
     "card": {
       "title": "Latest vitals",
-      "empty": "No vitals yet"
+      "empty": "No vitals yet",
+      "updated": "Updated {{ago}} ago",
+      "fever": "Fever"
     },
     "charts": {
       "title": "Charts",
