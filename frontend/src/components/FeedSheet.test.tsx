@@ -1,4 +1,4 @@
-import { act, screen } from '@testing-library/react'
+import { act, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import en from '../i18n/en.json'
@@ -55,6 +55,16 @@ test('footer says when the next feed is due', async () => {
   mockApi(api())
   renderApp(<FeedSheet last={null} saving={false} failed={false} onSave={() => {}} onClose={() => {}} />)
   expect(await screen.findByText(/Next feed due about .* \(every 3h\)/)).toBeInTheDocument()
+})
+
+test('the next-feed hint counts from the end of a breastfeed', async () => {
+  mockApi(api())
+  renderApp(<FeedSheet last={null} saving={false} failed={false} onSave={() => {}} onClose={() => {}} />)
+  const hint = async () => (await screen.findByText(/Next feed due about/)).textContent!
+  await userEvent.click(screen.getByRole('radio', { name: en.feedTypes.breast_left }))
+  const before = await hint()
+  await userEvent.type(screen.getByLabelText(en.home.duration), '60')
+  await waitFor(async () => expect(await hint()).not.toBe(before)) // an hour of feeding pushes the due time an hour later
 })
 
 test('the timer fills the duration and the start time', async () => {

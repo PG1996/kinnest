@@ -79,7 +79,7 @@ test('mergePending shows the newest pending feed as last fed with a due time', (
   const pending = [{ ...entry('feed', 'p1'), queuedAt: 1, seq: 1, payload: { id: 'p1', type: 'breast_left', started_at: '2026-11-04T09:00:00Z', duration_min: 10 } }]
   const merged = mergePending(summary, pending, 'Me')
   expect(merged.last_feed).toMatchObject({ id: 'p1', fed_by_name: 'Me', type: 'breast_left' })
-  expect(merged.next_feed_due_at).toBe('2026-11-04T12:00:00.000Z')
+  expect(merged.next_feed_due_at).toBe('2026-11-04T12:10:00.000Z') // the 10 minute feed ends at 09:10, plus the 3 hour interval
   expect(merged.feeds_today).toBe(2)
   expect(mergePending(summary, [], 'Me')).toBe(summary)
 })

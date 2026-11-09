@@ -51,6 +51,8 @@ export default function FeedSheet({ last, saving, failed, onSave, onClose }: Pro
   }
 
   const startMs = when === initialWhen ? Date.now() : new Date(when).getTime()
+  // the next feed is due one interval after this one ends (bottles have no duration)
+  const feedMs = !isBottle && duration && Number(duration) > 0 ? Number(duration) * 60_000 : 0
   const everyText = interval ? (interval % 60 === 0 ? `${interval / 60}h` : formatAgo(interval * 60_000)) : null
 
   const submit = (e: FormEvent) => {
@@ -77,7 +79,7 @@ export default function FeedSheet({ last, saving, failed, onSave, onClose }: Pro
       onClose={onClose}
       footer={
         <div className="space-y-2">
-          {interval && <p className="text-center text-sm text-muted">{t('home.nextFeedHint', { time: clock(startMs + interval * 60_000), every: everyText })}</p>}
+          {interval && <p className="text-center text-sm text-muted">{t('home.nextFeedHint', { time: clock(startMs + feedMs + interval * 60_000), every: everyText })}</p>}
           {failed && <p className="text-center text-sm text-danger">{t('home.saveError')}</p>}
           <Button type="submit" form="feed-form" size="lg" className="w-full" disabled={saving}>
             {t('home.saveFeed')}
