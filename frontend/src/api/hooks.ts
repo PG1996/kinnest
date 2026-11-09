@@ -37,7 +37,7 @@ export type Feed = {
   note: string
   fed_by_name: string
 }
-export type Diaper = { id: string; kind: DiaperKind; at: string; changed_by_name: string }
+export type Diaper = { id: string; kind: DiaperKind; at: string; changed_by_name: string; note?: string }
 export type Sleep = {
   id: string
   started_at: string
@@ -287,5 +287,13 @@ export function useSleepRange(from: Date, to: Date) {
   return useQuery({
     queryKey: ['sleep', from.toISOString(), to.toISOString()],
     queryFn: () => api<Sleep[]>(`/api/sleep?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`),
+  })
+}
+
+/** Diapers changed between `from` and `to`. Keep `from`/`to` stable between renders. */
+export function useDiaperRange(from: Date, to: Date) {
+  return useQuery({
+    queryKey: ['diapers', from.toISOString(), to.toISOString()],
+    queryFn: () => api<Diaper[]>(`/api/diapers?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`),
   })
 }
