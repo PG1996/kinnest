@@ -156,10 +156,15 @@ export type VitalInput = VitalValues & {
   place_name?: string
   measured_by?: string
   note?: string
+  /** the doctor visit this reading was taken at */
+  visit_id?: string | null
+  /** make a done visit at this reading's place and time, and link it */
+  create_visit?: boolean
 }
 export type Vital = Required<VitalValues> & {
   id: string
   measured_at: string
+  visit_id?: string | null
   place_kind: PlaceKind
   place_name: string
   measured_by: string
@@ -207,6 +212,8 @@ export type Visit = {
   status: VisitStatus
   notes: string
   prescription_notes: string
+  /** the readings taken at this visit */
+  vitals?: Vital[]
 }
 export type VitalFilters = { from?: string; to?: string; place_kind?: PlaceKind }
 

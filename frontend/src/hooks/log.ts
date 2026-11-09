@@ -239,6 +239,8 @@ const refreshVitals = (qc: ReturnType<typeof useQueryClient>) => {
   qc.invalidateQueries({ queryKey: ['vitals'] })
   qc.invalidateQueries({ queryKey: ['growth'] })
   qc.invalidateQueries({ queryKey: ['summary'] })
+  // a reading can create or join a visit
+  qc.invalidateQueries({ queryKey: ['visits'] })
 }
 
 /** Add a vitals entry. Queued offline like feeds (the client id makes a re-send safe). */

@@ -7,7 +7,7 @@ import VisitForm, { type VisitFormMode } from '../components/VisitForm'
 import { Button, linkButtonClass } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { useCreateVisit, useDeleteVisit, useUpdateVisit, type VisitInput } from '../hooks/log'
-import { formatWhen } from '../lib/vitalsFormat'
+import { formatValues, formatWhen } from '../lib/vitalsFormat'
 
 export default function VisitsTab() {
   const { t } = useTranslation()
@@ -40,6 +40,9 @@ export default function VisitsTab() {
         {v.reason && <p className="text-sm">{v.reason}</p>}
         {v.notes && <p className="text-sm">{t('visits.notesLabel', { text: v.notes })}</p>}
         {v.prescription_notes && <p className="text-sm">{t('visits.prescriptionLabel', { text: v.prescription_notes })}</p>}
+        {v.vitals && v.vitals.length > 0 && (
+          <p className="text-sm font-medium text-primary">{t('visits.vitalsLabel', { values: v.vitals.map((x) => formatValues(t, x)).join(' · ') })}</p>
+        )}
         {canEdit && (
           <div className="flex flex-wrap gap-2 pt-1">
             {confirming === v.id ? (
