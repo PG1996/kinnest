@@ -1,15 +1,23 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useDoseHistory, type DoseRow, type Medicine } from '../api/hooks'
+import { useDoseHistory, type DoseRow, type Medicine, type Slot } from '../api/hooks'
 import { useFixDose, useRecordPastDose, useUndoDose } from '../hooks/log'
-import { toLocalInput } from '../lib/time'
+import { formatTime, toLocalInput } from '../lib/time'
 import { formatDose } from '../lib/units'
 import { formatWhen } from '../lib/vitalsFormat'
 import Sheet from './Sheet'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
 import { Chip, ChipGroup } from './ui/chip'
-import { Input } from './ui/field'
+import { Input, Select } from './ui/field'
+
+const sameMoment = (a?: string | null, b?: string | null) => !!a && !!b && Date.parse(a) === Date.parse(b)
+
+/** "12:00 PM (yesterday)" for a dose slot. */
+function slotLabel(due: string, t: (k: string) => string): string {
+  const day = new Date(due).toDateString() === new Date().toDateString() ? t('medicines.today') : t('medicines.yesterday')
+  return `${formatTime(due)} (${day})`
+}
 
 /** Add a past dose, or fix an existing one (admin). */
 function DoseForm({ medicine, dose, onClose }: { medicine: Medicine; dose?: DoseRow; onClose: () => void }) {
@@ -21,6 +29,16 @@ function DoseForm({ medicine, dose, onClose }: { medicine: Medicine; dose?: Dose
   const [amount, setAmount] = useState(dose?.amount != null ? String(dose.amount) : medicine.dose_amount != null && !dose ? String(medicine.dose_amount) : '')
   const [note, setNote] = useState(dose?.note ?? '')
   const [error, setError] = useState('')
+  // which dose slot this counts for: the slots now open for this medicine, plus the one it is on already
+  const slots: Pick<Slot, 'due_at' | 'status'>[] = medicine.schedule_kind === 'as_needed' ? [] : [...medicine.slots]
+  if (dose?.scheduled_for && !slots.some((s) => sameMoment(s.due_at, dose.scheduled_for))) slots.push({ due_at: dose.scheduled_for, status: 'given' })
+  slots.sort((a, b) => Date.parse(a.due_at) - Date.parse(b.due_at))
+  const originalSlot = slots.find((s) => sameMoment(s.due_at, dose?.scheduled_for))?.due_at ?? ''
+  const [slotValue, setSlotValue] = useState(() =>
+    dose
+      ? originalSlot
+      : ([...slots].reverse().find((s) => (s.status === 'pending' || s.status === 'partial') && Date.parse(s.due_at) <= Date.now())?.due_at ?? ''),
+  )
   const saving = record.isPending || fix.isPending
 
   const submit = (e: FormEvent) => {
@@ -32,8 +50,8 @@ function DoseForm({ medicine, dose, onClose }: { medicine: Medicine; dose?: Dose
     setError('')
     const done = { onSuccess: onClose, onError: () => setError(t('medicines.history.saveError')) }
     const body = { status, given_at: at.toISOString(), note, ...(status === 'given' && n !== undefined ? { amount: n } : {}) }
-    if (dose) fix.mutate({ medicineId: medicine.id, doseId: dose.id, ...body }, done)
-    else record.mutate({ id: crypto.randomUUID(), medicine_id: medicine.id, ...body }, done)
+    if (dose) fix.mutate({ medicineId: medicine.id, doseId: dose.id, ...body, ...(slotValue !== originalSlot ? { scheduled_for: slotValue || null } : {}) }, done)
+    else record.mutate({ id: crypto.randomUUID(), medicine_id: medicine.id, ...body, ...(slotValue ? { scheduled_for: slotValue } : {}) }, done)
   }
 
   return (
@@ -53,6 +71,21 @@ function DoseForm({ medicine, dose, onClose }: { medicine: Medicine; dose?: Dose
             {t('medicines.history.skipped')}
           </Chip>
         </ChipGroup>
+        {slots.length > 0 && (
+          <div className="space-y-1">
+            <label htmlFor="dose-form-slot" className="block text-sm font-extrabold text-muted">
+              {t('medicines.history.form.slot')}
+            </label>
+            <Select id="dose-form-slot" value={slotValue} onChange={(e) => setSlotValue(e.target.value)}>
+              <option value="">{t('medicines.history.noSlot')}</option>
+              {slots.map((sl) => (
+                <option key={sl.due_at} value={sl.due_at}>
+                  {slotLabel(sl.due_at, t)}
+                </option>
+              ))}
+            </Select>
+          </div>
+        )}
         {status === 'given' && (
           <div className="space-y-1">
             <label htmlFor="dose-form-amount" className="block text-sm font-extrabold text-muted">

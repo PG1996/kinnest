@@ -111,7 +111,7 @@ export function useUndoDose() {
   })
 }
 
-export type PastDoseInput = { id: string; medicine_id: string; status: 'given' | 'skipped'; given_at: string; amount?: number; note?: string }
+export type PastDoseInput = { id: string; medicine_id: string; status: 'given' | 'skipped'; given_at: string; amount?: number; note?: string; scheduled_for?: string }
 
 /** Admin: put an earlier dose on record (online only; it skips the live slot rules). */
 export function useRecordPastDose() {
@@ -122,7 +122,8 @@ export function useRecordPastDose() {
   })
 }
 
-export type DoseFix = { status?: 'given' | 'skipped'; amount?: number; given_at?: string; note?: string }
+/** `scheduled_for`: the slot the dose counts for, or null to take it off its slot */
+export type DoseFix = { status?: 'given' | 'skipped'; amount?: number; given_at?: string; note?: string; scheduled_for?: string | null }
 
 /** Admin: correct a recorded dose. */
 export function useFixDose() {

@@ -79,7 +79,12 @@ export default function GiveDoseSheet({ medicine, slot, max, onGive, onSkip, onC
       <Card tone="med" className="space-y-3">
         <div className="flex items-center justify-between gap-2">
           <p className="text-xl font-extrabold">{medicine.name}</p>
-          {slot && <span className="rounded-full bg-surface px-2.5 py-1 text-xs font-extrabold text-med-ink">{t('medicines.slotAt', { time: formatClock(slot.due_at) })}</span>}
+          {slot && (
+            <span className="rounded-full bg-surface px-2.5 py-1 text-xs font-extrabold text-med-ink">
+              {t('medicines.slotAt', { time: formatClock(slot.due_at) })}
+              {new Date(slot.due_at).toDateString() !== new Date().toDateString() ? ` (${t('medicines.yesterday')})` : ''}
+            </span>
+          )}
         </div>
         <Eyebrow tone="med">{medicine.dose_amount != null ? fmt(total) : ''}</Eyebrow>
         {slot && slot.status === 'partial' && (

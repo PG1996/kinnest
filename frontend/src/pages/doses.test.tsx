@@ -195,3 +195,72 @@ test('a viewer sees no history editing either', async () => {
   expect(await within(dialog).findByText(/Mom/)).toBeInTheDocument()
   expect(within(dialog).queryByRole('button', { name: en.medicines.history.edit })).not.toBeInTheDocument()
 })
+
+// --- which dose slot a dose counts for ---------------------------------------------------------------------------------
+
+const SLOT_DUE = minsAgo(20)
+const slotApi = (over: object = {}) => ({ ...histApi(), 'GET /api/medicines': { body: [syrup({ slots: [slot({ due_at: SLOT_DUE })], ...over })] } })
+
+test('fixing a dose lets the admin choose which slot it counts for, or none', async () => {
+  const calls = mockApi(slotApi())
+  renderApp(<App />, '/health?tab=medicines')
+  await userEvent.click(await screen.findByRole('button', { name: en.medicines.history.open }))
+  const dialog = await screen.findByRole('dialog', { name: en.medicines.history.title })
+  await userEvent.click((await within(dialog).findAllByRole('button', { name: en.medicines.history.edit }))[0]!)
+  const form = await screen.findByRole('dialog', { name: en.medicines.history.editTitle })
+  const select = within(form).getByLabelText(en.medicines.history.form.slot)
+  expect(within(select).getByRole('option', { name: en.medicines.history.noSlot })).toBeInTheDocument()
+  await userEvent.selectOptions(select, SLOT_DUE)
+  await userEvent.click(within(form).getByRole('button', { name: en.medicines.history.form.save }))
+  await waitFor(() => expect(calls.some((c) => c.key === 'PATCH /api/medicines/m1/doses/d1')).toBe(true))
+  expect(calls.find((c) => c.key === 'PATCH /api/medicines/m1/doses/d1')!.body).toMatchObject({ scheduled_for: SLOT_DUE })
+})
+
+test('a dose that counts for a slot can be taken off it', async () => {
+  const onSlot = { ...DOSES[0], scheduled_for: SLOT_DUE }
+  const calls = mockApi({ ...slotApi(), 'GET /api/medicines/m1/doses': { body: [onSlot] } })
+  renderApp(<App />, '/health?tab=medicines')
+  await userEvent.click(await screen.findByRole('button', { name: en.medicines.history.open }))
+  const dialog = await screen.findByRole('dialog', { name: en.medicines.history.title })
+  await userEvent.click(await within(dialog).findByRole('button', { name: en.medicines.history.edit }))
+  const form = await screen.findByRole('dialog', { name: en.medicines.history.editTitle })
+  const select = within(form).getByLabelText(en.medicines.history.form.slot) as HTMLSelectElement
+  expect(select.value).toBe(SLOT_DUE)
+  await userEvent.selectOptions(select, '')
+  await userEvent.click(within(form).getByRole('button', { name: en.medicines.history.form.save }))
+  await waitFor(() => expect(calls.some((c) => c.key === 'PATCH /api/medicines/m1/doses/d1')).toBe(true))
+  expect(calls.find((c) => c.key === 'PATCH /api/medicines/m1/doses/d1')!.body).toMatchObject({ scheduled_for: null })
+})
+
+test('a past dose is preselected for the open slot so it clears the overdue row', async () => {
+  const calls = mockApi(slotApi())
+  renderApp(<App />, '/health?tab=medicines')
+  await userEvent.click(await screen.findByRole('button', { name: en.medicines.history.open }))
+  const dialog = await screen.findByRole('dialog', { name: en.medicines.history.title })
+  await userEvent.click(await within(dialog).findByRole('button', { name: en.medicines.history.add }))
+  const form = await screen.findByRole('dialog', { name: en.medicines.history.addTitle })
+  expect((within(form).getByLabelText(en.medicines.history.form.slot) as HTMLSelectElement).value).toBe(SLOT_DUE)
+  await userEvent.click(within(form).getByRole('button', { name: en.medicines.history.form.save }))
+  await waitFor(() => expect(calls.some((c) => c.key === 'POST /api/medicines/m1/doses/history')).toBe(true))
+  expect(calls.find((c) => c.key === 'POST /api/medicines/m1/doses/history')!.body).toMatchObject({ scheduled_for: SLOT_DUE })
+})
+
+test('an SOS medicine has no slot choice in the history form', async () => {
+  mockApi({ ...histApi(), 'GET /api/medicines': { body: [syrup({ schedule_kind: 'as_needed', times: [], slots: [] })] } })
+  renderApp(<App />, '/health?tab=medicines')
+  await userEvent.click(await screen.findByRole('button', { name: en.medicines.history.open }))
+  const dialog = await screen.findByRole('dialog', { name: en.medicines.history.title })
+  await userEvent.click(await within(dialog).findByRole('button', { name: en.medicines.history.add }))
+  const form = await screen.findByRole('dialog', { name: en.medicines.history.addTitle })
+  expect(within(form).queryByLabelText(en.medicines.history.form.slot)).not.toBeInTheDocument()
+})
+
+test('the dose screen says when a slot is from yesterday', async () => {
+  mockApi(base([syrup({ slots: [slot({ due_at: minsAgo(26 * 60) }), slot({ due_at: minsAgo(20) })] })]))
+  renderApp(<Home />)
+  await userEvent.click(await screen.findByRole('button', { name: en.medicines.reviewMissed }))
+  const partials = await screen.findAllByRole('button', { name: en.medicines.givePartial })
+  await userEvent.click(partials[1]!) // the current dose comes first on the page, the expanded missed one after it
+  const dialog = await screen.findByRole('dialog', { name: en.medicines.giveTitle })
+  expect(dialog).toHaveTextContent(`(${en.medicines.yesterday})`)
+})
