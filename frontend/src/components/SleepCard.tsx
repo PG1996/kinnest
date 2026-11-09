@@ -16,13 +16,13 @@ export default function SleepCard({ sleep, now }: { sleep: SummarySleep | undefi
         <Eyebrow tone="sleep">{open ? t('sleep.asleepLabel') : t('sleep.title')}</Eyebrow>
         {open ? (
           <>
-            <p className="text-lg font-extrabold">
+            <p className="text-base font-bold">
               {t('sleep.asleepSince', { time: formatClock(open.started_at), ago: formatAgo(now - Date.parse(open.started_at)) })}
             </p>
             <p className="text-sm text-muted">{t('home.by', { name: open.started_by_name })}</p>
           </>
         ) : last ? (
-          <p className="text-lg font-extrabold">
+          <p className="text-base font-bold">
             {t('sleep.lastSleep', {
               duration: formatAgo((last.duration_min ?? 0) * 60_000),
               ago: formatAgo(now - Date.parse(last.ended_at ?? last.started_at)),

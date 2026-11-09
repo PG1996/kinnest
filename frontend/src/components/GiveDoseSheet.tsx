@@ -78,9 +78,9 @@ export default function GiveDoseSheet({ medicine, slot, max, onGive, onSkip, onC
     >
       <Card tone="med" className="space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-xl font-extrabold">{medicine.name}</p>
+          <p className="text-lg font-bold">{medicine.name}</p>
           {slot && (
-            <span className="rounded-full bg-surface px-2.5 py-1 text-xs font-extrabold text-med-ink">
+            <span className="rounded-full bg-surface px-2.5 py-1 text-xs font-bold text-med-ink">
               {t('medicines.slotAt', { time: formatClock(slot.due_at) })}
               {new Date(slot.due_at).toDateString() !== new Date().toDateString() ? ` (${t('medicines.yesterday')})` : ''}
             </span>
@@ -121,7 +121,7 @@ export default function GiveDoseSheet({ medicine, slot, max, onGive, onSkip, onC
       />
 
       <Card className="space-y-3">
-        <p className="text-sm font-extrabold text-muted">{t('medicines.when')}</p>
+        <p className="text-[13px] font-semibold text-muted">{t('medicines.when')}</p>
         <div className="flex flex-wrap gap-2">
           <Chip
             pressed={!other}
@@ -138,7 +138,7 @@ export default function GiveDoseSheet({ medicine, slot, max, onGive, onSkip, onC
         </div>
         {other && (
           <div className="space-y-1">
-            <label htmlFor="dose-when" className="block text-sm font-extrabold text-muted">
+            <label htmlFor="dose-when" className="block text-[13px] font-semibold text-muted">
               {t('medicines.whenLabel')}
             </label>
             <Input id="dose-when" type="datetime-local" value={whenValue} max={toLocalInput(new Date())} onChange={(e) => setWhenValue(e.target.value)} />
@@ -161,7 +161,7 @@ export default function GiveDoseSheet({ medicine, slot, max, onGive, onSkip, onC
           <p className="text-center text-sm text-muted">{t('medicines.upTo', { left: fmt(max) })}</p>
           {slot && (
             <div className="space-y-2">
-              <p className="text-sm font-extrabold text-muted">{t('medicines.remindIn')}</p>
+              <p className="text-[13px] font-semibold text-muted">{t('medicines.remindIn')}</p>
               <div className="flex flex-wrap gap-2">
                 {NUDGE_MINUTES.map((m) => (
                   <Chip key={m} pressed={nudge === m} onClick={() => setNudge(nudge === m ? null : m)}>

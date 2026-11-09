@@ -19,10 +19,10 @@ export default function StatCard({
   return (
     <Card className="flex flex-col gap-1 p-3">
       <div className="text-xs font-bold text-muted">{label}</div>
-      <p className="text-xl font-extrabold tabular-nums">{value}</p>
+      <p className="text-lg font-bold tabular-nums">{value}</p>
       <Sparkline values={series} label={seriesLabel} width={86} height={24} className="text-primary" />
       {delta && (
-        <span className="flex items-center gap-0.5 self-start rounded-full bg-surface-2 px-1.5 py-0.5 text-[11px] font-extrabold text-med-ink">
+        <span className="flex items-center gap-0.5 self-start rounded-full bg-surface-2 px-1.5 py-0.5 text-[11px] font-bold text-med-ink">
           {delta.up ? <ArrowUp size={10} aria-hidden="true" /> : <ArrowDown size={10} aria-hidden="true" />}
           {delta.text}
         </span>

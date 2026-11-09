@@ -60,7 +60,7 @@ export default function MedicinesPage() {
 
   const card = (m: Medicine) => (
     <Card key={m.id} tone="med" data-testid={`medicine-${m.id}`} className="space-y-2">
-      <p className="text-lg font-extrabold">{m.dose_amount != null && m.dose_unit ? `${m.name} · ${formatDose(m.dose_amount, m.dose_unit, t)}` : m.name}</p>
+      <p className="text-base font-bold">{m.dose_amount != null && m.dose_unit ? `${m.name} · ${formatDose(m.dose_amount, m.dose_unit, t)}` : m.name}</p>
       {isAdmin && m.dose_amount == null && <p className="text-sm text-danger">{t('medicines.page.setDose')}</p>}
       <p className="text-sm font-bold text-med-ink">{describe(m)}</p>
       <p className="text-sm text-muted">

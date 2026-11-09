@@ -82,7 +82,7 @@ export function SlideToConfirm({
       <div className="absolute inset-y-0 left-0 rounded-full bg-primary/20" style={{ width: x + THUMB + 2 * PAD }} />
       <span
         aria-hidden="true"
-        className="absolute inset-0 flex items-center justify-center pl-12 text-base font-extrabold text-med-ink"
+        className="absolute inset-0 flex items-center justify-center pl-12 text-base font-bold text-med-ink"
         style={{ opacity: Math.max(0, 1 - x / 120) }}
       >
         {shownLabel}

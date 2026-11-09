@@ -7,7 +7,8 @@ import { Input } from '../components/ui/field'
 import { Segmented } from '../components/ui/segmented'
 import { cn } from '../lib/cn'
 import { PLACE_COLORS } from '../lib/placeColors'
-import { MEASUREMENTS, type MeasurementKey } from '../lib/vitals'
+import { MEASUREMENTS, shownValue, type MeasurementKey } from '../lib/vitals'
+import { useTempUnit } from '../lib/tempUnit'
 import { PLACES } from '../lib/vitalsFormat'
 
 const dayStart = (d: string) => (d ? new Date(`${d}T00:00:00`).toISOString() : undefined)
@@ -31,6 +32,8 @@ export default function VitalsCharts() {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [tab, setTab] = useState<Tab>('weight_kg')
+  const [more, setMore] = useState(false)
+  useTempUnit() // re-render when °F / °C changes
   const vitals = (useVitals({ from: dayStart(from), to: dayEnd(to) }).data ?? []).filter((v) => !hidden.has(v.place_kind))
   const flip = (p: PlaceKind) => {
     const next = new Set(hidden)
@@ -48,7 +51,7 @@ export default function VitalsCharts() {
   const options = TABS.map((k) => {
     const m = MEASUREMENTS.find((x) => x.key === k)!
     const v = latest(vitals, k)
-    return { value: k, label: v == null ? t(m.label) : `${t(m.label)} ${v}` }
+    return { value: k, label: v == null ? t(m.label) : `${t(m.label)} ${shownValue(k, v)}` }
   })
 
   return (
@@ -88,9 +91,15 @@ export default function VitalsCharts() {
       </fieldset>
       {charts[tab]}
       {TABS.filter((k) => k !== tab).map((k) => charts[k])}
-      {OTHERS.map((k) => (
-        <TrendChart key={k} measurement={k} vitals={vitals} />
-      ))}
+      <button
+        type="button"
+        aria-expanded={more}
+        onClick={() => setMore(!more)}
+        className="flex min-h-11 w-full items-center justify-center rounded-xl border border-dashed border-line text-sm font-semibold text-muted"
+      >
+        {t('vitals.charts.more')}
+      </button>
+      {more && OTHERS.map((k) => <TrendChart key={k} measurement={k} vitals={vitals} />)}
     </div>
   )
 }

@@ -3,7 +3,7 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import { cn } from '../../lib/cn'
 
 const button = cva(
-  'inline-flex items-center justify-center gap-2 rounded-full font-bold transition active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100',
+  'inline-flex items-center justify-center gap-2 rounded-full font-semibold transition active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100',
   {
     variants: {
       variant: {
@@ -13,7 +13,7 @@ const button = cva(
         ghost: 'text-muted hover:bg-line/50',
         danger: 'bg-danger text-primary-ink',
       },
-      size: { md: 'min-h-12 px-5 text-base', lg: 'min-h-14 px-6 text-lg' },
+      size: { md: 'min-h-11 px-4 text-[15px]', lg: 'min-h-12 px-5 text-base' },
     },
     defaultVariants: { variant: 'primary', size: 'md' },
   },

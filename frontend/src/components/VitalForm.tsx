@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type { PlaceKind, Vital, VitalInput } from '../api/hooks'
 import { cn } from '../lib/cn'
 import { toLocalInput } from '../lib/time'
-import { MEASUREMENTS, validateVital, type MeasurementKey } from '../lib/vitals'
+import { MAIN_KEYS, MEASUREMENTS, MORE_KEYS, shownRange, shownUnit, shownValue, storedValue, validateVital, type MeasurementKey } from '../lib/vitals'
 import { PLACES } from '../lib/vitalsFormat'
 import { Button } from './ui/button'
 import { Input } from './ui/field'
@@ -28,7 +28,7 @@ export default function VitalForm({
     () => new Set(MEASUREMENTS.filter((m) => initial?.[m.key] != null).map((m) => m.key)),
   )
   const [values, setValues] = useState<Record<string, string>>(() =>
-    Object.fromEntries(MEASUREMENTS.map((m) => [m.key, initial?.[m.key] != null ? String(initial[m.key]) : ''])),
+    Object.fromEntries(MEASUREMENTS.map((m) => [m.key, initial?.[m.key] != null ? String(shownValue(m.key, initial[m.key] as number)) : ''])),
   )
   const [when, setWhen] = useState(() => toLocalInput(initial ? new Date(initial.measured_at) : new Date()))
   const [place, setPlace] = useState<PlaceKind>(initial?.place_kind ?? 'home')
@@ -36,6 +36,9 @@ export default function VitalForm({
   const [measuredBy, setMeasuredBy] = useState(initial?.measured_by ?? '')
   const [note, setNote] = useState(initial?.note ?? '')
   const [errors, setErrors] = useState<Record<string, string>>({})
+  // heart rate, breathing rate and SpO2 are clinic readings: hidden unless asked for or already filled in
+  const [more, setMore] = useState(() => MORE_KEYS.some((k) => initial?.[k] != null))
+  const offered = MEASUREMENTS.filter((m) => MAIN_KEYS.includes(m.key) || more)
 
   const toggle = (k: MeasurementKey) => {
     const next = new Set(chosen)
@@ -56,7 +59,7 @@ export default function VitalForm({
     }
     for (const m of MEASUREMENTS) {
       const raw = values[m.key].trim().replace(',', '.')
-      input[m.key] = chosen.has(m.key) ? (raw === '' ? Number.NaN : Number(raw)) : null
+      input[m.key] = chosen.has(m.key) ? (raw === '' ? Number.NaN : storedValue(m.key, Number(raw))) : null
     }
     const problems = validateVital(input)
     setErrors(problems)
@@ -68,7 +71,7 @@ export default function VitalForm({
       <fieldset className="space-y-2">
         <legend className="text-sm text-muted">{t('vitals.form.which')}</legend>
         <div className="flex flex-wrap gap-2">
-          {MEASUREMENTS.map((m) => (
+          {offered.map((m) => (
             <button
               key={m.key}
               type="button"
@@ -79,12 +82,17 @@ export default function VitalForm({
               {t(m.label)}
             </button>
           ))}
+          {!more && (
+            <button type="button" aria-expanded={false} className={chipClass(false) + ' border-dashed text-muted'} onClick={() => setMore(true)}>
+              {t('vitals.form.more')}
+            </button>
+          )}
         </div>
       </fieldset>
       {MEASUREMENTS.filter((m) => chosen.has(m.key)).map((m) => (
         <div key={m.key}>
           <label htmlFor={`vital-${m.key}`} className="block text-sm">
-            {`${t(m.label)} (${t(m.unit)})`}
+            {`${t(m.label)} (${t(shownUnit(m))})`}
           </label>
           <Input
             id={`vital-${m.key}`}
@@ -95,7 +103,7 @@ export default function VitalForm({
             onChange={(e) => setValues({ ...values, [m.key]: e.target.value })}
             aria-invalid={!!errors[m.key]}
           />
-          <p className="text-xs text-muted">{t('vitals.form.range', { min: m.min, max: m.max, unit: t(m.unit) })}</p>
+          <p className="text-xs text-muted">{t('vitals.form.range', { ...shownRange(m), unit: t(shownUnit(m)) })}</p>
           {errors[m.key] && <p className="text-sm text-danger">{errors[m.key]}</p>}
         </div>
       ))}

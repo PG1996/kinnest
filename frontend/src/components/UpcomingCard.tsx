@@ -25,7 +25,7 @@ export default function UpcomingCard({ vaccines, visits, now }: { vaccines: Vacc
         : t('upcoming.inDays', { count: v.days_until })
   return (
     <Card role="region" aria-label={t('upcoming.title')} className="space-y-2 p-4">
-      <h2 className="text-sm font-extrabold text-muted">{t('upcoming.title')}</h2>
+      <h2 className="text-[13px] font-semibold text-muted">{t('upcoming.title')}</h2>
       <ul className="space-y-2">
         {vax.map((v) => (
           <li key={v.id}>

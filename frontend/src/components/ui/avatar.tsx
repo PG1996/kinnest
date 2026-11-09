@@ -19,7 +19,7 @@ export function Avatar({ name, index = 0, size = 30 }: { name: string; index?: n
     <span
       aria-hidden="true"
       style={{ width: size, height: size, fontSize: size * 0.4 }}
-      className={`inline-flex items-center justify-center rounded-full border-2 border-app font-extrabold ${TINTS[index % TINTS.length]}`}
+      className={`inline-flex items-center justify-center rounded-full border-2 border-app font-bold ${TINTS[index % TINTS.length]}`}
     >
       {initials(name)}
     </span>

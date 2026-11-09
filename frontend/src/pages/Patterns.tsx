@@ -81,7 +81,7 @@ export default function Patterns() {
       />
       <Card className="space-y-3 p-4">
         <div role="status" className="flex min-h-9 items-center justify-between gap-2">
-          <span className="font-extrabold">{readout}</span>
+          <span className="font-bold">{readout}</span>
           <span className="text-sm text-muted">{readoutSub}</span>
         </div>
         <Heatmap
@@ -130,7 +130,7 @@ export default function Patterns() {
         <Card tone="sleep" className="flex items-center gap-3 p-4">
           <Moon size={26} aria-hidden="true" className="shrink-0 text-sleep" />
           <div>
-            <p className="font-extrabold">{t('patterns.longest', { duration: formatAgo(longest.minutes * 60_000) })}</p>
+            <p className="font-bold">{t('patterns.longest', { duration: formatAgo(longest.minutes * 60_000) })}</p>
             <p className="text-sm text-muted">
               {t('patterns.longestWhen', { day: longest.start.toLocaleDateString([], { weekday: 'short' }), from: clock(longest.start), to: clock(longest.end) })}
             </p>

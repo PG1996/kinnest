@@ -82,7 +82,7 @@ test('temperature chart has the fever line labelled as information', async () =>
   mockApi(routes())
   renderApp(<VitalsCharts />)
   const chart = await screen.findByRole('figure', { name: en.vitals.measurements.temperature_c })
-  await waitFor(() => expect(within(chart).getByText(en.vitals.charts.feverLine)).toBeInTheDocument())
+  await waitFor(() => expect(within(chart).getByText(en.vitals.charts.feverLine.replace('{{value}}', '38 °C'))).toBeInTheDocument())
   expect(en.vitals.charts.feverLine).toMatch(/information/i)
 })
 
@@ -203,5 +203,5 @@ test('the temperature chart explains the fever line', async () => {
   mockApi(routes())
   renderApp(<VitalsCharts />)
   const chart = await screen.findByRole('figure', { name: en.vitals.measurements.temperature_c })
-  expect(within(chart).getByText(en.vitals.charts.feverNote)).toBeInTheDocument()
+  expect(within(chart).getByText(en.vitals.charts.feverNote.replace('{{value}}', '38 °C'))).toBeInTheDocument()
 })

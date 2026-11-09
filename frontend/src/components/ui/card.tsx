@@ -31,12 +31,12 @@ export function Card({
   return (
     <div
       data-tone={tone}
-      className={cn('rounded-card border p-5 shadow-sm', TONES[tone], interactive && 'transition active:scale-[0.99]', className)}
+      className={cn('rounded-card border p-4 shadow-sm', TONES[tone], interactive && 'transition active:scale-[0.99]', className)}
       {...props}
     />
   )
 }
 
 export function Eyebrow({ tone = 'plain', className, ...props }: HTMLAttributes<HTMLParagraphElement> & { tone?: Tone }) {
-  return <p className={cn('text-sm font-extrabold uppercase tracking-wide', EYEBROW[tone], className)} {...props} />
+  return <p className={cn('text-[11px] font-bold uppercase tracking-wider', EYEBROW[tone], className)} {...props} />
 }

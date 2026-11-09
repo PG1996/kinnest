@@ -51,7 +51,7 @@ function DaySection({ day, kinds, myName }: { day: Date; kinds?: TimelineKind[];
   const heading = diff === 0 ? `${t('timeline.today')} · ${date}` : diff === 1 ? `${t('timeline.yesterday')} · ${date}` : date
   return (
     <section className="space-y-2">
-      <h2 className="text-sm font-extrabold text-muted">{heading}</h2>
+      <h2 className="text-[13px] font-semibold text-muted">{heading}</h2>
       {server !== undefined && items.length === 0 && <EmptyState icon={<History size={28} />} title={t('timeline.empty')} />}
       <ul className="space-y-2">
         {items.map((it) => {

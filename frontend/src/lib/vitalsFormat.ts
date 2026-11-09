@@ -1,12 +1,12 @@
 import type { TFunction } from 'i18next'
 import type { PlaceKind, Vital } from '../api/hooks'
 import { formatTime } from './time'
-import { MEASUREMENTS, type MeasurementKey } from './vitals'
+import { MEASUREMENTS, shownUnit, shownValue, type MeasurementKey } from './vitals'
 
 export const PLACES: PlaceKind[] = ['home', 'hospital', 'clinic', 'other']
 
 export const formatValue = (t: TFunction, key: MeasurementKey, v: number) =>
-  `${v} ${t(MEASUREMENTS.find((m) => m.key === key)!.unit)}`
+  `${shownValue(key, v)} ${t(shownUnit(MEASUREMENTS.find((m) => m.key === key)!))}`
 
 /** "3.42 kg · 36.8 °C": every measurement the entry has, in the standard order. */
 export const formatValues = (t: TFunction, v: Partial<Vital>) =>

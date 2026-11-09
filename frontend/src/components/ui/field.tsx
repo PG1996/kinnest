@@ -1,7 +1,9 @@
 import type { InputHTMLAttributes, SelectHTMLAttributes } from 'react'
 import { cn } from '../../lib/cn'
 
-const base = 'min-h-12 w-full rounded-2xl border border-line bg-app px-4 text-base text-ink disabled:opacity-60'
+// 44px tall (easy to tap) with 16px text (iPhones zoom into anything smaller)
+const base =
+  'min-h-11 w-full rounded-xl border border-line bg-surface px-3 text-base text-ink placeholder:text-muted/70 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-60'
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={cn(base, className)} {...props} />

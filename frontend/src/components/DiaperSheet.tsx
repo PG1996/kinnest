@@ -20,7 +20,7 @@ export default function DiaperSheet({ onPick, onClose }: { onPick: (k: DiaperKin
             key={kind}
             type="button"
             onClick={() => onPick(kind)}
-            className="flex min-h-24 flex-col items-center justify-center gap-2 rounded-card bg-diaper-bg text-lg font-extrabold text-diaper-ink transition active:scale-95"
+            className="flex min-h-24 flex-col items-center justify-center gap-2 rounded-card bg-diaper-bg text-base font-bold text-diaper-ink transition active:scale-95"
           >
             <Icon size={28} aria-hidden="true" />
             {t(`diaperKinds.${kind}`)}
