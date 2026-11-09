@@ -1,9 +1,10 @@
 import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/cn'
+import { formatHour } from '../lib/time'
 import { level, type PatternKind } from '../lib/patterns'
 
 const BLOCKS = 12
-const hourLabel = (h: number) => new Date(2000, 0, 1, h).toLocaleTimeString([], { hour: 'numeric' })
+const hourLabel = formatHour
 const range = (b: number) => `${hourLabel(b * 2)}–${hourLabel((b * 2 + 2) % 24)}`
 
 /** Days down, two-hour blocks across. Every cell is a button; selecting one reports it so the page can describe it. */

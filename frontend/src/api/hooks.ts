@@ -249,3 +249,29 @@ export function useTimeline({ from, to, kinds }: { from: Date; to: Date; kinds?:
     queryFn: async () => (await api<{ items: TimelineItem[] }>(`/api/timeline?${params}`)).items,
   })
 }
+
+export type DoseRow = {
+  id: string
+  medicine_id: string
+  status: 'given' | 'skipped'
+  amount: number | null
+  scheduled_for: string | null
+  given_at: string
+  by_user_id: string
+  by_name: string
+  note: string
+}
+
+/** Every recorded dose of one medicine in the last `days` days, newest first. */
+export function useDoseHistory(medicineId: string, days = 30) {
+  const day = new Date().toDateString() // the window moves once a day, so the query key stays stable between renders
+  return useQuery({
+    queryKey: ['doses', medicineId, days, day],
+    queryFn: () => {
+      const from = new Date()
+      from.setDate(from.getDate() - days)
+      from.setHours(0, 0, 0, 0)
+      return api<DoseRow[]>(`/api/medicines/${medicineId}/doses?from=${encodeURIComponent(from.toISOString())}`)
+    },
+  })
+}

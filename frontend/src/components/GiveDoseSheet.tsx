@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Medicine, Slot } from '../api/hooks'
-import { formatClock } from '../lib/time'
+import { formatClock, toLocalInput } from '../lib/time'
 import { formatDose } from '../lib/units'
 import Sheet from './Sheet'
 import { Button } from './ui/button'
 import { Card, Eyebrow } from './ui/card'
 import { Chip } from './ui/chip'
+import { Input } from './ui/field'
 import { Segmented } from './ui/segmented'
 import { SlideToConfirm } from './ui/slide-confirm'
 import { Stepper } from './ui/stepper'
@@ -22,23 +23,38 @@ type Props = {
   slot?: Slot
   /** the most that may still be given (what is left of the slot, or one dose for an as-needed medicine) */
   max: number
-  onGive: (amount: number, nudgeMinutes: number | null) => void
+  /** `givenAt` is an ISO time, or null for "now" (stamped when the dose is saved) */
+  onGive: (amount: number, nudgeMinutes: number | null, givenAt: string | null) => void
   onSkip?: () => void
   onCancel: () => void
+  initialMode?: 'full' | 'partial'
+  /** open with "Other time" already chosen */
+  askTime?: boolean
 }
 
 /** The "Give a dose" screen: how much (full or a part), an optional reminder for the rest, then slide to give. */
-export default function GiveDoseSheet({ medicine, slot, max, onGive, onSkip, onCancel }: Props) {
+export default function GiveDoseSheet({ medicine, slot, max, onGive, onSkip, onCancel, initialMode = 'partial', askTime = false }: Props) {
   const { t } = useTranslation()
   const unit = medicine.dose_unit ?? ''
   const fmt = (n: number) => formatDose(n, unit, t)
   const step = stepFor(unit, max)
-  const [mode, setMode] = useState<'full' | 'partial'>('partial')
+  const [mode, setMode] = useState<'full' | 'partial'>(initialMode)
   const [amount, setAmount] = useState(Math.min(max, round2(max / 2)))
   const [nudge, setNudge] = useState<number | null>(null)
+  const [other, setOther] = useState(askTime)
+  const [whenValue, setWhenValue] = useState(() => toLocalInput(new Date()))
+  const [timeError, setTimeError] = useState('')
   const total = medicine.dose_amount ?? max
   const shown = mode === 'full' ? max : amount
   const pieces = slot?.doses ?? []
+
+  const give = () => {
+    if (!other) return onGive(shown, mode === 'partial' ? nudge : null, null)
+    const at = new Date(whenValue)
+    if (Number.isNaN(at.getTime()) || at.getTime() > Date.now() + 2 * 60_000) return setTimeError(t('medicines.timeFuture'))
+    setTimeError('')
+    onGive(shown, mode === 'partial' ? nudge : null, at.toISOString())
+  }
 
   return (
     <Sheet
@@ -56,7 +72,7 @@ export default function GiveDoseSheet({ medicine, slot, max, onGive, onSkip, onC
               {t('medicines.cancel')}
             </Button>
           )}
-          <SlideToConfirm label={t('medicines.slideToGive', { amount: fmt(shown) })} armedLabel={t('medicines.tapAgain', { amount: fmt(shown) })} onConfirm={() => onGive(shown, mode === 'partial' ? nudge : null)} />
+          <SlideToConfirm label={t('medicines.slideToGive', { amount: fmt(shown) })} armedLabel={t('medicines.tapAgain', { amount: fmt(shown) })} onConfirm={give} />
         </div>
       }
     >
@@ -98,6 +114,33 @@ export default function GiveDoseSheet({ medicine, slot, max, onGive, onSkip, onC
           { value: 'partial', label: t('medicines.partial') },
         ]}
       />
+
+      <Card className="space-y-3">
+        <p className="text-sm font-extrabold text-muted">{t('medicines.when')}</p>
+        <div className="flex flex-wrap gap-2">
+          <Chip
+            pressed={!other}
+            onClick={() => {
+              setOther(false)
+              setTimeError('')
+            }}
+          >
+            {t('medicines.whenNow')}
+          </Chip>
+          <Chip pressed={other} onClick={() => setOther(true)}>
+            {t('medicines.whenOther')}
+          </Chip>
+        </div>
+        {other && (
+          <div className="space-y-1">
+            <label htmlFor="dose-when" className="block text-sm font-extrabold text-muted">
+              {t('medicines.whenLabel')}
+            </label>
+            <Input id="dose-when" type="datetime-local" value={whenValue} max={toLocalInput(new Date())} onChange={(e) => setWhenValue(e.target.value)} />
+            {timeError && <p className="text-sm text-danger">{timeError}</p>}
+          </div>
+        )}
+      </Card>
 
       {mode === 'partial' && (
         <Card className="space-y-4">

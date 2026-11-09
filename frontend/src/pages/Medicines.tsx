@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { useMe, useMedicines, type Medicine } from '../api/hooks'
+import DoseHistory from '../components/DoseHistory'
 import MedicineForm from '../components/MedicineForm'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
@@ -18,6 +19,7 @@ export default function MedicinesPage() {
   const past = all.filter((m) => m.ended)
   const [editing, setEditing] = useState<Medicine | 'new' | null>(null)
   const [confirming, setConfirming] = useState<string | null>(null)
+  const [historyFor, setHistoryFor] = useState<Medicine | null>(null)
   const [params, setParams] = useSearchParams()
   useEffect(() => {
     // "Add medicine" after a doctor visit opens this page with the form open
@@ -65,6 +67,11 @@ export default function MedicinesPage() {
         {t('medicines.page.from', { date: m.start_date })}
         {m.end_date && ` ${t('medicines.page.until', { date: m.end_date })}`}
       </p>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" onClick={() => setHistoryFor(m)}>
+          {t('medicines.history.open')}
+        </Button>
+      </div>
       {isAdmin && (
         <div className="flex flex-wrap gap-2">
           <Button variant="soft" onClick={() => setEditing(m)}>
@@ -103,6 +110,7 @@ export default function MedicinesPage() {
           onCancel={() => setEditing(null)}
         />
       )}
+      {historyFor && <DoseHistory medicine={historyFor} canEdit={isAdmin} onClose={() => setHistoryFor(null)} />}
       {current.length === 0 && past.length === 0 && <Card className="text-muted">{t('medicines.page.empty')}</Card>}
       {current.map(card)}
       {!isAdmin && <p className="text-sm text-muted">{t('medicines.page.readOnly')}</p>}

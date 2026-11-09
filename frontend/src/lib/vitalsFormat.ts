@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next'
 import type { PlaceKind, Vital } from '../api/hooks'
+import { formatTime } from './time'
 import { MEASUREMENTS, type MeasurementKey } from './vitals'
 
 export const PLACES: PlaceKind[] = ['home', 'hospital', 'clinic', 'other']
@@ -18,5 +19,5 @@ export const formatPlace = (t: TFunction, kind: PlaceKind, name?: string) =>
 
 export const formatWhen = (iso: string) => {
   const d = new Date(iso)
-  return `${d.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })} ${d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+  return `${d.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })} ${formatTime(d)}`
 }

@@ -8,7 +8,7 @@ import { Chip } from '../components/ui/chip'
 import { EmptyState } from '../components/ui/empty'
 import { Input } from '../components/ui/field'
 import { cn } from '../lib/cn'
-import { toLocalDate } from '../lib/time'
+import { formatTime, toLocalDate } from '../lib/time'
 import { dayRange, describe, fromQueue, type TimelineItem, type TimelineKind } from '../lib/timeline'
 import { useQueue } from '../offline/pending'
 import { History } from 'lucide-react'
@@ -68,7 +68,7 @@ function DaySection({ day, kinds, myName }: { day: Date; kinds?: TimelineKind[];
                   {[d.meta, it.pending ? t('timeline.pendingSync') : ''].filter(Boolean).join(' · ')}
                 </span>
               </span>
-              <span className="text-sm font-bold text-muted">{new Date(it.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+              <span className="text-sm font-bold text-muted">{formatTime(it.at)}</span>
             </li>
           )
         })}

@@ -9,13 +9,13 @@ import { Card } from '../components/ui/card'
 import { Segmented } from '../components/ui/segmented'
 import { useCountUp } from '../lib/motion'
 import { dailyStats, feedGrid, sleepGrid, type PatternKind } from '../lib/patterns'
-import { formatAgo, toLocalDate } from '../lib/time'
+import { formatAgo, formatHour, formatTime, toLocalDate } from '../lib/time'
 import { lastDays } from '../lib/timeline'
 import { useNow } from '../lib/useNow'
 
 const LEVELS: Record<PatternKind, number> = { feeds: 3, sleep: 5 }
 
-const clock = (d: Date) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+const clock = formatTime
 
 /** Seven days of feeds or sleep as a heatmap, weekly averages with trends, and the longest sleep. */
 export default function Patterns() {
@@ -53,7 +53,7 @@ export default function Patterns() {
   if (sel) {
     const day = range.days[sel[0]]!
     const start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), sel[1] * 2)
-    readout = `${day.toLocaleDateString([], { weekday: 'short' })} · ${new Date(2000, 0, 1, sel[1] * 2).toLocaleTimeString([], { hour: 'numeric' })}`
+    readout = `${day.toLocaleDateString([], { weekday: 'short' })} · ${formatHour(sel[1] * 2)}`
     readoutSub = start.getTime() > nowMs ? t('patterns.notYet') : describeValue(grid[sel[0]]![sel[1]]!)
   }
 

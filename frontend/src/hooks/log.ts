@@ -86,6 +86,7 @@ export type DoseResult = LogResult & {
 
 const refreshMedicines = (qc: ReturnType<typeof useQueryClient>) => {
   qc.invalidateQueries({ queryKey: ['medicines'] })
+  qc.invalidateQueries({ queryKey: ['doses'] })
   qc.invalidateQueries({ queryKey: ['summary'] })
 }
 
@@ -106,6 +107,31 @@ export function useUndoDose() {
   return useMutation({
     mutationFn: (v: { medicineId: string; doseId: string }) =>
       api(`/api/medicines/${v.medicineId}/doses/${v.doseId}`, { method: 'DELETE' }),
+    onSuccess: () => refreshMedicines(qc),
+  })
+}
+
+export type PastDoseInput = { id: string; medicine_id: string; status: 'given' | 'skipped'; given_at: string; amount?: number; note?: string }
+
+/** Admin: put an earlier dose on record (online only; it skips the live slot rules). */
+export function useRecordPastDose() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (b: PastDoseInput) => api(`/api/medicines/${b.medicine_id}/doses/history`, { json: b }),
+    onSuccess: () => refreshMedicines(qc),
+  })
+}
+
+export type DoseFix = { status?: 'given' | 'skipped'; amount?: number; given_at?: string; note?: string }
+
+/** Admin: correct a recorded dose. */
+export function useFixDose() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (v: { medicineId: string; doseId: string } & DoseFix) => {
+      const { medicineId, doseId, ...body } = v
+      return api(`/api/medicines/${medicineId}/doses/${doseId}`, { method: 'PATCH', json: body })
+    },
     onSuccess: () => refreshMedicines(qc),
   })
 }

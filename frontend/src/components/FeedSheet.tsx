@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useKid, useMe, useMembers, type Feed, type FeedType } from '../api/hooks'
 import type { FeedInput } from '../hooks/log'
 import { cn } from '../lib/cn'
-import { formatAgo, toLocalInput } from '../lib/time'
+import { formatAgo, formatTime, toLocalInput } from '../lib/time'
 import Sheet from './Sheet'
 import { Button } from './ui/button'
 import { Chip, ChipGroup } from './ui/chip'
@@ -13,7 +13,7 @@ import { Stepper } from './ui/stepper'
 
 const TYPES: FeedType[] = ['breast_left', 'breast_right', 'breast_both', 'expressed', 'formula']
 const BOTTLE: FeedType[] = ['expressed', 'formula']
-const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+const clock = formatTime
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 
 type Props = { last: Feed | null; saving: boolean; failed: boolean; onSave: (f: FeedInput) => void; onClose: () => void }

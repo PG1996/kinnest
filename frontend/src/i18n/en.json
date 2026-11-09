@@ -257,7 +257,36 @@
     "doneCount": "Done ({{count}})",
     "missedList_one": "Missed {{count}} dose: {{times}}",
     "missedList_other": "Missed {{count}} doses: {{times}}",
-    "reviewMissed": "Review each"
+    "reviewMissed": "Review each",
+    "whenLabel": "Time given",
+    "whenNow": "Now",
+    "whenOther": "Other time",
+    "when": "When",
+    "timeFuture": "That time is in the future.",
+    "atOtherTime": "At another time",
+    "history": {
+      "open": "Dose history",
+      "title": "Dose history",
+      "empty": "No doses in the last 30 days.",
+      "add": "Add a past dose",
+      "addTitle": "Add a past dose",
+      "edit": "Edit",
+      "editTitle": "Fix this dose",
+      "delete": "Delete",
+      "confirmDelete": "Yes, delete",
+      "keep": "Keep",
+      "skipped": "Skipped",
+      "given": "Given",
+      "by": "by {{name}}",
+      "form": {
+        "when": "Date and time",
+        "amount": "Amount",
+        "status": "Status",
+        "note": "Note",
+        "save": "Save"
+      },
+      "saveError": "Couldn't save the dose. Check the time and amount."
+    }
   },
   "units": {
     "ml": "ml",
