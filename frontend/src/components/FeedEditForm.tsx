@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type { Feed, FeedType } from '../api/hooks'
 import { useLogFeed, useUpdateFeed } from '../hooks/log'
 import { toLocalInput } from '../lib/time'
+import FedBy from './FedBy'
 import Sheet from './Sheet'
 import { Button } from './ui/button'
 import { Chip, ChipGroup } from './ui/chip'
@@ -24,6 +25,7 @@ export default function FeedEditForm({ feed, onClose }: { feed?: Feed; onClose: 
   const [ml, setMl] = useState(feed?.quantity_ml ?? 60)
   const [duration, setDuration] = useState(feed?.duration_min != null ? String(feed.duration_min) : '')
   const [note, setNote] = useState(feed?.note ?? '')
+  const [by, setBy] = useState<string | null>(null)
   const [error, setError] = useState('')
   const bottle = BOTTLE.includes(type)
 
@@ -45,12 +47,13 @@ export default function FeedEditForm({ feed, onClose }: { feed?: Feed; onClose: 
         ...(!bottle && (minutes !== feed.duration_min || type !== feed.type) ? { duration_min: minutes } : {}),
         ...(!bottle && feed.quantity_ml != null ? { quantity_ml: null } : {}),
         ...(note !== (feed.note ?? '') ? { note } : {}),
+        ...(by && !type.startsWith('breast') ? { fed_by_user_id: by } : {}),
       }
       if (Object.keys(changes).length === 0) return onClose()
       update.mutate({ id: feed.id, ...changes }, done)
     } else {
       add.mutate(
-        { id: crypto.randomUUID(), type, started_at: at.toISOString(), ...(bottle ? { quantity_ml: ml } : minutes !== null ? { duration_min: minutes } : {}), ...(note ? { note } : {}) },
+        { id: crypto.randomUUID(), type, started_at: at.toISOString(), ...(bottle ? { quantity_ml: ml } : minutes !== null ? { duration_min: minutes } : {}), ...(note ? { note } : {}), ...(by && !type.startsWith('breast') ? { fed_by_user_id: by } : {}) },
         done,
       )
     }
@@ -76,6 +79,7 @@ export default function FeedEditForm({ feed, onClose }: { feed?: Feed; onClose: 
             <Input id="feed-edit-duration" type="number" inputMode="numeric" min={0} value={duration} onChange={(e) => setDuration(e.target.value)} />
           </div>
         )}
+        <FedBy type={type} value={by ?? feed?.fed_by_user_id ?? null} onChange={setBy} />
         <div className="space-y-1">
           <label htmlFor="feed-edit-when" className="block text-xs font-medium text-muted">
             {t('home.time')}

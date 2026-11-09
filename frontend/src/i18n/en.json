@@ -105,7 +105,12 @@
     "sendInvite": "Send invite",
     "remove": "Remove",
     "confirmRemove": "Yes, remove",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "relation": "Relation to baby",
+    "relationFor": "Relation for {{email}}",
+    "inviteRelation": "Relation to baby (optional)",
+    "noRelation": "Not set",
+    "relationRefused": "The baby can have one mom and one dad, and always needs at least one of them."
   },
   "settings": {
     "title": "Settings",
@@ -706,5 +711,22 @@
       "save": "Save",
       "future": "That time is in the future."
     }
+  },
+  "relations": {
+    "mom": "Mom",
+    "dad": "Dad",
+    "grandparent": "Grandparent",
+    "relative": "Relative",
+    "nanny": "Nanny",
+    "other": "Other"
+  },
+  "setup": {
+    "title": "Who are you to the baby?",
+    "hint": "Every baby profile needs a mom or a dad. You can change this later in Family.",
+    "other": "Someone else? Set it for the parent in Family",
+    "saveError": "Couldn't save. Try again."
+  },
+  "feed": {
+    "fedByMom": "Fed by mom · {{name}}"
   }
 }

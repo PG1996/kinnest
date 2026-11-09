@@ -67,3 +67,43 @@ test('the timer fills the duration and the start time', async () => {
   await act(async () => userEvent.setup({ advanceTimers: vi.advanceTimersByTime }).click(screen.getByRole('button', { name: new RegExp(en.home.timerStop) })))
   expect(screen.getByLabelText(en.home.duration)).toHaveValue(5)
 })
+
+// --- who fed: breast is always mom -----------------------------------------------------------------------------------
+
+const FAMILY = [
+  { user_id: 'u1', email: 'owner@x.com', name: 'Owner', role: 'admin', relation: 'dad', pending: false },
+  { user_id: 'u2', email: 'mom@x.com', name: 'Pankhuri', role: 'admin', relation: 'mom', pending: false },
+  { user_id: 'u3', email: 'nanny@x.com', name: 'Nanny', role: 'caregiver', relation: 'nanny', pending: false },
+  { user_id: 'u4', email: 'aunt@x.com', name: 'Aunt', role: 'viewer', relation: null, pending: false },
+]
+const familyApi = () => ({ ...api(), 'GET /api/family/members': { body: FAMILY } })
+
+test('a breast feed says it is fed by mom and offers no other choice', async () => {
+  mockApi(familyApi())
+  const onSave = vi.fn()
+  renderApp(<FeedSheet last={null} saving={false} failed={false} onSave={onSave} onClose={() => {}} />)
+  await userEvent.click(screen.getByRole('radio', { name: en.feedTypes.breast_left }))
+  expect(await screen.findByText(en.feed.fedByMom.replace('{{name}}', 'Pankhuri'))).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Nanny' })).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: en.home.saveFeed }))
+  expect(onSave.mock.calls[0]![0]).not.toHaveProperty('fed_by_user_id')
+})
+
+test('a bottle feed can be given by any admin or caregiver, never a viewer', async () => {
+  mockApi(familyApi())
+  const onSave = vi.fn()
+  renderApp(<FeedSheet last={last} saving={false} failed={false} onSave={onSave} onClose={() => {}} />)
+  expect(await screen.findByRole('button', { name: 'Nanny' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Pankhuri' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Aunt' })).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Nanny' }))
+  await userEvent.click(screen.getByRole('button', { name: en.home.saveFeed }))
+  expect(onSave.mock.calls[0]![0]).toMatchObject({ fed_by_user_id: 'u3' })
+})
+
+test('without a mom set, a breast feed still shows who is logging it', async () => {
+  mockApi({ ...api(), 'GET /api/family/members': { body: FAMILY.map((m) => ({ ...m, relation: m.relation === 'mom' ? null : m.relation })) } })
+  renderApp(<FeedSheet last={null} saving={false} failed={false} onSave={() => {}} onClose={() => {}} />)
+  await userEvent.click(screen.getByRole('radio', { name: en.feedTypes.breast_left }))
+  expect(await screen.findByRole('button', { name: 'Owner', pressed: true })).toBeInTheDocument()
+})

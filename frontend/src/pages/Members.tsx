@@ -2,14 +2,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
-import { useMe, type Role } from '../api/hooks'
+import { RELATIONS, useMe, type Relation, type Role } from '../api/hooks'
 import { Button } from '../components/ui/button'
 import { Avatar } from '../components/ui/avatar'
 import { Badge } from '../components/ui/badge'
 import { Card } from '../components/ui/card'
 import { Input, Select } from '../components/ui/field'
 
-type Row = { user_id: string | null; email: string; name: string; role: Role; pending: boolean }
+type Row = { user_id: string | null; email: string; name: string; role: Role; relation?: Relation | null; pending: boolean }
 const ROLES: Role[] = ['admin', 'caregiver', 'viewer']
 
 export default function Members() {
@@ -21,17 +21,23 @@ export default function Members() {
   const refresh = () => qc.invalidateQueries({ queryKey: ['members'] })
   const [email, setEmail] = useState('')
   const [role, setRole] = useState<Role>('caregiver')
+  const [relation, setRelation] = useState<Relation | ''>('')
   const [confirming, setConfirming] = useState<string | null>(null)
 
   const invite = useMutation({
-    mutationFn: () => api('/api/family/invites', { json: { email, role } }),
+    mutationFn: () => api('/api/family/invites', { json: { email, role, ...(relation ? { relation } : {}) } }),
     onSuccess: () => {
       setEmail('')
+      setRelation('')
       refresh()
     },
   })
   const changeRole = useMutation({
     mutationFn: (v: { id: string; role: Role }) => api(`/api/family/members/${v.id}`, { method: 'PATCH', json: { role: v.role } }),
+    onSuccess: refresh,
+  })
+  const changeRelation = useMutation({
+    mutationFn: (v: { id: string; relation: Relation | null }) => api(`/api/family/members/${v.id}`, { method: 'PATCH', json: { relation: v.relation } }),
     onSuccess: refresh,
   })
   const remove = useMutation({
@@ -57,13 +63,27 @@ export default function Members() {
               <div className="min-w-0 flex-1">
                 <p className="font-semibold break-words">{m.pending ? t('members.pending') : m.name || m.email}</p>
                 <p className="text-sm text-muted break-all">{m.email}</p>
+                {m.relation && <p className="text-sm font-medium text-primary">{t(`relations.${m.relation}`)}</p>}
               </div>
               {!(isAdmin && !m.pending && m.user_id) && (
                 <Badge tone={m.role === 'admin' ? 'med' : m.role === 'caregiver' ? 'diaper' : 'plain'}>{t(`roles.${m.role}`)}</Badge>
               )}
             </div>
             {isAdmin && !m.pending && m.user_id && (
-              <div data-testid="member-actions" className="flex items-center justify-between gap-2 pl-[52px]">
+              <div data-testid="member-actions" className="flex flex-wrap items-center justify-between gap-2 pl-[52px]">
+                <Select
+                  className="w-auto min-w-36"
+                  aria-label={t('members.relationFor', { email: m.email })}
+                  value={m.relation ?? ''}
+                  onChange={(e) => changeRelation.mutate({ id: m.user_id!, relation: (e.target.value || null) as Relation | null })}
+                >
+                  <option value="">{t('members.noRelation')}</option>
+                  {RELATIONS.map((r) => (
+                    <option key={r} value={r}>
+                      {t(`relations.${r}`)}
+                    </option>
+                  ))}
+                </Select>
                 <Select
                   className="w-auto min-w-36"
                   aria-label={t('members.roleFor', { email: m.email })}
@@ -96,6 +116,7 @@ export default function Members() {
         ))}
         </ul>
       </Card>
+      {changeRelation.isError && <p className="text-sm text-danger">{t('members.relationRefused')}</p>}
       {isAdmin && (
         <Card>
           <h2 className="mb-3 font-medium">{t('members.inviteTitle')}</h2>
@@ -114,10 +135,21 @@ export default function Members() {
                 </option>
               ))}
             </Select>
+            <label htmlFor="invite-relation" className="block text-sm text-muted">
+              {t('members.inviteRelation')}
+            </label>
+            <Select id="invite-relation" value={relation} onChange={(e) => setRelation(e.target.value as Relation | '')}>
+              <option value="">{t('members.noRelation')}</option>
+              {RELATIONS.map((r) => (
+                <option key={r} value={r}>
+                  {t(`relations.${r}`)}
+                </option>
+              ))}
+            </Select>
             <Button type="submit" disabled={invite.isPending}>
               {t('members.sendInvite')}
             </Button>
-            {invite.isError && <p className="text-sm text-danger">{t('common.error')}</p>}
+            {invite.isError && <p className="text-sm text-danger">{t('members.relationRefused')}</p>}
           </form>
         </Card>
       )}

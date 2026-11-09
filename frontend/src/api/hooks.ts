@@ -3,11 +3,17 @@ import type { TimelineItem, TimelineKind } from '../lib/timeline'
 import { ApiError, api } from './client'
 
 export type Role = 'admin' | 'caregiver' | 'viewer'
+export const RELATIONS = ['mom', 'dad', 'grandparent', 'relative', 'nanny', 'other'] as const
+export type Relation = (typeof RELATIONS)[number]
 export type Me = {
   user: { id: string; email: string; name: string }
   family_id: string
   kid_id: string
   role: Role
+  /** how this person is related to the baby */
+  relation?: Relation | null
+  /** the family has no mom or dad yet: the admin is asked to say who they are */
+  needs_parent?: boolean
 }
 
 /** Resolves to the signed-in member, or null when signed out. */
@@ -35,6 +41,7 @@ export type Feed = {
   duration_min: number | null
   quantity_ml: number | null
   note: string
+  fed_by_user_id?: string
   fed_by_name: string
 }
 export type Diaper = { id: string; kind: DiaperKind; at: string; changed_by_name: string; note?: string }
@@ -110,7 +117,7 @@ export function useKid() {
   return useQuery({ queryKey: ['kid'], queryFn: () => api<KidInfo>('/api/kid') })
 }
 
-export type MemberRow = { user_id: string | null; email: string; name: string; role: Role; pending: boolean }
+export type MemberRow = { user_id: string | null; email: string; name: string; role: Role; relation?: Relation | null; pending: boolean }
 
 export function useMembers() {
   return useQuery({ queryKey: ['members'], queryFn: () => api<MemberRow[]>('/api/family/members') })
