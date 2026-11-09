@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from pydantic import AwareDatetime, BaseModel, Field, ValidationError, field_validator, model_validator
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -37,6 +37,8 @@ class MedicineIn(BaseModel):
     interval_hours: int | None = None
     first_dose_at: AwareDatetime | None = None
     min_gap_hours: int | None = None
+    max_per_day: int | None = Field(default=None, ge=1, le=24)
+    day_start: str | None = None
     start_date: date
     end_date: date | None = None
     notes: str = ""
@@ -53,15 +55,19 @@ class MedicineIn(BaseModel):
         if self.schedule_kind == "fixed":
             if not self.times or any(not TIME_RE.match(t) for t in self.times) or len(set(self.times)) != len(self.times):
                 raise ValueError("fixed medicines need one or more distinct HH:MM times")
-            self.interval_hours = self.first_dose_at = self.min_gap_hours = None
+            self.interval_hours = self.first_dose_at = self.min_gap_hours = self.max_per_day = self.day_start = None
         elif self.schedule_kind == "interval":
             if self.interval_hours is None or not 1 <= self.interval_hours <= 72 or self.first_dose_at is None:
                 raise ValueError("interval medicines need interval_hours (1-72) and first_dose_at")
             self.times, self.min_gap_hours = [], None
+            if self.day_start is not None and not TIME_RE.match(self.day_start):
+                raise ValueError("day_start must be HH:MM")
+            if self.max_per_day is None:
+                self.day_start = None  # the usual first dose time only matters together with a daily maximum
         else:
             if self.min_gap_hours is not None and not 1 <= self.min_gap_hours <= 48:
                 raise ValueError("min_gap_hours must be 1-48")
-            self.times, self.interval_hours, self.first_dose_at = [], None, None
+            self.times, self.interval_hours, self.first_dose_at, self.day_start = [], None, None, None
         if self.end_date is not None and self.end_date < self.start_date:
             raise ValueError("end_date is before start_date")
         return self
@@ -76,6 +82,8 @@ class MedicinePatch(BaseModel):
     interval_hours: int | None = None
     first_dose_at: AwareDatetime | None = None
     min_gap_hours: int | None = None
+    max_per_day: int | None = None
+    day_start: str | None = None
     start_date: date | None = None
     end_date: date | None = None
     notes: str | None = None
@@ -108,7 +116,7 @@ class DosePatch(BaseModel):
     scheduled_for: AwareDatetime | None = None
 
 
-FIELDS = ("name", "dose_amount", "dose_unit", "schedule_kind", "times", "interval_hours", "first_dose_at", "min_gap_hours", "start_date", "end_date", "notes")
+FIELDS = ("name", "dose_amount", "dose_unit", "schedule_kind", "times", "interval_hours", "first_dose_at", "min_gap_hours", "max_per_day", "day_start", "start_date", "end_date", "notes")
 
 
 def _validated(data: dict) -> MedicineIn:
@@ -177,6 +185,9 @@ def medicine_json(
         "interval_hours": m.interval_hours,
         "first_dose_at": _iso(m.first_dose_at),
         "min_gap_hours": m.min_gap_hours,
+        "max_per_day": m.max_per_day,
+        "day_start": m.day_start,
+        "given_last_24h": sum(1 for d in doses if d.status == "given" and now - timedelta(hours=24) <= d.given_at <= now),
         "start_date": m.start_date.isoformat(),
         "end_date": m.end_date.isoformat() if m.end_date else None,
         "notes": m.notes,
@@ -292,6 +303,19 @@ def _refused(detail: str, remaining: Decimal | None) -> JSONResponse:
     return JSONResponse(status_code=409, content={"detail": detail, "remaining": _num(remaining)})
 
 
+def _max_warning(db: Session, med: Medicine, dose: MedicineDose) -> dict | None:
+    """Set when this dose is more than the medicine's daily maximum allows (the 24 hours up to it). Only ever a warning."""
+    if med.max_per_day is None or dose.status != "given":
+        return None
+    count = db.scalar(
+        select(func.count()).select_from(MedicineDose).where(
+            MedicineDose.medicine_id == med.id, MedicineDose.deleted_at.is_(None), MedicineDose.status == "given",
+            MedicineDose.id != dose.id, MedicineDose.given_at > dose.given_at - timedelta(hours=24), MedicineDose.given_at <= dose.given_at,
+        )
+    )
+    return {"count": count, "max": med.max_per_day} if count >= med.max_per_day else None
+
+
 @router.post("/medicines/{medicine_id}/doses", status_code=201)
 def give_dose(
     medicine_id: uuid.UUID,
@@ -369,7 +393,7 @@ def give_dose(
         if winner is None:
             raise
         return _existing_response(db, winner, response)
-    result = {**dose_json(dose, user_names(db, {me})), "gap_warning": gap_warning}
+    result = {**dose_json(dose, user_names(db, {me})), "gap_warning": gap_warning, "max_warning": _max_warning(db, med, dose)}
     if body.scheduled_for is not None:
         state = schedule.slot_state(med, recent_doses(db, med.id), body.scheduled_for)
         result["slot"] = {"status": state.status, "given_amount": _num(state.given_amount), "remaining": _num(state.remaining)}

@@ -206,6 +206,7 @@ class Medicine(Base):
             "dose_unit is null or dose_unit in ('ml','drops','mg','mcg','g','IU','tablet','puff')",
             name="ck_medicine_dose_unit",
         ),
+        CheckConstraint("max_per_day is null or (max_per_day >= 1 and max_per_day <= 24)", name="ck_medicine_max_per_day"),
     )
     id: Mapped[uuid.UUID] = _pk()
     family_id: Mapped[uuid.UUID] = _fk("families")
@@ -218,6 +219,8 @@ class Medicine(Base):
     interval_hours: Mapped[int | None] = mapped_column(Integer, nullable=True)
     first_dose_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     min_gap_hours: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    max_per_day: Mapped[int | None] = mapped_column(Integer, nullable=True)  # interval and as-needed: at most this many doses a day
+    day_start: Mapped[str | None] = mapped_column(String(5), nullable=True)  # interval: the usual first dose time ("HH:MM", family timezone)
     start_date: Mapped[date] = mapped_column(Date)
     end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     notes: Mapped[str] = mapped_column(Text, default="")
