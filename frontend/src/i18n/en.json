@@ -474,7 +474,8 @@
       "feverNote": "Fever line at {{value}}. Call your doctor for a fever under 3 months.",
       "metrics": "Chart",
       "view": "View",
-      "more": "More vitals"
+      "more": "More vitals",
+      "noChange": "no change"
     },
     "bulk": {
       "title": "Add past readings",

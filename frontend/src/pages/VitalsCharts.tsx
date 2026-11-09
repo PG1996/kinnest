@@ -1,13 +1,13 @@
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useVitals, type PlaceKind, type Vital } from '../api/hooks'
+import { useVitals, type PlaceKind } from '../api/hooks'
 import GrowthChart from '../components/GrowthChart'
 import TrendChart from '../components/TrendChart'
 import { Input } from '../components/ui/field'
-import { Segmented } from '../components/ui/segmented'
+import StatTabs from '../components/StatTabs'
 import { cn } from '../lib/cn'
 import { PLACE_COLORS } from '../lib/placeColors'
-import { MEASUREMENTS, shownValue, type MeasurementKey } from '../lib/vitals'
+
 import { useTempUnit } from '../lib/tempUnit'
 import { PLACES } from '../lib/vitalsFormat'
 
@@ -18,14 +18,7 @@ const TABS = ['weight_kg', 'height_cm', 'temperature_c', 'heart_rate', 'spo2'] a
 type Tab = (typeof TABS)[number]
 
 
-/** The most recent value of one measurement, by time taken. */
-const latest = (vitals: Vital[], key: MeasurementKey): number | null => {
-  let best: Vital | null = null
-  for (const v of vitals) if (v[key] != null && (!best || Date.parse(v.measured_at) > Date.parse(best.measured_at))) best = v
-  return best ? (best[key] as number) : null
-}
-
-/** Metric tabs with the latest values; the chosen metric's chart comes first, the rest follow. Shared filters sit under the tabs. */
+/** Metric stat cards with the latest values; the chosen metric's chart comes first, the rest follow. Shared filters sit under the tabs. */
 export default function VitalsCharts() {
   const { t } = useTranslation()
   const [hidden, setHidden] = useState<Set<PlaceKind>>(new Set())
@@ -49,15 +42,9 @@ export default function VitalsCharts() {
     heart_rate: <TrendChart key="heart_rate" measurement="heart_rate" vitals={vitals} />,
     spo2: <TrendChart key="spo2" measurement="spo2" vitals={vitals} />,
   }
-  const options = TABS.map((k) => {
-    const m = MEASUREMENTS.find((x) => x.key === k)!
-    const v = latest(vitals, k)
-    return { value: k, label: t(m.label), detail: v == null ? '–' : String(shownValue(k, v)) }
-  })
-
   return (
     <div className="space-y-4">
-      <Segmented kind="tab" scroll label={t('vitals.charts.metrics')} value={tab} options={options} onChange={setTab} />
+      <StatTabs keys={TABS} vitals={vitals} value={tab} onChange={setTab} />
       <fieldset className="space-y-2">
         <legend className="text-sm text-muted">{t('vitals.charts.showPlaces')}</legend>
         <div className="flex flex-wrap gap-2">
