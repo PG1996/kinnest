@@ -485,7 +485,26 @@
   },
   "timeline": {
     "title": "Timeline",
-    "soon": "Everything that happened, newest first, will show here."
+    "filters": {
+      "all": "All",
+      "feed": "Feeds",
+      "diaper": "Diapers",
+      "sleep": "Sleep",
+      "dose": "Medicine",
+      "vital": "Vitals",
+      "health": "Health"
+    },
+    "filterLabel": "Show",
+    "pickDay": "Pick a day",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "empty": "Nothing logged this day.",
+    "pendingSync": "pending sync",
+    "earlier": "Show earlier day",
+    "slept": "Slept {{duration}}",
+    "asleep": "Asleep",
+    "doseSkipped": "{{name}} skipped",
+    "vaccineGiven": "Vaccine given"
   },
   "patterns": {
     "title": "Patterns",

@@ -35,3 +35,39 @@ test('wetPerDay counts wet and both diapers per local day, not dirty ones', () =
   ]
   expect(wetPerDay(items, days)).toEqual([1, 1, 2])
 })
+
+import { fromQueue, isOnDay } from './timeline'
+
+test('isOnDay: 23:59 belongs to that day and 00:00 to the next', () => {
+  const day = new Date(2026, 10, 8)
+  expect(isOnDay(new Date(2026, 10, 8, 23, 59, 59, 999).toISOString(), day)).toBe(true)
+  expect(isOnDay(new Date(2026, 10, 9, 0, 0, 0, 0).toISOString(), day)).toBe(false)
+  expect(isOnDay(new Date(2026, 10, 8, 0, 0, 0, 0).toISOString(), day)).toBe(true)
+  expect(isOnDay(new Date(2026, 10, 7, 23, 59, 59, 999).toISOString(), day)).toBe(false)
+})
+
+test('fromQueue turns waiting entries for that day into pending timeline items', () => {
+  const day = new Date(2026, 10, 8)
+  const at = new Date(2026, 10, 8, 9).toISOString()
+  const q = (kind: string, id: string, payload: object) => ({ kind, id, payload, queuedAt: 1, seq: 1 }) as never
+  const items = fromQueue(
+    [
+      q('feed', 'f1', { id: 'f1', type: 'formula', started_at: at, quantity_ml: 60 }),
+      q('diaper', 'd1', { id: 'd1', kind: 'wet', at }),
+      q('sleep_start', 's1', { id: 's1', started_at: at }),
+      q('vital', 'v1', { id: 'v1', measured_at: at, place_kind: 'home', weight_kg: 3.4 }),
+      q('feed', 'f2', { id: 'f2', type: 'formula', started_at: new Date(2026, 10, 7, 9).toISOString() }),
+      q('dose', 'x', {}),
+      q('sleep_end', 'e', {}),
+    ],
+    day,
+    'Mom',
+  )
+  expect(items.map((i) => [i.kind, i.id, i.pending])).toEqual([
+    ['feed', 'f1', true],
+    ['diaper', 'd1', true],
+    ['sleep', 's1', true],
+    ['vital', 'v1', true],
+  ])
+  expect(items[0]!.data).toMatchObject({ fed_by_name: 'Mom', quantity_ml: 60 })
+})
