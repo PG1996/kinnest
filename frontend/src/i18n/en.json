@@ -738,7 +738,9 @@
     "saveError": "Couldn't save. Try again."
   },
   "feed": {
-    "fedByMom": "Fed by mom · {{name}}"
+    "fedByMom": "Fed by mom · {{name}}",
+    "momGroup": "Mom's feed",
+    "bottleGroup": "Bottle"
   },
   "feeds": {
     "title": "Feeds",

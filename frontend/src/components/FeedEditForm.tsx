@@ -4,13 +4,12 @@ import type { Feed, FeedType } from '../api/hooks'
 import { useLogFeed, useUpdateFeed } from '../hooks/log'
 import { toLocalInput } from '../lib/time'
 import FedBy from './FedBy'
+import FeedTypePicker from './FeedTypePicker'
 import Sheet from './Sheet'
 import { Button } from './ui/button'
-import { Chip, ChipGroup } from './ui/chip'
 import { Input } from './ui/field'
 import { Stepper } from './ui/stepper'
 
-const TYPES: FeedType[] = ['breast_left', 'breast_right', 'breast_both', 'expressed', 'formula']
 const BOTTLE: FeedType[] = ['expressed', 'formula']
 
 /** Add a past feed, or fix one: type, amount or duration, time and note. */
@@ -62,13 +61,7 @@ export default function FeedEditForm({ feed, onClose }: { feed?: Feed; onClose: 
   return (
     <Sheet title={t(feed ? 'timeline.feedEditTitle' : 'timeline.feedAddTitle')} onClose={onClose}>
       <form onSubmit={submit} noValidate className="space-y-3">
-        <ChipGroup label={t('home.feedType')}>
-          {TYPES.map((k) => (
-            <Chip key={k} pressed={type === k} onClick={() => setType(k)}>
-              {t(`feedTypes.${k}`)}
-            </Chip>
-          ))}
-        </ChipGroup>
+        <FeedTypePicker value={type} onChange={setType} />
         {bottle ? (
           <Stepper label={t('home.amount')} unit="ml" value={ml} step={10} min={0} max={300} onChange={setMl} />
         ) : (
