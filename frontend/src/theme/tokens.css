@@ -31,6 +31,9 @@
   --heat-2: #a99be8;
   --heat-3: #7a68d6;
   --heat-4: #45369e;
+  --chart-wet: #4a78c2;
+  --chart-dirty: #d9774a;
+  --chart-both: #7b5cc9;
   --radius: 1.25rem;
   --radius-tile: 1rem;
 }
@@ -67,6 +70,9 @@
   --heat-2: #5c4fa0;
   --heat-3: #8b7ddb;
   --heat-4: #c2b8f7;
+  --chart-wet: #4f86e0;
+  --chart-dirty: #d9733b;
+  --chart-both: #9170e8;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -101,6 +107,9 @@
     --heat-1: #3a3360;
     --heat-2: #5c4fa0;
     --heat-3: #8b7ddb;
-    --heat-4: #c2b8f7;
+      --heat-4: #c2b8f7;
+    --chart-wet: #4f86e0;
+    --chart-dirty: #d9733b;
+    --chart-both: #9170e8;
   }
 }

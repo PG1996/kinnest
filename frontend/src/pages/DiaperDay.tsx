@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDiaperRange, useMe, type DiaperKind } from '../api/hooks'
 import DiaperForm from '../components/DiaperForm'
+import DiaperWeek from '../components/DiaperWeek'
 import PageHeader from '../components/PageHeader'
 import RowLink from '../components/RowLink'
 import { Button, IconButton } from '../components/ui/button'
@@ -23,6 +24,9 @@ export default function DiaperDay() {
   const isToday = day.getTime() === midnight(new Date(now)).getTime()
   const range = useMemo(() => ({ from: day, to: new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23, 59, 59, 999) }), [day])
   const data = useDiaperRange(range.from, range.to).data
+  // the week chart: the six days before this one, plus this one
+  const weekFrom = useMemo(() => new Date(day.getFullYear(), day.getMonth(), day.getDate() - 6), [day])
+  const week = useDiaperRange(weekFrom, range.to).data
   const rows = (Array.isArray(data) ? data : [])
     .filter((d) => Date.parse(d.at) >= range.from.getTime() && Date.parse(d.at) <= range.to.getTime())
     .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
@@ -57,6 +61,12 @@ export default function DiaperDay() {
           ))}
         </div>
       </Card>
+      {Array.isArray(week) && (
+        <Card className="space-y-2 p-4">
+          <h2 className="text-sm font-semibold text-muted">{t('diapers.weekTitle')}</h2>
+          <DiaperWeek diapers={week} day={day} />
+        </Card>
+      )}
       {canEdit && (
         <Button variant="soft" className="w-full" onClick={() => setForm(true)}>
           {t('diapers.addPast')}
