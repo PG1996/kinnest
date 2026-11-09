@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
 import { useMe, type Role } from '../api/hooks'
 import { Button } from '../components/ui/button'
+import { Avatar } from '../components/ui/avatar'
+import { Badge } from '../components/ui/badge'
 import { Card } from '../components/ui/card'
 import { Input, Select } from '../components/ui/field'
 
@@ -47,11 +49,13 @@ export default function Members() {
   return (
     <>
       <h2 className="text-xl font-semibold">{t('members.title')}</h2>
-      <Card className="divide-y divide-line p-0">
-        {(members.data ?? []).map((m) => (
-          <div key={m.email} className="flex flex-wrap items-center gap-3 p-4">
+      <Card className="p-0">
+        <ul className="divide-y divide-line">
+        {(members.data ?? []).map((m, i) => (
+          <li key={m.email} className="flex flex-wrap items-center gap-3 p-4">
+            <Avatar name={m.pending ? '' : m.name || m.email} index={i} size={40} />
             <div className="min-w-0 flex-1">
-              <p className="truncate font-medium">{m.email}</p>
+              <p className="truncate font-bold">{m.email}</p>
               <p className="text-sm text-muted">{m.pending ? t('members.pending') : m.name}</p>
             </div>
             {isAdmin && !m.pending && m.user_id ? (
@@ -84,10 +88,11 @@ export default function Members() {
                 )}
               </>
             ) : (
-              <span className="text-sm text-muted">{t(`roles.${m.role}`)}</span>
+              <Badge tone={m.role === 'admin' ? 'med' : m.role === 'caregiver' ? 'diaper' : 'plain'}>{t(`roles.${m.role}`)}</Badge>
             )}
-          </div>
+          </li>
         ))}
+        </ul>
       </Card>
       {isAdmin && (
         <Card>
