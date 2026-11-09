@@ -116,6 +116,24 @@ Use two phones as different people (Admin and Caregiver) so you can test who gav
 - [ ] Settings: turn off **Vaccine reminders** on one phone: that phone gets no vaccine reminders, the others still do. Same for **Doctor visit reminders**. The Viewer never gets them.
 - [ ] Let the Mac sleep through an 18:00 reminder: when it wakes more than 3 hours later, the old reminder is not sent.
 
+## UI overhaul (branch `ui-overhaul`)
+Not seen in a real browser while it was built (no browser was available): look at every item below on a phone before merging.
+- [ ] Install the PWA again (or reload twice) so the new icons, font and service worker load. The font is Nunito and no request goes to Google Fonts.
+- [ ] **Bottom bar**: floating glass bar with Home, Timeline, Health, Patterns, Family. The current area shows its label; it does not hide behind the iPhone home indicator; content scrolls clear of it.
+- [ ] **Old links**: open `/medicines`, `/members`, `/settings` and a notification link (`/?log=vaccine`, `/?log=visit`, `/?log=feed`): each lands on the right screen.
+- [ ] **Home**: the feed gauge fills and the time counts up once when the screen opens. After the due time the card says **Feed overdue** with **Log feed now**. The diaper card shows the 7-day line; tapping it opens Patterns.
+- [ ] **Feed screen** (full screen): bottle types show the amount stepper (10 ml steps); breast types show duration and a timer; **Fed by** chips; save queues offline (airplane mode) and shows pending.
+- [ ] **Sleep**: the Sleep tile starts and ends a sleep; two phones tapping at once show the "already started" message.
+- [ ] **Give a dose**: Partial opens the dose screen; the stepper cannot pass what is left; a short drag springs back; sliding all the way gives the dose; a plain tap on the handle does nothing. Choose a reminder chip, give a partial dose, and check one reminder arrives. **Give full** and **Skip** on the row still work in one tap.
+- [ ] **Vitals**: opens on charts with Weight, Height, Head and Temp tabs showing the latest values. The WHO band is shaded; the temperature chart shows the 38.0 °C line and note. **Add a reading** opens full screen; **List** shows the entries.
+- [ ] **Snap a record**: hidden today. After slice 3b, with `ANTHROPIC_API_KEY` set, **Snap a record** appears: read the notice, take or choose a photo, check the draft (rows marked Check), untick one row, pick the place and save.
+- [ ] **Timeline**: today's entries newest first; filters; a date picker; **Show earlier day**. An entry made offline shows "pending sync".
+- [ ] **Patterns**: the 7-day heatmap for Feeds and Sleep, tapping a cell describes it; stat cards count up.
+- [ ] **Family**: members have initials and role badges; the Admin can change roles and invite; reminder switches save; **Sign out** is at the bottom of Settings.
+- [ ] **Night dim**: Settings > Appearance > Night dim is dark between 22:00 and 06:00 and light otherwise. At 3am the screen is not bright.
+- [ ] **Reduce motion** (phone accessibility setting): nothing animates; numbers and the gauge show their final value at once.
+- [ ] **Viewer account**: every screen above is read-only (no quick log, no sliders, no add, no snap).
+
 ## Real-use stack on the Mac
 - [ ] `curl localhost:8080/api/health` returns ok through Caddy, and the tunnel address opens the app.
 - [ ] Reboot the Mac: OrbStack and the four containers come back, and reminders still fire.
