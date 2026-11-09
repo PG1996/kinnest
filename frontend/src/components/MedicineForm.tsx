@@ -25,12 +25,12 @@ type Values = {
   notes: string
 }
 
-function initial(m?: Medicine): Values {
+function initial(m?: Medicine, kind?: ScheduleKind): Values {
   return {
     name: m?.name ?? '',
     doseAmount: m?.dose_amount != null ? String(m.dose_amount) : '',
     doseUnit: m?.dose_unit ?? '',
-    kind: m?.schedule_kind ?? 'fixed',
+    kind: m?.schedule_kind ?? kind ?? 'fixed',
     times: m?.times.length ? [...m.times] : ['09:00'],
     intervalHours: m?.interval_hours != null ? String(m.interval_hours) : '8',
     firstDose: m?.first_dose_at ? toLocalInput(new Date(m.first_dose_at)) : toLocalInput(new Date()),
@@ -62,11 +62,11 @@ function toBody(v: Values): Record<string, unknown> | null {
   return { ...common, min_gap_hours: v.minGap ? Number(v.minGap) : null }
 }
 
-type Props = { medicine?: Medicine; saving: boolean; failed: boolean; onSave: (body: Record<string, unknown>) => void; onCancel: () => void }
+type Props = { medicine?: Medicine; /** the schedule kind a new medicine starts on (SOS opens on `as_needed`) */ initialKind?: ScheduleKind; saving: boolean; failed: boolean; onSave: (body: Record<string, unknown>) => void; onCancel: () => void }
 
-export default function MedicineForm({ medicine, saving, failed, onSave, onCancel }: Props) {
+export default function MedicineForm({ medicine, initialKind, saving, failed, onSave, onCancel }: Props) {
   const { t } = useTranslation()
-  const [v, setV] = useState(() => initial(medicine))
+  const [v, setV] = useState(() => initial(medicine, initialKind))
   const [invalid, setInvalid] = useState(false)
   const set = <K extends keyof Values>(k: K, value: Values[K]) => setV((prev) => ({ ...prev, [k]: value }))
 

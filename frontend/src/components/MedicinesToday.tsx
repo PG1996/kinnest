@@ -346,15 +346,42 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
     )
   }
 
+  const scheduledMeds = medicines.filter((m) => m.schedule_kind !== 'as_needed')
+  const sosMeds = medicines.filter((m) => m.schedule_kind === 'as_needed')
+  const title = (m: Medicine) => (m.dose_amount != null && m.dose_unit ? `${m.name} · ${fmt(m, m.dose_amount)}` : m.name)
+  /** An SOS medicine with a minimum gap: when it is safe to give again, while that is still ahead. */
+  const sosWait = (m: Medicine) => {
+    const last = m.last_dose
+    if (!m.min_gap_hours || last?.status !== 'given') return null
+    const safeAt = Date.parse(last.given_at) + m.min_gap_hours * 3_600_000
+    return safeAt > now ? t('medicines.sosWait', { time: formatClock(new Date(safeAt).toISOString()) }) : null
+  }
+
   return (
     <>
-      <h2 className="font-medium">{t('medicines.title')}</h2>
-      {medicines.map((m) => (
-        <Card key={m.id} tone="med" className="space-y-3">
-          <p className="text-lg font-medium">{m.dose_amount != null && m.dose_unit ? `${m.name} · ${fmt(m, m.dose_amount)}` : m.name}</p>
-          {m.schedule_kind === 'as_needed' ? asNeededRow(m) : scheduledView(m)}
-        </Card>
-      ))}
+      {scheduledMeds.length > 0 && (
+        <section aria-label={t('medicines.title')} className="space-y-3">
+          <h2 className="font-medium">{t('medicines.title')}</h2>
+          {scheduledMeds.map((m) => (
+            <Card key={m.id} tone="med" className="space-y-3">
+              <p className="text-lg font-medium">{title(m)}</p>
+              {scheduledView(m)}
+            </Card>
+          ))}
+        </section>
+      )}
+      {sosMeds.length > 0 && (
+        <section aria-label={t('medicines.sosTitle')} className="space-y-3">
+          <h2 className="font-medium">{t('medicines.sosTitle')}</h2>
+          {sosMeds.map((m) => (
+            <Card key={m.id} tone="med" className="space-y-3">
+              <p className="text-lg font-medium">{title(m)}</p>
+              {asNeededRow(m)}
+              {sosWait(m) && <p className="text-sm font-bold text-warn-ink">{sosWait(m)}</p>}
+            </Card>
+          ))}
+        </section>
+      )}
       {partial && (
         <GiveDoseSheet
           medicine={partial.medicine}

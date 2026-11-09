@@ -17,7 +17,7 @@ export default function MedicinesPage() {
   const all = useMedicines(true).data ?? []
   const current = all.filter((m) => !m.ended)
   const past = all.filter((m) => m.ended)
-  const [editing, setEditing] = useState<Medicine | 'new' | null>(null)
+  const [editing, setEditing] = useState<Medicine | 'new' | 'sos' | null>(null)
   const [confirming, setConfirming] = useState<string | null>(null)
   const [historyFor, setHistoryFor] = useState<Medicine | null>(null)
   const [params, setParams] = useSearchParams()
@@ -33,7 +33,7 @@ export default function MedicinesPage() {
 
   const save = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
-      editing && editing !== 'new'
+      editing && typeof editing === 'object'
         ? api(`/api/medicines/${editing.id}`, { method: 'PATCH', json: body })
         : api('/api/medicines', { json: body }),
     onSuccess: () => {
@@ -99,11 +99,19 @@ export default function MedicinesPage() {
   return (
     <>
       <h2 className="text-xl font-bold">{t('medicines.page.title')}</h2>
-      {isAdmin && editing === null && <Button onClick={() => setEditing('new')}>{t('medicines.page.add')}</Button>}
+      {isAdmin && editing === null && (
+        <div className="grid grid-cols-2 gap-2">
+          <Button onClick={() => setEditing('new')}>{t('medicines.page.add')}</Button>
+          <Button variant="soft" onClick={() => setEditing('sos')}>
+            {t('medicines.page.addSos')}
+          </Button>
+        </div>
+      )}
       {editing !== null && (
         <MedicineForm
-          key={editing === 'new' ? 'new' : editing.id}
-          medicine={editing === 'new' ? undefined : editing}
+          key={typeof editing === 'string' ? editing : editing.id}
+          medicine={typeof editing === 'string' ? undefined : editing}
+          initialKind={editing === 'sos' ? 'as_needed' : undefined}
           saving={save.isPending}
           failed={save.isError}
           onSave={(body) => save.mutate(body)}
