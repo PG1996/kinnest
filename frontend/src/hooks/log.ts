@@ -162,7 +162,7 @@ export function useAddPastSleep() {
 export function useUpdateSleep() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, ...b }: { id: string; started_at?: string; ended_at?: string; note?: string }) =>
+    mutationFn: ({ id, ...b }: { id: string; started_at?: string; ended_at?: string | null; note?: string }) =>
       api(`/api/sleep/${id}`, { method: 'PATCH', json: b }),
     onSuccess: () => refreshSleep(qc),
   })
