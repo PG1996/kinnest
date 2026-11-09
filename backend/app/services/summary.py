@@ -8,6 +8,11 @@ from sqlalchemy.orm import Session
 from app.models import Diaper, Feed, Kid, SleepSession, VitalEntry
 
 
+def feed_due_at(feed: Feed, interval_minutes: int) -> datetime:
+    """The next feed is due one interval after the last one ended (a feed without a duration ends when it starts)."""
+    return feed.started_at + timedelta(minutes=(feed.duration_min or 0) + interval_minutes)
+
+
 @dataclass
 class Summary:
     last_feed: Feed | None
@@ -48,7 +53,7 @@ def build_summary(db: Session, kid: Kid, now: datetime, tz: str = "Asia/Kolkata"
     return Summary(
         last_feed=last_feed,
         next_feed_due_at=(
-            last_feed.started_at + timedelta(minutes=kid.feed_interval_minutes) if last_feed else None
+            feed_due_at(last_feed, kid.feed_interval_minutes) if last_feed else None
         ),
         last_diaper=diapers[0] if diapers else None,
         feeds_today=sum(1 for f in feeds if f.started_at >= day_start),

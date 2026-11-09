@@ -23,6 +23,7 @@ from app.models import (
 )
 from app.services import schedule
 from app.services.entries import recent_doses
+from app.services.summary import feed_due_at
 from app.units import format_dose
 
 log = logging.getLogger(__name__)
@@ -111,7 +112,7 @@ def _feed_chain(db: Session, kid: Kid, now: datetime, sender: Sender, tz: str, s
     )
     if last is None:
         return
-    due = last.started_at + timedelta(minutes=kid.feed_interval_minutes)
+    due = feed_due_at(last, kid.feed_interval_minutes)
     state = _state(db, kid, "feed", due)
     level = 0 if state is None else state.level + 1  # lowest level not yet sent
     if level >= len(OFFSETS) or now < due + OFFSETS[level]:

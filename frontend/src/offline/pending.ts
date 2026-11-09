@@ -21,7 +21,7 @@ export function mergePending(summary: Summary, pending: QueueEntry[], myName: st
     if (!last || Date.parse(startedAt) > Date.parse(last.started_at)) {
       const interval =
         last && summary.next_feed_due_at
-          ? Date.parse(summary.next_feed_due_at) - Date.parse(last.started_at)
+          ? Date.parse(summary.next_feed_due_at) - (Date.parse(last.started_at) + (last.duration_min ?? 0) * 60_000)
           : DEFAULT_INTERVAL_MS
       out.last_feed = {
         id: newestFeed.id,
@@ -32,7 +32,8 @@ export function mergePending(summary: Summary, pending: QueueEntry[], myName: st
         note: '',
         fed_by_name: myName,
       }
-      out.next_feed_due_at = new Date(Date.parse(startedAt) + interval).toISOString()
+      // due one interval after the feed ends
+      out.next_feed_due_at = new Date(Date.parse(startedAt) + (((newestFeed.payload.duration_min as number | undefined) ?? 0) * 60_000) + interval).toISOString()
     }
   }
 

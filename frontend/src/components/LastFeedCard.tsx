@@ -34,7 +34,8 @@ export default function LastFeedCard({
     .join(' · ')
   const due = summary.next_feed_due_at ? Date.parse(summary.next_feed_due_at) : null
   const overdue = due !== null && due <= now
-  const start = Date.parse(f.started_at)
+  // the gauge runs from when the feed ended to when the next one is due
+  const start = Date.parse(f.started_at) + (f.duration_min ?? 0) * 60_000
   const fraction = due !== null && due > start ? (now - start) / (due - start) : 0
   const leftMin = due !== null ? Math.max(0, Math.ceil((due - now) / MIN)) : null
   return (

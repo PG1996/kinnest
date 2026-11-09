@@ -36,9 +36,9 @@ def world(family, db_session):
     return SimpleNamespace(db=db_session, users=users, kid=kid)
 
 
-def add_feed(w, at):
+def add_feed(w, at, duration_min=None):
     u = w.users["mom"]
-    w.db.add(Feed(id=uuid.uuid4(), family_id=w.kid.family_id, kid_id=w.kid.id, type="formula", started_at=at,
+    w.db.add(Feed(id=uuid.uuid4(), family_id=w.kid.family_id, kid_id=w.kid.id, type="formula", started_at=at, duration_min=duration_min,
                   fed_by_user_id=u.id, created_by=u.id, updated_by=u.id))
     w.db.flush()
 
@@ -65,6 +65,15 @@ def test_no_reminder_before_due(world):
     s = FakeSender()
     tick(world.db, DUE - timedelta(minutes=1), s)
     assert s.sent == []
+
+
+def test_the_reminder_waits_for_the_end_of_a_long_feed(world):
+    add_feed(world, BASE, duration_min=30)
+    s = FakeSender()
+    tick(world.db, DUE + timedelta(minutes=29), s)
+    assert s.sent == []
+    tick(world.db, DUE + timedelta(minutes=30), s)
+    assert s.recipients() == ids(world, "owner", "mom")
 
 
 def test_level0_at_due_goes_to_all_caregivers_not_viewers(world):

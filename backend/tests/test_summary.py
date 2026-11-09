@@ -35,6 +35,12 @@ def test_summary_next_due_is_last_feed_plus_interval(family):
     assert due == datetime.fromisoformat(last["started_at"]) + timedelta(minutes=120)
 
 
+def test_next_due_counts_from_the_end_of_a_breastfeed(family):
+    last = _post_feed(family.mom, 60, type="breast_left", quantity_ml=None, duration_min=25)
+    due = datetime.fromisoformat(family.aunt.get("/api/summary").json()["next_feed_due_at"])
+    assert due == datetime.fromisoformat(last["started_at"]) + timedelta(minutes=25 + 180)
+
+
 def test_deleted_feed_ignored_in_summary(family):
     older = _post_feed(family.mom, 120)
     newer = _post_feed(family.mom, 10)
