@@ -23,36 +23,38 @@ export default function LatestVitalsCard({ latest, canLog, now = Date.now() }: {
   return (
     <Card role="region" aria-label={t('vitals.card.title')} className="space-y-2.5 p-3.5">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold">{t('vitals.card.title')}</h2>
-        <div className="flex items-center gap-2">
-          {newest > 0 && <span className="text-xs text-muted">{t('vitals.card.updated', { ago: formatAgo(now - newest) })}</span>}
-          {canLog && (
-            <Link
-              to="/health?tab=vitals&add=1"
-              aria-label={t('vitals.add')}
-              className="flex size-9 items-center justify-center rounded-full bg-primary-soft text-med-ink"
-            >
-              <Plus size={18} aria-hidden="true" />
-            </Link>
-          )}
-        </div>
+        <Link to="/health?tab=vitals" className="flex min-w-0 flex-1 items-baseline gap-2">
+          <h2 className="text-sm font-semibold">{t('vitals.card.title')}</h2>
+          {newest > 0 && <span className="truncate text-xs text-muted">{t('vitals.card.updated', { ago: formatAgo(now - newest) })}</span>}
+        </Link>
+        {canLog && (
+          <Link
+            to="/health?tab=vitals&add=1"
+            aria-label={t('vitals.add')}
+            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-soft text-med-ink"
+          >
+            <Plus size={18} aria-hidden="true" />
+          </Link>
+        )}
       </div>
-      {items.length === 0 ? (
-        <p className="text-sm text-muted">{t('vitals.card.empty')}</p>
-      ) : (
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-          {items.map((i) => {
-            const fever = i.key === 'temperature_c' && i.value >= FEVER_C
-            return (
-              <div key={i.key} className={cn('rounded-tile px-3 py-2', fever ? 'bg-warn-bg text-warn-ink' : 'bg-surface-2/70')}>
-                <span className="block text-[11px] font-semibold text-muted">{t(MEASUREMENTS.find((m) => m.key === i.key)!.label)}</span>
-                <span className="block text-base font-bold tabular-nums">{formatValue(t, i.key, i.value)}</span>
-                {fever && <span className="block text-[11px] font-bold">{t('vitals.card.fever')}</span>}
-              </div>
-            )
-          })}
-        </div>
-      )}
+      <Link to="/health?tab=vitals" aria-label={t('vitals.card.open')} className="block">
+        {items.length === 0 ? (
+          <p className="text-sm text-muted">{t('vitals.card.empty')}</p>
+        ) : (
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+            {items.map((i) => {
+              const fever = i.key === 'temperature_c' && i.value >= FEVER_C
+              return (
+                <div key={i.key} className={cn('rounded-tile px-3 py-2', fever ? 'bg-warn-bg text-warn-ink' : 'bg-surface-2/70')}>
+                  <span className="block text-[11px] font-semibold text-muted">{t(MEASUREMENTS.find((m) => m.key === i.key)!.label)}</span>
+                  <span className="block text-base font-bold tabular-nums">{formatValue(t, i.key, i.value)}</span>
+                  {fever && <span className="block text-[11px] font-bold">{t('vitals.card.fever')}</span>}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </Link>
     </Card>
   )
 }

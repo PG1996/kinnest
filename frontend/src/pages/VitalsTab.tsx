@@ -94,7 +94,7 @@ export default function VitalsTab() {
         </Suspense>
       ) : (
         <>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="space-y-2">
         <div>
           <label htmlFor="vitals-place" className="block text-xs text-muted">
             {t('vitals.list.place')}
@@ -108,6 +108,7 @@ export default function VitalsTab() {
             ))}
           </Select>
         </div>
+        <div className="grid grid-cols-2 gap-2">
         <div>
           <label htmlFor="vitals-from" className="block text-xs text-muted">
             {t('vitals.list.from')}
@@ -119,6 +120,7 @@ export default function VitalsTab() {
             {t('vitals.list.to')}
           </label>
           <Input id="vitals-to" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+        </div>
         </div>
       </div>
       <VitalList

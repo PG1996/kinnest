@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Vital } from '../api/hooks'
-import { formatPlace, formatValues, formatWhen } from '../lib/vitalsFormat'
+import { MEASUREMENTS } from '../lib/vitals'
+import { formatPlace, formatValue, formatWhen } from '../lib/vitalsFormat'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
 
@@ -31,7 +32,14 @@ export default function VitalList({
               <span>{formatWhen(v.measured_at)}</span>
               <span>{formatPlace(t, v.place_kind, v.place_name)}</span>
             </div>
-            <p className="font-medium">{formatValues(t, v)}</p>
+            <div data-testid="vital-values" className="grid grid-cols-3 gap-2 py-1">
+              {MEASUREMENTS.filter((m) => v[m.key] != null).map((m) => (
+                <div key={m.key} data-testid="vital-value" className="min-w-0 rounded-tile bg-surface-2/70 px-2.5 py-1.5">
+                  <span className="block truncate text-[11px] font-semibold text-muted">{t(m.label)}</span>
+                  <span className="block text-sm font-bold tabular-nums">{formatValue(t, m.key, v[m.key] as number)}</span>
+                </div>
+              ))}
+            </div>
             <p className="text-xs text-muted">
               {v.waiting
                 ? t('vitals.list.waiting')

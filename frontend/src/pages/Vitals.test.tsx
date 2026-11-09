@@ -215,3 +215,38 @@ test('charts are the default view and the list is one tap away', async () => {
   await userEvent.click(screen.getByRole('radio', { name: en.vitals.charts.list }))
   expect(await screen.findByText(/City Hospital/)).toBeInTheDocument()
 })
+
+// --- opening the vitals screen, and a tidy list --------------------------------------------------------------------
+
+test('the Home vitals card opens the vitals tab of Health', async () => {
+  const card = await homeCard({ weight_kg: VITAL({ weight_kg: 4.2 }), height_cm: null, temperature_c: null, heart_rate: null, spo2: null })
+  const link = card.getByRole('link', { name: en.vitals.card.open })
+  expect(link).toHaveAttribute('href', '/health?tab=vitals')
+  expect(within(link).getByText('4.2 kg')).toBeInTheDocument() // the tiles are inside the link
+  expect(card.getByRole('link', { name: en.vitals.add })).toHaveAttribute('href', '/health?tab=vitals&add=1') // the + still adds
+})
+
+test('each reading in the list shows its values as separate tiles, like the Home card', async () => {
+  mockApi(routes(ME_ADMIN, [VITAL({ heart_rate: 140, spo2: 98 })]))
+  renderApp(<VitalsTab />)
+  await toList()
+  const values = await screen.findByTestId('vital-values')
+  expect(within(values).getAllByTestId('vital-value').map((n) => n.textContent)).toEqual([
+    expect.stringContaining('3.42 kg'),
+    expect.stringContaining('°'),
+    expect.stringContaining('140'),
+    expect.stringContaining('98'),
+  ])
+})
+
+test('the list filters give the place a row of its own and the two dates share the next one', async () => {
+  mockApi(routes())
+  renderApp(<VitalsTab />)
+  await toList()
+  const place = await screen.findByLabelText(en.vitals.list.place)
+  const from = screen.getByLabelText(en.vitals.list.from)
+  const to = screen.getByLabelText(en.vitals.list.to)
+  expect(place.closest('div')!.parentElement).not.toBe(from.closest('div')!.parentElement)
+  expect(from.closest('div')!.parentElement).toBe(to.closest('div')!.parentElement)
+  expect(from.closest('div')!.parentElement!.className).toContain('grid-cols-2')
+})
