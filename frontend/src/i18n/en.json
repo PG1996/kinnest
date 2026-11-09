@@ -40,7 +40,7 @@
     "lastFed": "Last fed {{ago}} ago",
     "neverFed": "No feeds logged yet",
     "nextDue": "Next feed due {{time}}",
-    "overdue": "Feed overdue by {{ago}}",
+    "overdue": "Feed overdue",
     "lastDiaper": "Last diaper {{ago}} ago",
     "noDiaper": "No diapers logged yet",
     "by": "by {{name}}",
@@ -60,7 +60,26 @@
     "close": "Close",
     "diaperTitle": "What kind of diaper?",
     "saveError": "Couldn't save. Check the time and try again.",
-    "queued": "Saved on this phone. It will sync when you're back online."
+    "queued": "Saved on this phone. It will sync when you're back online.",
+    "lastFedLabel": "Last fed",
+    "dueAgo": "Due {{ago}} ago",
+    "lastFedAgo": "Last fed {{ago}} ago",
+    "agoShort": "{{ago}} ago",
+    "logFeedNow": "Log feed now",
+    "toNextFeed": "to next feed",
+    "gaugeLabel": "{{percent}}% of the feed interval has passed, {{left}} to the next feed",
+    "lastDiaperLabel": "Last diaper",
+    "sparkLabel": "Wet diapers per day, last 7 days: {{values}}",
+    "sparkAvg": "7-day avg {{avg}}",
+    "quickLog": "Quick log",
+    "today": "Today",
+    "notifications": "Notifications and settings",
+    "daysOld_one": "{{count}} day old",
+    "daysOld_other": "{{count}} days old",
+    "quick": {
+      "medicine": "Medicine",
+      "vital": "Vital"
+    }
   },
   "roles": {
     "admin": "Admin",
@@ -131,7 +150,9 @@
     "start": "Sleep",
     "end": "Wake up",
     "alreadyAsleep": "{{name}} already started this sleep",
-    "alreadyEnded": "This sleep was already ended"
+    "alreadyEnded": "This sleep was already ended",
+    "title": "Sleep",
+    "asleepLabel": "Asleep now"
   },
   "medicines": {
     "title": "Medicines",

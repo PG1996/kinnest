@@ -1,14 +1,18 @@
-import { QueryClient } from '@tanstack/react-query'
+import { MutationCache, QueryClient } from '@tanstack/react-query'
 
 /**
  * App-wide query defaults. Mutations use networkMode 'always': by default TanStack Query pauses a mutation while the
  * browser reports offline and never calls its function, so an airplane-mode tap would wait (and be lost if the app is
  * closed) instead of reaching the offline queue.
  */
-export const createQueryClient = () =>
-  new QueryClient({
+export const createQueryClient = () => {
+  const client: QueryClient = new QueryClient({
+    // any saved change can alter the timeline and the patterns built from it
+    mutationCache: new MutationCache({ onSuccess: () => void client.invalidateQueries({ queryKey: ['timeline'] }) }),
     defaultOptions: {
       queries: { retry: 1, refetchOnWindowFocus: true },
       mutations: { networkMode: 'always' },
     },
   })
+  return client
+}

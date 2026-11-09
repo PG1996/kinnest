@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import type { TimelineItem, TimelineKind } from '../lib/timeline'
 import { ApiError, api } from './client'
 
 export type Role = 'admin' | 'caregiver' | 'viewer'
@@ -89,6 +90,24 @@ export type Summary = {
   diapers_today: Record<DiaperKind, number>
   sleep: SummarySleep
   vitals?: { latest: Partial<Record<'weight_kg' | 'height_cm' | 'head_cm' | 'temperature_c', Vital | null>> }
+}
+
+export type KidInfo = {
+  id: string
+  name: string
+  birth_date: string | null
+  feed_interval_minutes: number
+  diaper_alert_minutes: number
+}
+
+export function useKid() {
+  return useQuery({ queryKey: ['kid'], queryFn: () => api<KidInfo>('/api/kid') })
+}
+
+export type MemberRow = { user_id: string | null; email: string; name: string; role: Role; pending: boolean }
+
+export function useMembers() {
+  return useQuery({ queryKey: ['members'], queryFn: () => api<MemberRow[]>('/api/family/members') })
 }
 
 export function useSummary() {
@@ -219,4 +238,14 @@ export function useVaccineTemplates() {
 
 export function useVisits() {
   return useQuery({ queryKey: ['visits'], queryFn: () => api<Visit[]>('/api/visits') })
+}
+
+/** Every entry between `from` and `to` (at most 31 days), newest first. Keep `from`/`to` stable between renders. */
+export function useTimeline({ from, to, kinds }: { from: Date; to: Date; kinds?: TimelineKind[] }) {
+  const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() })
+  if (kinds?.length) params.set('kinds', kinds.join(','))
+  return useQuery({
+    queryKey: ['timeline', from.toISOString(), to.toISOString(), kinds?.join(',') ?? ''],
+    queryFn: async () => (await api<{ items: TimelineItem[] }>(`/api/timeline?${params}`)).items,
+  })
 }

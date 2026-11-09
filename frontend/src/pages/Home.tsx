@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useMe, useMedicines, useSummary, useVaccines, useVisits, type DiaperKind } from '../api/hooks'
+import { useMe, useMedicines, useSummary, useTimeline, useVaccines, useVisits, type DiaperKind } from '../api/hooks'
 import DiaperSheet from '../components/DiaperSheet'
 import FeedSheet from '../components/FeedSheet'
+import HomeHeader from '../components/HomeHeader'
 import PushPrompt from '../components/PushPrompt'
+import QuickLog from '../components/QuickLog'
 import LastDiaperCard from '../components/LastDiaperCard'
 import LastFeedCard from '../components/LastFeedCard'
 import LatestVitalsCard from '../components/LatestVitalsCard'
@@ -15,7 +17,9 @@ import UpcomingCard from '../components/UpcomingCard'
 import Today from '../components/Today'
 import { Button } from '../components/ui/button'
 import { useLogDiaper, useLogFeed, useUndoDiaper, type FeedInput } from '../hooks/log'
-import { formatClock } from '../lib/time'
+import { useSleepActions } from '../hooks/sleepActions'
+import { lastDays, wetPerDay } from '../lib/timeline'
+import { formatClock, toLocalDate } from '../lib/time'
 import { useNow } from '../lib/useNow'
 import { mergePending, useQueue } from '../offline/pending'
 import { clearRejected, remove } from '../offline/queue'
@@ -32,8 +36,18 @@ export default function Home() {
   const [scrollToMeds, setScrollToMeds] = useState(false)
   const summary = serverSummary && mergePending(serverSummary, pending, me?.user.name ?? '')
   const now = useNow()
+  const today = toLocalDate(new Date(now))
+  // the seven local days ending today; stable for the whole day so the query key does not change every tick
+  const week = useMemo(() => {
+    const days = lastDays(7, new Date(`${today}T12:00:00`))
+    const last = days[6]!
+    return { days, from: days[0]!, to: new Date(last.getFullYear(), last.getMonth(), last.getDate(), 23, 59, 59, 999) }
+  }, [today])
+  const diapersWeek = useTimeline({ from: week.from, to: week.to, kinds: ['diaper'] }).data
+  const wetSeries = diapersWeek ? wetPerDay(diapersWeek, week.days) : undefined
   const [sheet, setSheet] = useState<'feed' | 'diaper' | null>(null)
   const [toast, setToast] = useState<ToastData | null>(null)
+  const sleepActions = useSleepActions(summary?.sleep, setToast)
   const [params, setParams] = useSearchParams()
   const navigate = useNavigate()
   // never let a side card take Home down: anything but a list (an old server, an odd reply) shows nothing
@@ -105,6 +119,7 @@ export default function Home() {
 
   return (
     <>
+      <HomeHeader now={now} />
       {canLog && <PushPrompt />}
       {pending.length > 0 && <Card className="text-sm">{t('offline.pending', { count: pending.length })}</Card>}
       {rejected.length > 0 && (
@@ -117,9 +132,24 @@ export default function Home() {
       )}
       {summary && (
         <>
-          <LastFeedCard summary={summary} now={now} />
-          <LastDiaperCard summary={summary} now={now} />
-          <SleepCard sleep={summary.sleep} now={now} canLog={canLog} onToast={setToast} />
+          <LastFeedCard summary={summary} now={now} canLog={canLog} onLogFeed={() => setSheet('feed')} />
+          <LastDiaperCard summary={summary} now={now} wetPerDay={wetSeries} />
+          <SleepCard sleep={summary.sleep} now={now} />
+        </>
+      )}
+      {canLog && (
+        <QuickLog
+          asleep={sleepActions.open !== null}
+          onFeed={() => setSheet('feed')}
+          onDiaper={() => setSheet('diaper')}
+          onSleep={sleepActions.toggle}
+          onMedicine={() =>
+            medicines.length > 0 ? medsRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }) : navigate('/health?tab=medicines')
+          }
+        />
+      )}
+      {summary && (
+        <>
           <Today summary={summary} />
           <UpcomingCard vaccines={vaccines} visits={visits} now={now} />
           {summary.vitals && <LatestVitalsCard latest={summary.vitals.latest} canLog={canLog} />}
@@ -136,16 +166,6 @@ export default function Home() {
             </div>
           )}
         </>
-      )}
-      {canLog && (
-        <div className="sticky bottom-20 grid grid-cols-2 gap-3">
-          <Button className="min-h-16 text-lg" onClick={() => setSheet('feed')}>
-            {t('home.feed')}
-          </Button>
-          <Button variant="soft" className="min-h-16 text-lg" onClick={() => setSheet('diaper')}>
-            {t('home.diaper')}
-          </Button>
-        </div>
       )}
       {sheet === 'feed' && (
         <FeedSheet
