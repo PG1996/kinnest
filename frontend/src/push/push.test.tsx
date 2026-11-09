@@ -81,7 +81,7 @@ test('Settings toggles save notification preferences', async () => {
     'PUT /api/notification-prefs': { body: { feed: false, diaper: true } },
   })
   renderApp(<Settings />)
-  await userEvent.click(await screen.findByRole('checkbox', { name: en.settings.feedReminders }))
+  await userEvent.click(await screen.findByRole('switch', { name: en.settings.feedReminders }))
   await waitFor(() =>
     expect(calls.find((c) => c.key === 'PUT /api/notification-prefs')?.body).toEqual({ feed: false, diaper: true }),
   )

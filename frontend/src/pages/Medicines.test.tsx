@@ -383,6 +383,6 @@ test('Settings saves the medicine reminders toggle with the other preferences', 
     'PUT /api/notification-prefs': { body: { feed: true, diaper: true, medicine: false } },
   })
   renderApp(<Settings />)
-  await userEvent.click(await screen.findByRole('checkbox', { name: en.settings.medicineReminders }))
+  await userEvent.click(await screen.findByRole('switch', { name: en.settings.medicineReminders }))
   await waitFor(() => expect(calls.find((c) => c.key === 'PUT /api/notification-prefs')?.body).toEqual({ feed: true, diaper: true, medicine: false }))
 })

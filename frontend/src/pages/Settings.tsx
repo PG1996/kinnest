@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
 import { useMe } from '../api/hooks'
 import { Button } from '../components/ui/button'
+import { Switch } from '../components/ui/switch'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/field'
 import PushPrompt from '../components/PushPrompt'
@@ -110,18 +111,12 @@ export default function Settings() {
       </Card>
       <h2 className="font-medium">{t('settings.notifications')}</h2>
       <PushPrompt alwaysShow />
-      <Card className="space-y-2">
+      <Card className="divide-y divide-line p-0">
         {PREF_LABELS.map(([k, label]) => (
-          <label key={k} className="flex min-h-12 items-center justify-between gap-3">
-            <span>{t(label)}</span>
-            <input
-              type="checkbox"
-              className="size-6 accent-primary"
-              checked={prefs.data?.[k] ?? true}
-              disabled={!prefs.data}
-              onChange={() => toggle(k)}
-            />
-          </label>
+          <div key={k} className="flex min-h-14 items-center justify-between gap-3 px-4">
+            <span className="font-bold">{t(label)}</span>
+            <Switch label={t(label)} checked={prefs.data?.[k] ?? true} disabled={!prefs.data} onChange={() => toggle(k)} />
+          </div>
         ))}
       </Card>
       <h2 className="font-medium">{t('theme.label')}</h2>

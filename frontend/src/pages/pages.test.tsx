@@ -102,13 +102,13 @@ test('Settings saves vaccine and visit toggles with the other preferences', asyn
   })
   renderApp(<Settings />, '/settings')
   expect(await screen.findByText(en.settings.birthDateHint)).toBeInTheDocument()
-  const vaccine = await screen.findByRole('checkbox', { name: en.settings.vaccineReminders })
+  const vaccine = await screen.findByRole('switch', { name: en.settings.vaccineReminders })
   await waitFor(() => expect(vaccine).toBeEnabled())
   await userEvent.click(vaccine)
   await waitFor(() =>
     expect(calls.find((c) => c.key === 'PUT /api/notification-prefs')?.body).toEqual({ ...prefs, vaccine: false }),
   )
-  await userEvent.click(screen.getByRole('checkbox', { name: en.settings.visitReminders }))
+  await userEvent.click(screen.getByRole('switch', { name: en.settings.visitReminders }))
   await waitFor(() =>
     expect(calls.filter((c) => c.key === 'PUT /api/notification-prefs').at(-1)?.body).toEqual({
       ...prefs,

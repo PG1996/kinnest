@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
+import { Baby } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
@@ -18,10 +19,13 @@ export default function Login() {
   }
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 px-4">
-      <h1 className="text-center text-2xl font-semibold">{t('login.title')}</h1>
+      <div aria-hidden="true" className="mx-auto flex size-16 items-center justify-center rounded-full bg-feed-bg text-feed">
+        <Baby size={34} />
+      </div>
+      <h1 className="text-center text-2xl font-extrabold">{t('login.title')}</h1>
       <p className="text-center text-muted">{t('app.tagline')}</p>
-      <Card className="space-y-4">
-        <a href="/api/auth/google/start" className={linkButtonClass('primary') + ' w-full'}>
+      <Card className="space-y-4 shadow-[0_12px_32px_-16px_rgba(85,70,184,0.35)]">
+        <a href="/api/auth/google/start" className={linkButtonClass('primary', 'lg') + ' w-full'}>
           {t('login.google')}
         </a>
         <p className="text-center text-sm text-muted">{t('login.or')}</p>
