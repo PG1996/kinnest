@@ -22,7 +22,10 @@ test('shows asleep since and the wake button when a session is open', async () =
   const open = session()
   mockApi(base({ open, last: null }))
   renderApp(<Home />)
-  expect(await screen.findByText(text(en.sleep.asleepSince, { time: formatClock(open.started_at), ago: '45m' }))).toBeInTheDocument()
+  const card = within(await screen.findByTestId('sleep-card'))
+  expect(card.getByText(text(en.sleep.asleepFor, { ago: '45m' }))).toBeInTheDocument()
+  expect(card.getByText(text(en.sleep.since, { time: formatClock(open.started_at) }))).toBeInTheDocument() // a pill
+  expect(card.getByText(text(en.home.by, { name: open.started_by_name }))).toBeInTheDocument()
   expect(screen.getByRole('button', { name: en.sleep.end })).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: en.sleep.start })).not.toBeInTheDocument()
 })
@@ -31,7 +34,10 @@ test('shows the last sleep length when awake', async () => {
   const last = session({ started_at: minsAgo(180), ended_at: minsAgo(50), ended_by_name: 'Mom', duration_min: 130 })
   mockApi(base({ open: null, last }))
   renderApp(<Home />)
-  expect(await screen.findByText(text(en.sleep.lastSleep, { duration: '2h 10m', ago: '50m' }))).toBeInTheDocument()
+  const card = within(await screen.findByTestId('sleep-card'))
+  expect(card.getByText(text(en.sleep.wokeAgo, { ago: '50m' }))).toBeInTheDocument()
+  expect(card.getByText(text(en.sleep.sleptFor, { duration: '2h 10m' }))).toBeInTheDocument() // a pill
+  expect(card.getByText(text(en.home.by, { name: 'Mom' }))).toBeInTheDocument()
   expect(screen.getByRole('button', { name: en.sleep.start })).toBeInTheDocument()
 })
 
@@ -64,7 +70,7 @@ test('tapping Wake up posts an end for the open session', async () => {
 test('viewer sees the sleep card without buttons', async () => {
   mockApi(base({ open: session(), last: null }, ME_VIEWER))
   renderApp(<Home />)
-  await screen.findByText(/Asleep since/)
+  await screen.findByText(/Asleep for/)
   expect(screen.queryByRole('button', { name: en.sleep.end })).not.toBeInTheDocument()
 })
 

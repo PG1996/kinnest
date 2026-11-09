@@ -45,6 +45,20 @@ test('shows last fed relative time and next due', async () => {
   expect(screen.getByText(en.home.agoShort.replace('{{ago}}', '1h 5m'))).toBeInTheDocument()
 })
 
+test('the last diaper card shows what it was as a pill, who changed it, and today as small counts', async () => {
+  mockApi(base())
+  renderApp(<Home />)
+  const card = within(await screen.findByTestId('diaper-card'))
+  expect(card.getByText(en.home.agoShort.replace('{{ago}}', '1h 5m'))).toBeInTheDocument()
+  expect(card.getByText(en.diaperKinds.wet)).toBeInTheDocument() // the kind pill
+  expect(card.getByText(en.home.by.replace('{{name}}', 'Nanny'))).toBeInTheDocument()
+  const today = within(card.getByTestId('diaper-today'))
+  expect(today.getByText(en.home.todayLabel)).toBeInTheDocument()
+  expect(today.getByText(en.home.todayWet.replace('{{n}}', '3'))).toBeInTheDocument()
+  expect(today.getByText(en.home.todayDirty.replace('{{n}}', '1'))).toBeInTheDocument()
+  expect(today.getByText(en.home.todayBoth.replace('{{n}}', '0'))).toBeInTheDocument()
+})
+
 test('flags an overdue feed', async () => {
   mockApi(base(ME_ADMIN, SUMMARY({ next_feed_due_at: minsAgo(20) })))
   renderApp(<Home />)

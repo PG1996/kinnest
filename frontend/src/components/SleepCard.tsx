@@ -19,27 +19,25 @@ export default function SleepCard({ sleep, now }: { sleep: SummarySleep | undefi
   const sessions = useSleepRange(range.from, range.to).data
   const donut = Array.isArray(sessions) ? sleepDay(sessions, today, new Date(now)) : null
   return (
-    <Card tone="sleep" className="py-4">
+    <Card tone="sleep" data-testid="sleep-card" className="py-4">
       <Link to="/sleep" className="flex items-center gap-3">
       <Moon size={26} aria-hidden="true" className="shrink-0 text-sleep" />
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 space-y-1">
         <Eyebrow tone="sleep">{open ? t('sleep.asleepLabel') : t('sleep.title')}</Eyebrow>
         {open ? (
           <>
-            <p className="text-base font-bold">
-              {t('sleep.asleepSince', { time: formatClock(open.started_at), ago: formatAgo(now - Date.parse(open.started_at)) })}
-            </p>
-            <p className="text-sm text-muted">{t('home.by', { name: open.started_by_name })}</p>
+            <p className="text-xl font-bold">{t('sleep.asleepFor', { ago: formatAgo(now - Date.parse(open.started_at)) })}</p>
+            <span className="inline-block rounded-full bg-surface px-2.5 py-0.5 text-xs font-bold text-sleep-ink">{t('sleep.since', { time: formatClock(open.started_at) })}</span>
+            <p className="text-xs text-muted">{t('home.by', { name: open.started_by_name })}</p>
           </>
         ) : last ? (
-          <p className="text-base font-bold">
-            {t('sleep.lastSleep', {
-              duration: formatAgo((last.duration_min ?? 0) * 60_000),
-              ago: formatAgo(now - Date.parse(last.ended_at ?? last.started_at)),
-            })}
-          </p>
+          <>
+            <p className="text-xl font-bold">{t('sleep.wokeAgo', { ago: formatAgo(now - Date.parse(last.ended_at ?? last.started_at)) })}</p>
+            <span className="inline-block rounded-full bg-surface px-2.5 py-0.5 text-xs font-bold text-sleep-ink">{t('sleep.sleptFor', { duration: formatAgo((last.duration_min ?? 0) * 60_000) })}</span>
+            <p className="text-xs text-muted">{t('home.by', { name: last.ended_by_name || last.started_by_name })}</p>
+          </>
         ) : (
-          <p className="text-lg">{t('sleep.none')}</p>
+          <p className="text-base">{t('sleep.none')}</p>
         )}
       </div>
       {donut && <SleepDonut compact day={today} data={donut} />}
