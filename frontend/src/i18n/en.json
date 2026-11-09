@@ -239,7 +239,8 @@
       "until": "until {{date}}",
       "readOnly": "Only the admin can change medicines.",
       "setDose": "Set a proper dose for this medicine",
-      "addSos": "Add SOS medicine"
+      "addSos": "Add SOS medicine",
+      "editTitle": "Edit {{name}}"
     },
     "form": {
       "name": "Medicine name",

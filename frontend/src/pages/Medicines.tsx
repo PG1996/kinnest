@@ -6,6 +6,7 @@ import { api } from '../api/client'
 import { useMe, useMedicines, type Medicine } from '../api/hooks'
 import DoseHistory from '../components/DoseHistory'
 import MedicineForm from '../components/MedicineForm'
+import Sheet from '../components/Sheet'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { formatDose } from '../lib/units'
@@ -19,6 +20,7 @@ export default function MedicinesPage() {
   const past = all.filter((m) => m.ended)
   const [editing, setEditing] = useState<Medicine | 'new' | 'sos' | null>(null)
   const [confirming, setConfirming] = useState<string | null>(null)
+  const [detail, setDetail] = useState<Medicine | null>(null)
   const [historyFor, setHistoryFor] = useState<Medicine | null>(null)
   const [params, setParams] = useSearchParams()
   useEffect(() => {
@@ -58,47 +60,34 @@ export default function MedicinesPage() {
           ? t('medicines.page.asNeededGap', { hours: m.min_gap_hours })
           : t('medicines.page.asNeeded')
 
-  const card = (m: Medicine) => (
-    <Card key={m.id} tone="med" data-testid={`medicine-${m.id}`} className="space-y-2">
-      <p className="text-base font-bold">{m.dose_amount != null && m.dose_unit ? `${m.name} · ${formatDose(m.dose_amount, m.dose_unit, t)}` : m.name}</p>
-      {isAdmin && m.dose_amount == null && <p className="text-sm text-danger">{t('medicines.page.setDose')}</p>}
-      <p className="text-sm font-bold text-med-ink">{describe(m)}</p>
-      <p className="text-sm text-muted">
-        {t('medicines.page.from', { date: m.start_date })}
-        {m.end_date && ` ${t('medicines.page.until', { date: m.end_date })}`}
-      </p>
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" onClick={() => setHistoryFor(m)}>
-          {t('medicines.history.open')}
-        </Button>
-      </div>
-      {isAdmin && (
-        <div className="flex flex-wrap gap-2">
-          <Button variant="soft" onClick={() => setEditing(m)}>
-            {t('medicines.page.edit')}
-          </Button>
-          {confirming === m.id ? (
-            <>
-              <Button variant="danger" onClick={() => remove.mutate(m.id)}>
-                {t('medicines.page.confirmDelete')}
-              </Button>
-              <Button variant="ghost" onClick={() => setConfirming(null)}>
-                {t('medicines.form.cancel')}
-              </Button>
-            </>
-          ) : (
-            <Button variant="ghost" onClick={() => setConfirming(m.id)}>
-              {t('medicines.page.delete')}
-            </Button>
-          )}
-        </div>
-      )}
-    </Card>
+  const dose = (m: Medicine) => (m.dose_amount != null && m.dose_unit ? formatDose(m.dose_amount, m.dose_unit, t) : null)
+
+  const tile = (m: Medicine) => (
+    <button
+      key={m.id}
+      type="button"
+      data-testid={`medicine-${m.id}`}
+      data-tone="med"
+      onClick={() => setDetail(m)}
+      className="flex aspect-square flex-col justify-between rounded-2xl border border-transparent bg-med-bg p-3.5 text-left text-ink transition-transform active:scale-[0.98]"
+    >
+      <span className="space-y-0.5">
+        <span className="block text-base font-bold leading-tight">{dose(m) ? `${m.name} · ${dose(m)}` : m.name}</span>
+        {isAdmin && m.dose_amount == null && <span className="block text-xs text-danger">{t('medicines.page.setDose')}</span>}
+      </span>
+      <span className="block text-xs font-medium text-med-ink">{describe(m)}</span>
+    </button>
+  )
+
+  const grid = (list: Medicine[]) => (
+    <div data-testid="medicine-tiles" className="grid grid-cols-2 gap-3">
+      {list.map(tile)}
+    </div>
   )
 
   return (
     <>
-      <h2 className="text-xl font-bold">{t('medicines.page.title')}</h2>
+      <h2 className="text-lg font-bold">{t('medicines.page.title')}</h2>
       {isAdmin && editing === null && (
         <div className="grid grid-cols-2 gap-2">
           <Button onClick={() => setEditing('new')}>{t('medicines.page.add')}</Button>
@@ -108,24 +97,67 @@ export default function MedicinesPage() {
         </div>
       )}
       {editing !== null && (
-        <MedicineForm
-          key={typeof editing === 'string' ? editing : editing.id}
-          medicine={typeof editing === 'string' ? undefined : editing}
-          initialKind={editing === 'sos' ? 'as_needed' : undefined}
-          saving={save.isPending}
-          failed={save.isError}
-          onSave={(body) => save.mutate(body)}
-          onCancel={() => setEditing(null)}
-        />
+        <Sheet
+          title={typeof editing === 'object' ? t('medicines.page.editTitle', { name: editing.name }) : t(editing === 'sos' ? 'medicines.page.addSos' : 'medicines.page.add')}
+          onClose={() => setEditing(null)}
+        >
+          <MedicineForm
+            key={typeof editing === 'string' ? editing : editing.id}
+            medicine={typeof editing === 'string' ? undefined : editing}
+            initialKind={editing === 'sos' ? 'as_needed' : undefined}
+            saving={save.isPending}
+            failed={save.isError}
+            onSave={(body) => save.mutate(body)}
+            onCancel={() => setEditing(null)}
+          />
+        </Sheet>
+      )}
+      {detail && (
+        <Sheet title={detail.name} onClose={() => { setDetail(null); setConfirming(null) }}>
+          <div className="space-y-1">
+            {dose(detail) && <p className="text-base font-bold">{dose(detail)}</p>}
+            <p className="text-sm font-medium text-med-ink">{describe(detail)}</p>
+            <p className="text-sm text-muted">
+              {t('medicines.page.from', { date: detail.start_date })}
+              {detail.end_date && ` ${t('medicines.page.until', { date: detail.end_date })}`}
+            </p>
+            {isAdmin && detail.dose_amount == null && <p className="text-sm text-danger">{t('medicines.page.setDose')}</p>}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => { setHistoryFor(detail); setDetail(null) }}>
+              {t('medicines.history.open')}
+            </Button>
+            {isAdmin && (
+              <Button variant="soft" onClick={() => { setEditing(detail); setDetail(null) }}>
+                {t('medicines.page.edit')}
+              </Button>
+            )}
+            {isAdmin &&
+              (confirming === detail.id ? (
+                <>
+                  <Button variant="danger" onClick={() => remove.mutate(detail.id, { onSuccess: () => setDetail(null) })}>
+                    {t('medicines.page.confirmDelete')}
+                  </Button>
+                  <Button variant="ghost" onClick={() => setConfirming(null)}>
+                    {t('medicines.form.cancel')}
+                  </Button>
+                </>
+              ) : (
+                <Button variant="ghost" onClick={() => setConfirming(detail.id)}>
+                  {t('medicines.page.delete')}
+                </Button>
+              ))}
+          </div>
+        </Sheet>
       )}
       {historyFor && <DoseHistory medicine={historyFor} canEdit={isAdmin} onClose={() => setHistoryFor(null)} />}
       {current.length === 0 && past.length === 0 && <Card className="text-muted">{t('medicines.page.empty')}</Card>}
-      {current.map(card)}
+      {current.length > 0 && grid(current)}
       {!isAdmin && <p className="text-sm text-muted">{t('medicines.page.readOnly')}</p>}
       {past.length > 0 && (
         <>
           <h2 className="pt-2 font-medium">{t('medicines.page.past')}</h2>
-          {past.map(card)}
+          {grid(past)}
         </>
       )}
     </>

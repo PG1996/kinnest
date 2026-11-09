@@ -110,6 +110,7 @@ const histApi = (me = ME_ADMIN) => ({
 const openHistory = async (me = ME_ADMIN) => {
   const calls = mockApi(histApi(me))
   renderApp(<App />, '/health?tab=medicines')
+  await userEvent.click(await screen.findByTestId('medicine-m1'))
   await userEvent.click(await screen.findByRole('button', { name: en.medicines.history.open }))
   return { calls, dialog: await screen.findByRole('dialog', { name: en.medicines.history.title }) }
 }
@@ -204,6 +205,7 @@ const slotApi = (over: object = {}) => ({ ...histApi(), 'GET /api/medicines': { 
 test('fixing a dose lets the admin choose which slot it counts for, or none', async () => {
   const calls = mockApi(slotApi())
   renderApp(<App />, '/health?tab=medicines')
+  await userEvent.click(await screen.findByTestId('medicine-m1'))
   await userEvent.click(await screen.findByRole('button', { name: en.medicines.history.open }))
   const dialog = await screen.findByRole('dialog', { name: en.medicines.history.title })
   await userEvent.click((await within(dialog).findAllByRole('button', { name: en.medicines.history.edit }))[0]!)
@@ -220,6 +222,7 @@ test('a dose that counts for a slot can be taken off it', async () => {
   const onSlot = { ...DOSES[0], scheduled_for: SLOT_DUE }
   const calls = mockApi({ ...slotApi(), 'GET /api/medicines/m1/doses': { body: [onSlot] } })
   renderApp(<App />, '/health?tab=medicines')
+  await userEvent.click(await screen.findByTestId('medicine-m1'))
   await userEvent.click(await screen.findByRole('button', { name: en.medicines.history.open }))
   const dialog = await screen.findByRole('dialog', { name: en.medicines.history.title })
   await userEvent.click(await within(dialog).findByRole('button', { name: en.medicines.history.edit }))
@@ -235,6 +238,7 @@ test('a dose that counts for a slot can be taken off it', async () => {
 test('a past dose is preselected for the open slot so it clears the overdue row', async () => {
   const calls = mockApi(slotApi())
   renderApp(<App />, '/health?tab=medicines')
+  await userEvent.click(await screen.findByTestId('medicine-m1'))
   await userEvent.click(await screen.findByRole('button', { name: en.medicines.history.open }))
   const dialog = await screen.findByRole('dialog', { name: en.medicines.history.title })
   await userEvent.click(await within(dialog).findByRole('button', { name: en.medicines.history.add }))
@@ -248,6 +252,7 @@ test('a past dose is preselected for the open slot so it clears the overdue row'
 test('an SOS medicine has no slot choice in the history form', async () => {
   mockApi({ ...histApi(), 'GET /api/medicines': { body: [syrup({ schedule_kind: 'as_needed', times: [], slots: [] })] } })
   renderApp(<App />, '/health?tab=medicines')
+  await userEvent.click(await screen.findByTestId('medicine-m1'))
   await userEvent.click(await screen.findByRole('button', { name: en.medicines.history.open }))
   const dialog = await screen.findByRole('dialog', { name: en.medicines.history.title })
   await userEvent.click(await within(dialog).findByRole('button', { name: en.medicines.history.add }))

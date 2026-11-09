@@ -5,7 +5,6 @@ import { cn } from '../lib/cn'
 import { toLocalInput } from '../lib/time'
 import { DOSE_UNITS } from '../lib/units'
 import { Button } from './ui/button'
-import { Card } from './ui/card'
 import { Input, Select } from './ui/field'
 
 const KINDS: ScheduleKind[] = ['fixed', 'interval', 'as_needed']
@@ -91,14 +90,13 @@ export default function MedicineForm({ medicine, initialKind, saving, failed, on
     if (body) onSave(body)
   }
   const label = (id: string, text: string) => (
-    <label htmlFor={id} className="block text-sm text-muted">
+    <label htmlFor={id} className="block text-xs font-medium text-muted">
       {text}
     </label>
   )
 
   return (
-    <Card>
-      <form onSubmit={submit} noValidate className="space-y-3">
+    <form onSubmit={submit} noValidate className="space-y-2.5">
         {label('med-name', t('medicines.form.name'))}
         <Input id="med-name" value={v.name} onChange={(e) => set('name', e.target.value)} />
         <div className="grid grid-cols-2 gap-3">
@@ -132,7 +130,7 @@ export default function MedicineForm({ medicine, initialKind, saving, failed, on
             <label
               key={k}
               className={cn(
-                'flex min-h-12 cursor-pointer items-center rounded-full border border-line px-4',
+                'flex min-h-10 cursor-pointer items-center rounded-full border border-line px-3.5 text-sm',
                 v.kind === k && 'border-primary bg-primary text-primary-ink',
               )}
             >
@@ -199,7 +197,7 @@ export default function MedicineForm({ medicine, initialKind, saving, failed, on
 
         {invalid && <p className="text-sm text-danger">{t('medicines.form.invalid')}</p>}
         {failed && <p className="text-sm text-danger">{t('common.error')}</p>}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 pt-1">
           <Button type="submit" disabled={saving}>
             {t('medicines.form.save')}
           </Button>
@@ -207,7 +205,6 @@ export default function MedicineForm({ medicine, initialKind, saving, failed, on
             {t('medicines.form.cancel')}
           </Button>
         </div>
-      </form>
-    </Card>
+    </form>
   )
 }
