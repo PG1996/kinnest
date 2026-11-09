@@ -345,6 +345,8 @@ class VitalEntry(Base):
     place_name: Mapped[str] = mapped_column(String(120), default="")
     measured_by: Mapped[str] = mapped_column(String(120), default="")
     note: Mapped[str] = mapped_column(Text, default="")
+    # the doctor or hospital visit this reading was taken at, if any
+    visit_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("doctor_visits.id"), nullable=True)
     weight_kg: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
     height_cm: Mapped[Decimal | None] = mapped_column(Numeric(4, 1), nullable=True)
     head_cm: Mapped[Decimal | None] = mapped_column(Numeric(4, 1), nullable=True)
