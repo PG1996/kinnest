@@ -51,6 +51,7 @@ test('the temperature chart and its tab are in °F with the fever line at 100.4'
   mockApi(api([VITAL({ temperature_c: 38.4 })]))
   renderApp(<App />, '/health?tab=vitals')
   await waitFor(() => expect(screen.getByRole('tab', { name: new RegExp(en.vitals.measurements.temperature_c) })).toHaveTextContent('101.1'))
+  await userEvent.click(screen.getByRole('tab', { name: new RegExp(en.vitals.measurements.temperature_c) }))
   const chart = await screen.findByRole('figure', { name: en.vitals.measurements.temperature_c })
   expect(within(chart).getAllByText(/100\.4 °F/).length).toBeGreaterThanOrEqual(1) // the line label and the note
 })
@@ -98,12 +99,15 @@ test('editing an entry that has a head circumference opens More vitals by itself
 test('the charts keep head circumference and breathing rate under More vitals', async () => {
   mockApi(api())
   renderApp(<App />, '/health?tab=vitals')
-  await screen.findByRole('figure', { name: en.vitals.measurements.temperature_c })
-  expect(screen.queryByRole('figure', { name: en.vitals.measurements.resp_rate })).not.toBeInTheDocument()
-  expect(screen.getByRole('tab', { name: new RegExp(en.vitals.measurements.heart_rate) })).toBeInTheDocument()
-  expect(screen.getByRole('tab', { name: new RegExp(en.vitals.measurements.spo2) })).toBeInTheDocument()
+  const cards = async () => within(await screen.findByRole('tablist', { name: en.vitals.charts.metrics })).getAllByRole('tab')
+  expect(await cards()).toHaveLength(5)
   expect(screen.queryByRole('tab', { name: new RegExp(en.vitals.measurements.head_cm) })).not.toBeInTheDocument()
+  expect(screen.queryByRole('tab', { name: new RegExp(en.vitals.measurements.resp_rate) })).not.toBeInTheDocument()
+  // More vitals adds their cards to the same grid; picking one shows its chart
   await userEvent.click(screen.getByRole('button', { name: en.vitals.charts.more }))
+  expect(await cards()).toHaveLength(7)
+  await userEvent.click(screen.getByRole('tab', { name: new RegExp(en.vitals.measurements.resp_rate) }))
   expect(screen.getByRole('figure', { name: en.vitals.measurements.resp_rate })).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('tab', { name: new RegExp(en.vitals.measurements.head_cm) }))
   expect(screen.getByRole('figure', { name: en.vitals.charts.growth.head })).toBeInTheDocument()
 })

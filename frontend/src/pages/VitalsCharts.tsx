@@ -15,10 +15,12 @@ const dayStart = (d: string) => (d ? new Date(`${d}T00:00:00`).toISOString() : u
 const dayEnd = (d: string) => (d ? new Date(`${d}T23:59:59.999`).toISOString() : undefined)
 
 const TABS = ['weight_kg', 'height_cm', 'temperature_c', 'heart_rate', 'spo2'] as const
-type Tab = (typeof TABS)[number]
+// head circumference and breathing rate join the cards only under "More vitals"
+const MORE = ['head_cm', 'resp_rate'] as const
+type Tab = (typeof TABS)[number] | (typeof MORE)[number]
 
 
-/** Metric stat cards with the latest values; the chosen metric's chart comes first, the rest follow. Shared filters sit under the tabs. */
+/** Metric stat cards with the latest values; only the chosen metric's chart is drawn. Shared filters sit under the tabs. */
 export default function VitalsCharts() {
   const { t } = useTranslation()
   const [hidden, setHidden] = useState<Set<PlaceKind>>(new Set())
@@ -41,10 +43,24 @@ export default function VitalsCharts() {
     temperature_c: <TrendChart key="temperature_c" measurement="temperature_c" vitals={vitals} />,
     heart_rate: <TrendChart key="heart_rate" measurement="heart_rate" vitals={vitals} />,
     spo2: <TrendChart key="spo2" measurement="spo2" vitals={vitals} />,
+    head_cm: <GrowthChart key="head" kind="head" hidden={hidden} />,
+    resp_rate: <TrendChart key="resp_rate" measurement="resp_rate" vitals={vitals} />,
   }
   return (
     <div className="space-y-4">
-      <StatTabs keys={TABS} vitals={vitals} value={tab} onChange={setTab} />
+      <StatTabs keys={more ? [...TABS, ...MORE] : TABS} vitals={vitals} value={tab} onChange={setTab} />
+      <button
+        type="button"
+        aria-expanded={more}
+        onClick={() => {
+          // closing More while one of its charts is shown goes back to weight
+          if (more && (MORE as readonly string[]).includes(tab)) setTab('weight_kg')
+          setMore(!more)
+        }}
+        className="flex min-h-10 w-full items-center justify-center rounded-xl border border-dashed border-line text-sm font-semibold text-muted"
+      >
+        {t('vitals.charts.more')}
+      </button>
       <fieldset className="space-y-2">
         <legend className="text-sm text-muted">{t('vitals.charts.showPlaces')}</legend>
         <div className="flex flex-wrap gap-2">
@@ -78,21 +94,6 @@ export default function VitalsCharts() {
         </div>
       </fieldset>
       {charts[tab]}
-      {TABS.filter((k) => k !== tab).map((k) => charts[k])}
-      <button
-        type="button"
-        aria-expanded={more}
-        onClick={() => setMore(!more)}
-        className="flex min-h-11 w-full items-center justify-center rounded-xl border border-dashed border-line text-sm font-semibold text-muted"
-      >
-        {t('vitals.charts.more')}
-      </button>
-      {more && (
-        <>
-          <GrowthChart kind="head" hidden={hidden} />
-          <TrendChart measurement="resp_rate" vitals={vitals} />
-        </>
-      )}
     </div>
   )
 }
