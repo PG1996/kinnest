@@ -3,6 +3,7 @@ import { useThemeSync } from '../lib/theme'
 import { useSync } from '../offline/useSync'
 import GlassNav from './GlassNav'
 import OfflineBanner from './OfflineBanner'
+import ParentSetup from './ParentSetup'
 
 export default function Layout() {
   useSync()
@@ -14,6 +15,7 @@ export default function Layout() {
         <Outlet />
       </main>
       <GlassNav />
+      <ParentSetup />
     </div>
   )
 }

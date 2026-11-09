@@ -1,13 +1,13 @@
 import { Timer } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useKid, useMe, useMembers, type Feed, type FeedType } from '../api/hooks'
+import { useKid, useMe, type Feed, type FeedType } from '../api/hooks'
 import type { FeedInput } from '../hooks/log'
 import { cn } from '../lib/cn'
 import { formatAgo, formatTime, toLocalInput } from '../lib/time'
 import Sheet from './Sheet'
 import { Button } from './ui/button'
-import { Chip, ChipGroup } from './ui/chip'
+import FedBy from './FedBy'
 import { Input } from './ui/field'
 import { Stepper } from './ui/stepper'
 
@@ -22,8 +22,6 @@ type Props = { last: Feed | null; saving: boolean; failed: boolean; onSave: (f: 
 export default function FeedSheet({ last, saving, failed, onSave, onClose }: Props) {
   const { t } = useTranslation()
   const me = useMe().data
-  const rows = useMembers().data
-  const people = (Array.isArray(rows) ? rows : []).filter((m) => !m.pending && m.user_id)
   const interval = useKid().data?.feed_interval_minutes
   const [type, setType] = useState<FeedType>(last?.type ?? 'breast_both')
   const [initialWhen] = useState(() => toLocalInput(new Date()))
@@ -68,7 +66,7 @@ export default function FeedSheet({ last, saving, failed, onSave, onClose }: Pro
       duration_min: !isBottle && (runMinutes ?? (duration ? Number(duration) : null)) != null ? (runMinutes ?? Number(duration)) : undefined,
       quantity_ml: isBottle ? ml : undefined,
       note: note || undefined,
-      ...(fedBy && me && fedBy !== me.user.id ? { fed_by_user_id: fedBy } : {}),
+      ...(!isBottle && type.startsWith('breast') ? {} : fedBy && me && fedBy !== me.user.id ? { fed_by_user_id: fedBy } : {}),
     })
   }
 
@@ -129,15 +127,7 @@ export default function FeedSheet({ last, saving, failed, onSave, onClose }: Pro
           </div>
         )}
 
-        {people.length > 1 && (
-          <ChipGroup label={t('home.fedBy')}>
-            {people.map((m) => (
-              <Chip key={m.user_id} pressed={fedBy === m.user_id} onClick={() => setBy(m.user_id)}>
-                {m.name || m.email}
-              </Chip>
-            ))}
-          </ChipGroup>
-        )}
+        <FedBy type={type} value={by} onChange={setBy} />
 
         <div className="space-y-2">
           <label htmlFor="feed-time" className="block text-[13px] font-semibold text-muted">
