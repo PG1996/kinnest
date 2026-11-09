@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from pydantic import AwareDatetime, BaseModel, Field, ValidationError, field_validator, model_validator
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -187,7 +187,7 @@ def medicine_json(
         "min_gap_hours": m.min_gap_hours,
         "max_per_day": m.max_per_day,
         "day_start": m.day_start,
-        "given_last_24h": sum(1 for d in doses if d.status == "given" and now - timedelta(hours=24) <= d.given_at <= now),
+        "given_last_24h": _distinct_doses([d for d in doses if d.status == "given" and now - timedelta(hours=24) <= d.given_at <= now]),
         "start_date": m.start_date.isoformat(),
         "end_date": m.end_date.isoformat() if m.end_date else None,
         "notes": m.notes,
@@ -303,16 +303,24 @@ def _refused(detail: str, remaining: Decimal | None) -> JSONResponse:
     return JSONResponse(status_code=409, content={"detail": detail, "remaining": _num(remaining)})
 
 
+def _distinct_doses(doses: list[MedicineDose]) -> int:
+    """How many doses these pieces make: pieces of one dose slot are one dose; a dose with no slot stands alone."""
+    return len({d.scheduled_for if d.scheduled_for is not None else d.id for d in doses})
+
+
 def _max_warning(db: Session, med: Medicine, dose: MedicineDose) -> dict | None:
     """Set when this dose is more than the medicine's daily maximum allows (the 24 hours up to it). Only ever a warning."""
     if med.max_per_day is None or dose.status != "given":
         return None
-    count = db.scalar(
-        select(func.count()).select_from(MedicineDose).where(
+    others = db.scalars(
+        select(MedicineDose).where(
             MedicineDose.medicine_id == med.id, MedicineDose.deleted_at.is_(None), MedicineDose.status == "given",
             MedicineDose.id != dose.id, MedicineDose.given_at > dose.given_at - timedelta(hours=24), MedicineDose.given_at <= dose.given_at,
         )
-    )
+    ).all()
+    if dose.scheduled_for is not None and any(o.scheduled_for == dose.scheduled_for for o in others):
+        return None  # one more piece of a dose that is already counted
+    count = _distinct_doses(list(others))
     return {"count": count, "max": med.max_per_day} if count >= med.max_per_day else None
 
 
