@@ -187,3 +187,15 @@ def test_no_warning_without_a_maximum(family, clock):
     for h in (9, 6, 3):
         r = give(family.mom, m, dose_body(given_at=(clock.now - timedelta(hours=h)).isoformat()))
         assert r.json().get("max_warning") is None
+
+
+def test_a_dose_given_in_pieces_counts_once_towards_the_maximum(family, clock):
+    from tests.test_medicines import syrup
+
+    m = make(family.owner, {**syrup(clock), "schedule_kind": "interval", "times": [], "interval_hours": 8, "first_dose_at": clock.at(9).isoformat(), "max_per_day": 2, "day_start": "09:00"})
+    slot = listing(family.owner)[0]["slots"][0]["due_at"]
+    a = give(family.mom, m, {"id": str(uuid.uuid4()), "status": "given", "amount": 0.25, "scheduled_for": slot, "given_at": clock.at(9, 5).isoformat()})
+    b = give(family.mom, m, {"id": str(uuid.uuid4()), "status": "given", "amount": 0.25, "scheduled_for": slot, "given_at": clock.at(9, 20).isoformat()})
+    assert a.status_code == 201 and b.status_code == 201
+    assert listing(family.owner)[0]["given_last_24h"] == 1
+    assert b.json().get("max_warning") is None  # the second piece of the same dose is not a second dose
