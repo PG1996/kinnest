@@ -1,5 +1,5 @@
 import { ChevronRight } from 'lucide-react'
-import { useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
+import { useRef, useState, type MouseEvent, type PointerEvent } from 'react'
 import { cn } from '../../lib/cn'
 
 const THUMB = 48
@@ -7,7 +7,7 @@ const PAD = 4
 
 /**
  * Drag the thumb across to confirm; letting go early springs back. The thumb is also a button, so
- * Enter or Space confirms for keyboard and screen-reader users.
+ * Enter or Space confirms for keyboard and screen-reader users, while an ordinary tap does nothing.
  */
 export function SlideToConfirm({
   label,
@@ -45,12 +45,9 @@ export function SlideToConfirm({
     setX(0)
     if (reached) onConfirm()
   }
-  const key = (e: KeyboardEvent) => {
-    if (disabled) return
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault()
-      onConfirm()
-    }
+  // A pointer tap has detail >= 1 and must not confirm. Enter, Space and screen-reader activation click with detail 0.
+  const click = (e: MouseEvent) => {
+    if (!disabled && e.detail === 0) onConfirm()
   }
 
   return (
@@ -77,7 +74,7 @@ export function SlideToConfirm({
         type="button"
         aria-label={label}
         disabled={disabled}
-        onKeyDown={key}
+        onClick={click}
         className="absolute flex items-center justify-center rounded-full bg-primary text-primary-ink shadow-md"
         style={{
           top: PAD,

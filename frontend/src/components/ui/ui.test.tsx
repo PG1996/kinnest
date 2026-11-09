@@ -81,6 +81,13 @@ test('slide to confirm thumb confirms with Enter', async () => {
   expect(onConfirm).toHaveBeenCalledTimes(1)
 })
 
+test('a plain tap on the slide thumb does not confirm', async () => {
+  const onConfirm = vi.fn()
+  wrap(<SlideToConfirm label="Slide to give" onConfirm={onConfirm} />)
+  await userEvent.click(screen.getByRole('button', { name: 'Slide to give' }))
+  expect(onConfirm).not.toHaveBeenCalled()
+})
+
 test('slide to confirm does nothing when disabled', async () => {
   const onConfirm = vi.fn()
   wrap(<SlideToConfirm label="Slide to give" onConfirm={onConfirm} disabled />)

@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import en from '../i18n/en.json'
 import { formatClock } from '../lib/time'
@@ -35,6 +35,8 @@ const base = (medicines: object[], me = ME_ADMIN) => ({
 })
 const posted = (over: object = {}) => ({ status: 201, body: { id: 'x', by_name: 'Owner', gap_warning: null, slot: { status: 'given', given_amount: 5, remaining: 0 }, ...over } })
 const doseCall = (calls: { key: string; body: unknown }[], id = 'm1') => calls.find((c) => c.key === `POST /api/medicines/${id}/doses`)?.body as Record<string, unknown>
+/** Confirms the dose the way a keyboard or screen reader does: the slide thumb activated without a drag. */
+const slide = (scope: ReturnType<typeof within> | typeof screen = screen) => fireEvent.click(scope.getByRole('button', { name: /Slide to give/ }))
 const sent = (calls: { key: string }[], key: string) => calls.some((c) => c.key === key)
 
 // --- structured doses: full, partial, progress ------------------------------------------------------------------
@@ -62,24 +64,75 @@ test('a partly given slot shows its progress and full dose posts only what is le
   await waitFor(() => expect(doseCall(calls)).toMatchObject({ amount: 0.75, scheduled_for: s.due_at }))
 })
 
-test('the partial sheet posts the typed amount and refuses more than is left', async () => {
+test('the partial screen starts at half, steps up to what is left, and slides to give', async () => {
   const calls = mockApi({ ...base([syrup()]), 'POST /api/medicines/m1/doses': posted({ slot: { status: 'partial', given_amount: 0.25, remaining: 0.75 } }) })
   renderApp(<Home />)
   await userEvent.click(await screen.findByRole('button', { name: en.medicines.givePartial }))
-  const dialog = await screen.findByRole('dialog')
+  const dialog = await screen.findByRole('dialog', { name: en.medicines.giveTitle })
   const amount = within(dialog).getByLabelText(en.medicines.amountLabel)
-  expect(amount).toHaveValue(0.5) // half of what is left to start with
-  for (const bad of ['', '0', '1.01', '0.001', '-1']) {
-    await userEvent.clear(amount)
-    if (bad) await userEvent.type(amount, bad)
-    await userEvent.click(within(dialog).getByRole('button', { name: en.medicines.giveAmount }))
-    expect(await within(dialog).findByText(en.medicines.amountInvalid), bad).toBeInTheDocument()
-  }
-  expect(sent(calls, 'POST /api/medicines/m1/doses')).toBe(false)
-  await userEvent.clear(amount)
-  await userEvent.type(amount, '0.25')
-  await userEvent.click(within(dialog).getByRole('button', { name: en.medicines.giveAmount }))
+  expect(amount).toHaveTextContent('0.5') // half of what is left to start with
+  const more = within(dialog).getByRole('button', { name: /\+0\.25 ml/ })
+  await userEvent.click(more)
+  await userEvent.click(more)
+  expect(amount).toHaveTextContent('1')
+  expect(more).toBeDisabled() // never more than what is left
+  const less = within(dialog).getByRole('button', { name: /−0\.25 ml/ })
+  for (let i = 0; i < 5; i++) if (!less.hasAttribute('disabled')) await userEvent.click(less)
+  expect(amount).toHaveTextContent('0.25')
+  expect(less).toBeDisabled()
+  expect(sent(calls, 'POST /api/medicines/m1/doses')).toBe(false) // nothing is posted before the slide
+  slide(within(dialog))
   await waitFor(() => expect(doseCall(calls)).toMatchObject({ status: 'given', amount: 0.25 }))
+})
+
+test('a plain tap on the slide thumb does not give the dose', async () => {
+  const calls = mockApi({ ...base([syrup()]), 'POST /api/medicines/m1/doses': posted() })
+  renderApp(<Home />)
+  await userEvent.click(await screen.findByRole('button', { name: en.medicines.givePartial }))
+  const dialog = await screen.findByRole('dialog', { name: en.medicines.giveTitle })
+  await userEvent.click(within(dialog).getByRole('button', { name: /Slide to give/ }))
+  expect(sent(calls, 'POST /api/medicines/m1/doses')).toBe(false)
+})
+
+test('choosing Full on the dose screen gives what is left', async () => {
+  const s = slot({ status: 'partial', given_amount: 0.25, remaining: 0.75, doses: [piece()] })
+  const calls = mockApi({ ...base([syrup({ ...s, remaining: 0.75 })]), 'POST /api/medicines/m1/doses': posted() })
+  renderApp(<Home />)
+  await userEvent.click(await screen.findByRole('button', { name: en.medicines.givePartial }))
+  const dialog = await screen.findByRole('dialog', { name: en.medicines.giveTitle })
+  expect(dialog).toHaveTextContent(text(en.medicines.progress, { given: '0.25 ml', total: '1 ml', left: '0.75 ml' }))
+  await userEvent.click(within(dialog).getByRole('radio', { name: text(en.medicines.fullLeft, { left: '0.75 ml' }) }))
+  slide(within(dialog))
+  await waitFor(() => expect(doseCall(calls)).toMatchObject({ status: 'given', amount: 0.75, scheduled_for: s.due_at }))
+})
+
+test('skip from the dose screen posts a skip', async () => {
+  const s = slot({ remaining: 1 })
+  const calls = mockApi({ ...base([syrup(s)]), 'POST /api/medicines/m1/doses': posted({ slot: { status: 'skipped', given_amount: 0, remaining: 1 } }) })
+  renderApp(<Home />)
+  await userEvent.click(await screen.findByRole('button', { name: en.medicines.givePartial }))
+  const dialog = await screen.findByRole('dialog', { name: en.medicines.giveTitle })
+  await userEvent.click(within(dialog).getByRole('button', { name: en.medicines.skip }))
+  await waitFor(() => expect(doseCall(calls)).toMatchObject({ status: 'skipped', scheduled_for: s.due_at }))
+})
+
+test('a reminder chosen on the dose screen is created at once and the reminder sheet does not appear', async () => {
+  const s = slot({ remaining: 1 })
+  const calls = mockApi({
+    ...base([syrup(s)]),
+    'POST /api/medicines/m1/doses': posted({ slot: { status: 'partial', given_amount: 0.5, remaining: 0.5 } }),
+    'POST /api/medicines/m1/nudges': { status: 201, body: { id: 'n1' } },
+  })
+  renderApp(<Home />)
+  await userEvent.click(await screen.findByRole('button', { name: en.medicines.givePartial }))
+  const dialog = await screen.findByRole('dialog', { name: en.medicines.giveTitle })
+  await userEvent.click(within(dialog).getByRole('button', { name: text(en.medicines.nudgeIn, { minutes: '30' }) }))
+  slide(within(dialog))
+  await waitFor(() => expect(sent(calls, 'POST /api/medicines/m1/nudges')).toBe(true))
+  const body = calls.find((c) => c.key === 'POST /api/medicines/m1/nudges')!.body as { remind_at: string; scheduled_for: string }
+  expect(body.scheduled_for).toBe(s.due_at)
+  expect(Date.parse(body.remind_at) - Date.now()).toBeGreaterThan(29 * 60_000)
+  expect(screen.queryByRole('dialog', { name: en.medicines.nudgeTitle })).not.toBeInTheDocument()
 })
 
 test('after a partial dose the reminder sheet offers five times and posts the chosen one', async () => {
@@ -91,7 +144,7 @@ test('after a partial dose the reminder sheet offers five times and posts the ch
   })
   renderApp(<Home />)
   await userEvent.click(await screen.findByRole('button', { name: en.medicines.givePartial }))
-  await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: en.medicines.giveAmount }))
+  slide(within(await screen.findByRole('dialog')))
   const dialog = await screen.findByRole('dialog', { name: en.medicines.nudgeTitle })
   expect(dialog).toHaveTextContent('0.75 ml')
   for (const minutes of [5, 10, 15, 30, 60]) {
@@ -114,7 +167,7 @@ test('declining the reminder posts nothing, and a complete dose offers none', as
   })
   renderApp(<Home />)
   await userEvent.click(await screen.findByRole('button', { name: en.medicines.givePartial }))
-  await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: en.medicines.giveAmount }))
+  slide(within(await screen.findByRole('dialog')))
   await userEvent.click(await screen.findByRole('button', { name: en.medicines.nudgeNo }))
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(sent(calls, 'POST /api/medicines/m1/nudges')).toBe(false)
@@ -190,20 +243,23 @@ test('as-needed offers full or partial; full posts the whole dose with no slot',
   expect(doseCall(calls, 'm2')).not.toHaveProperty('scheduled_for')
 })
 
-test('as-needed partial posts the typed amount and cannot exceed one dose', async () => {
+test('as-needed partial steps within one dose and posts the chosen amount', async () => {
   const calls = mockApi({ ...base([asNeeded(8 * 60)]), 'POST /api/medicines/m2/doses': posted() })
   renderApp(<Home />)
   await userEvent.click(await screen.findByRole('button', { name: en.medicines.givePartial }))
-  const dialog = await screen.findByRole('dialog')
+  const dialog = await screen.findByRole('dialog', { name: en.medicines.giveTitle })
   const amount = within(dialog).getByLabelText(en.medicines.amountLabel)
-  await userEvent.clear(amount)
-  await userEvent.type(amount, '2')
-  await userEvent.click(within(dialog).getByRole('button', { name: en.medicines.giveAmount }))
-  expect(await within(dialog).findByText(en.medicines.amountInvalid)).toBeInTheDocument()
-  await userEvent.clear(amount)
-  await userEvent.type(amount, '0.5')
-  await userEvent.click(within(dialog).getByRole('button', { name: en.medicines.giveAmount }))
-  await waitFor(() => expect(doseCall(calls, 'm2')).toMatchObject({ amount: 0.5 }))
+  const more = within(dialog).getByRole('button', { name: /\+0\.25 ml/ })
+  for (let i = 0; i < 5; i++) if (!more.hasAttribute('disabled')) await userEvent.click(more)
+  expect(amount).toHaveTextContent('1.5') // one dose at most
+  expect(more).toBeDisabled()
+  const less = within(dialog).getByRole('button', { name: /−0\.25 ml/ })
+  await userEvent.click(less)
+  await userEvent.click(less)
+  await userEvent.click(less)
+  expect(amount).toHaveTextContent('0.75')
+  slide(within(dialog))
+  await waitFor(() => expect(doseCall(calls, 'm2')).toMatchObject({ amount: 0.75 }))
 })
 
 test('as-needed inside the minimum gap still asks to confirm before posting', async () => {
