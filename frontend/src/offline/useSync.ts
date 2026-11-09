@@ -9,7 +9,7 @@ export function useSync() {
     const run = async () => {
       const result = await flush().catch(() => null)
       // the flush runs outside the mutation path, so refresh everything an entry can appear in
-      if (result?.sent) for (const key of ['summary', 'timeline', 'medicines', 'vitals', 'growth', 'diapers', 'sleep']) qc.invalidateQueries({ queryKey: [key] })
+      if (result?.sent) for (const key of ['summary', 'timeline', 'medicines', 'vitals', 'growth', 'diapers', 'sleep', 'visits', 'feeds']) qc.invalidateQueries({ queryKey: [key] })
     }
     const onVisible = () => document.visibilityState === 'visible' && run()
     run()

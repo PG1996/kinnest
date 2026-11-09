@@ -1,12 +1,12 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { PlaceKind, Vital, VitalInput } from '../api/hooks'
+import { useVisits, type PlaceKind, type Vital, type VitalInput } from '../api/hooks'
 import { cn } from '../lib/cn'
-import { toLocalInput } from '../lib/time'
+import { formatTime, toLocalInput } from '../lib/time'
 import { MAIN_KEYS, MEASUREMENTS, MORE_KEYS, shownRange, shownUnit, shownValue, storedValue, validateVital, type MeasurementKey } from '../lib/vitals'
 import { PLACES } from '../lib/vitalsFormat'
 import { Button } from './ui/button'
-import { Input } from './ui/field'
+import { Input, Select } from './ui/field'
 
 const chipClass = (on: boolean) =>
   cn('min-h-10 rounded-full border px-3 text-sm', on ? 'border-primary bg-primary text-primary-ink' : 'border-line')
@@ -35,6 +35,14 @@ export default function VitalForm({
   const [placeName, setPlaceName] = useState(initial?.place_name ?? '')
   const [measuredBy, setMeasuredBy] = useState(initial?.measured_by ?? '')
   const [note, setNote] = useState(initial?.note ?? '')
+  // the visit this reading belongs to: '' none, 'new' make one, or a visit id; untouched, a visit that day is suggested
+  const [visitPick, setVisitPick] = useState<string | null>(initial ? (initial.visit_id ?? '') : null)
+  const visits = useVisits().data
+  const atVisit = place !== 'home'
+  const sameDay = (iso: string) => new Date(iso).toDateString() === new Date(when).toDateString()
+  const dayVisits = (Array.isArray(visits) ? visits : []).filter((v) => v.status !== 'cancelled' && (sameDay(v.scheduled_at) || v.id === initial?.visit_id))
+  const suggested = dayVisits.find((v) => placeName && v.place.toLowerCase() === placeName.trim().toLowerCase()) ?? dayVisits[0]
+  const visitValue = visitPick ?? suggested?.id ?? ''
   const [errors, setErrors] = useState<Record<string, string>>({})
   // heart rate, breathing rate and SpO2 are clinic readings: hidden unless asked for or already filled in
   const [more, setMore] = useState(() => MORE_KEYS.some((k) => initial?.[k] != null))
@@ -56,6 +64,8 @@ export default function VitalForm({
       place_name: placeName.trim(),
       measured_by: measuredBy.trim(),
       note: note.trim(),
+      visit_id: atVisit && visitValue && visitValue !== 'new' ? visitValue : null,
+      create_visit: atVisit && visitValue === 'new',
     }
     for (const m of MEASUREMENTS) {
       const raw = values[m.key].trim().replace(',', '.')
@@ -131,6 +141,22 @@ export default function VitalForm({
         </label>
         <Input id="vital-place-name" value={placeName} maxLength={120} onChange={(e) => setPlaceName(e.target.value)} />
       </div>
+      {atVisit && (
+        <div>
+          <label htmlFor="vital-visit" className="block text-sm text-muted">
+            {t('vitals.form.visit')}
+          </label>
+          <Select id="vital-visit" value={visitValue} onChange={(e) => setVisitPick(e.target.value)}>
+            <option value="">{t('vitals.form.noVisit')}</option>
+            {dayVisits.map((v) => (
+              <option key={v.id} value={v.id}>
+                {t('vitals.form.visitOption', { time: formatTime(v.scheduled_at), who: [v.doctor, v.place].filter(Boolean).join(', ') || v.reason })}
+              </option>
+            ))}
+            <option value="new">{t('vitals.form.newVisit')}</option>
+          </Select>
+        </div>
+      )}
       <div>
         <label htmlFor="vital-measured-by" className="block text-sm text-muted">
           {t('vitals.form.measuredBy')}

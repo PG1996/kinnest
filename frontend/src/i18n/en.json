@@ -423,7 +423,11 @@
       "note": "Note",
       "save": "Save",
       "range": "{{min}}–{{max}} {{unit}}",
-      "more": "More vitals"
+      "more": "More vitals",
+      "visit": "Visit",
+      "noVisit": "No visit",
+      "newVisit": "Create a visit for this",
+      "visitOption": "{{time}} · {{who}}"
     },
     "list": {
       "edit": "Edit",
@@ -574,7 +578,8 @@
       "save": "Save",
       "invalid": "Enter the date and time"
     },
-    "restore": "Back to upcoming"
+    "restore": "Back to upcoming",
+    "vitalsLabel": "Readings: {{values}}"
   },
   "upcoming": {
     "title": "Coming up",
