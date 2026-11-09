@@ -28,8 +28,10 @@ export function Stepper({
       <button type="button" className={btn} disabled={value <= min} aria-label={`${label} −${step} ${unit}`} onClick={() => onChange(Math.max(min, round(value - step)))}>
         <Minus size={24} />
       </button>
-      <p className="flex items-baseline gap-1.5" aria-live="polite">
-        <span className="text-5xl font-extrabold tabular-nums">{format(value)}</span>
+      <p className="flex items-baseline gap-1.5">
+        <output aria-label={label} className="text-5xl font-extrabold tabular-nums">
+          {format(value)}
+        </output>
         <span className="text-xl font-bold text-muted">{unit}</span>
       </p>
       <button type="button" className={btn} disabled={value >= max} aria-label={`${label} +${step} ${unit}`} onClick={() => onChange(Math.min(max, round(value + step)))}>

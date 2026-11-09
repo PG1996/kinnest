@@ -94,7 +94,7 @@ test('feed sheet is prefilled from the last feed and saves in one tap', async ()
   const calls = mockApi({ ...base(), 'POST /api/feeds': { status: 201, body: { id: 'x', recent_other: null } } })
   renderApp(<Home />)
   await userEvent.click(await screen.findByRole('button', { name: en.home.feed }))
-  expect(screen.getByLabelText(en.home.amount)).toHaveValue(60)
+  expect(screen.getByLabelText(en.home.amount)).toHaveTextContent('60')
   await userEvent.click(screen.getByRole('button', { name: en.home.saveFeed }))
   await waitFor(() => expect(calls.some((c) => c.key === 'POST /api/feeds')).toBe(true))
   const body = calls.find((c) => c.key === 'POST /api/feeds')!.body as Record<string, unknown>
