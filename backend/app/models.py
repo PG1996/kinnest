@@ -73,16 +73,25 @@ class User(Base):
         return value.strip().lower()
 
 
+RELATIONS = ("mom", "dad", "grandparent", "relative", "nanny", "other")
+PARENT_RELATIONS = ("mom", "dad")
+
+
 class Membership(Base):
     __tablename__ = "memberships"
     __table_args__ = (
         UniqueConstraint("family_id", "user_id"),
         CheckConstraint("role in ('admin','caregiver','viewer')", name="ck_membership_role"),
+        CheckConstraint("relation is null or relation in ('mom','dad','grandparent','relative','nanny','other')", name="ck_membership_relation"),
+        # one mom and one dad per family
+        Index("uq_membership_parent", "family_id", "relation", unique=True, postgresql_where=text("relation in ('mom','dad')")),
     )
     id: Mapped[uuid.UUID] = _pk()
     family_id: Mapped[uuid.UUID] = _fk("families")
     user_id: Mapped[uuid.UUID] = _fk("users")
     role: Mapped[str] = mapped_column(String(20))
+    # how this person is related to the baby; optional, except that one of mom or dad must exist
+    relation: Mapped[str | None] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = _created()
 
 
@@ -90,11 +99,13 @@ class Invite(Base):
     __tablename__ = "invites"
     __table_args__ = (
         CheckConstraint("role in ('admin','caregiver','viewer')", name="ck_invite_role"),
+        CheckConstraint("relation is null or relation in ('mom','dad','grandparent','relative','nanny','other')", name="ck_invite_relation"),
     )
     id: Mapped[uuid.UUID] = _pk()
     family_id: Mapped[uuid.UUID] = _fk("families")
     email: Mapped[str] = mapped_column(String(320), index=True)
     role: Mapped[str] = mapped_column(String(20))
+    relation: Mapped[str | None] = mapped_column(String(20), nullable=True)
     accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = _created()
 

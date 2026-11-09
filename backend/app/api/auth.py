@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, EmailStr
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.family import parents
 from app.auth import google
 from app.auth.deps import Member, current_member
 from app.auth.google import fetch_google_identity
@@ -10,6 +12,7 @@ from app.auth.magic_link import consume_magic_token, send_magic_link
 from app.auth.service import complete_login, login_allowed
 from app.auth.sessions import COOKIE_NAME, MAX_AGE, make_session_value
 from app.config import Settings, get_settings
+from app.models import Membership
 from app.db import get_session
 
 router = APIRouter(prefix="/api")
@@ -75,8 +78,12 @@ def logout(response: Response) -> dict[str, bool]:
 
 
 @router.get("/me")
-def me(member: Member = Depends(current_member)) -> dict:
+def me(member: Member = Depends(current_member), db: Session = Depends(get_session)) -> dict:
+    mine = db.scalar(select(Membership).where(Membership.user_id == member.user.id))
     return {
+        "relation": mine.relation if mine else None,
+        # a family needs a mom or a dad before it is set up; the app asks the admin for it
+        "needs_parent": not parents(db, member.family_id),
         "user": {"id": str(member.user.id), "email": member.user.email, "name": member.user.name},
         "family_id": str(member.family_id),
         "kid_id": str(member.kid_id),
