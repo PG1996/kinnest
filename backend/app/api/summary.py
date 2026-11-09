@@ -12,6 +12,7 @@ from app.config import Settings, get_settings
 from app.db import get_session
 from app.models import Kid
 from app.services.entries import user_names
+from app.api.feed_timer import active_timer, render as render_timer
 from app.services.summary import build_summary, latest_vitals, previous_vitals
 
 router = APIRouter(prefix="/api")
@@ -41,6 +42,7 @@ def summary(
             "open": sleep_json(s.open_sleep, names) if s.open_sleep else None,
             "last": sleep_json(s.last_sleep, names) if s.last_sleep else None,
         },
+        "feed_timer": render_timer(db, running) if (running := active_timer(db, member.kid_id)) else None,
         "vitals": {
             "latest": {k: vital_json(v, names) if v else None for k, v in vitals.items()},
             "previous": previous_vitals(db, member.kid_id),

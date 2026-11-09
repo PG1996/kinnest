@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.deps import Member, current_member, require_caregiver
 from app.db import get_session
-from app.models import Feed
+from app.models import Feed, FeedTimer
 from app.services.entries import ensure_feeder, moms_user_id, recent_other, reject_future, user_names
 
 router = APIRouter(prefix="/api")
@@ -26,6 +26,8 @@ class FeedIn(BaseModel):
     quantity_ml: int | None = Field(default=None, ge=0, le=2000)
     note: str = ""
     fed_by_user_id: uuid.UUID | None = None
+    # the running feed timer this feed was timed with: saving the feed ends the timer
+    timer_id: uuid.UUID | None = None
 
 
 class FeedPatch(BaseModel):
@@ -81,6 +83,10 @@ def create_feed(
     )
     warning = recent_other(db, Feed, member.kid_id, me, body.id)
     db.add(feed)
+    if body.timer_id:
+        timer = db.get(FeedTimer, body.timer_id)
+        if timer is not None and timer.family_id == member.family_id:
+            db.delete(timer)
     try:
         db.commit()
     except IntegrityError:  # another request stored this id between our lookup and insert
