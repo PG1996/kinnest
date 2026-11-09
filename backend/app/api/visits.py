@@ -4,12 +4,13 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import AwareDatetime, BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.auth.deps import Member, current_member, require_caregiver
 from app.db import get_session
-from app.models import DoctorVisit
+from app.api.vitals import vital_json
+from app.models import DoctorVisit, VitalEntry
 
 router = APIRouter(prefix="/api")
 
@@ -36,8 +37,9 @@ class VisitPatch(BaseModel):
     prescription_notes: str | None = Field(default=None, max_length=5000)
 
 
-def visit_json(v: DoctorVisit) -> dict:
+def visit_json(v: DoctorVisit, vitals: list[dict] | None = None) -> dict:
     return {
+        "vitals": vitals or [],
         "id": str(v.id),
         "scheduled_at": v.scheduled_at.isoformat(),
         "doctor": v.doctor,
@@ -75,7 +77,14 @@ def list_visits(
     # upcoming first, soonest first; then done and cancelled, newest first
     upcoming = sorted((r for r in rows if r.status == "upcoming"), key=lambda r: r.scheduled_at)
     past = sorted((r for r in rows if r.status != "upcoming"), key=lambda r: r.scheduled_at, reverse=True)
-    return [visit_json(r) for r in upcoming + past]
+    # the readings taken at each visit
+    linked: dict = {}
+    if rows:
+        for e in db.scalars(
+            select(VitalEntry).where(VitalEntry.visit_id.in_([r.id for r in rows]), VitalEntry.deleted_at.is_(None)).order_by(VitalEntry.measured_at)
+        ):
+            linked.setdefault(e.visit_id, []).append(vital_json(e, {}))
+    return [visit_json(r, linked.get(r.id)) for r in upcoming + past]
 
 
 @router.post("/visits", status_code=201)
@@ -108,6 +117,8 @@ def delete_visit(
 ) -> dict[str, bool]:
     v = _one(db, member, visit_id)
     v.deleted_at = datetime.now(UTC)
+    # its readings stay, without the link
+    db.execute(update(VitalEntry).where(VitalEntry.visit_id == v.id).values(visit_id=None))
     v.updated_by = member.user.id
     db.commit()
     return {"ok": True}

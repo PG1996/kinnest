@@ -15,7 +15,7 @@ from app.auth.deps import Member, current_member, require_caregiver
 from app.clock import get_now
 from app.config import Settings, get_settings
 from app.db import get_session
-from app.models import Kid, VitalEntry
+from app.models import DoctorVisit, Kid, VitalEntry
 from app.services import who
 from app.services.entries import MAX_FUTURE, user_names
 
@@ -49,12 +49,15 @@ class VitalFields(BaseModel):
     heart_rate: int | None = None
     resp_rate: int | None = None
     spo2: int | None = None
+    visit_id: uuid.UUID | None = None
 
 
 class VitalIn(VitalFields):
     id: uuid.UUID
     measured_at: AwareDatetime
     place_kind: PlaceKind = "home"
+    # make a done visit at this reading's place and time, and link the reading to it
+    create_visit: bool = False
 
 
 class VitalPatch(BaseModel):
@@ -70,10 +73,35 @@ class VitalPatch(BaseModel):
     heart_rate: int | None = None
     resp_rate: int | None = None
     spo2: int | None = None
+    visit_id: uuid.UUID | None = None
+    create_visit: bool = False
 
 
 class BulkIn(BaseModel):
     entries: list[dict]
+
+
+def check_visit(db: Session, member: Member, place_kind: str, visit_id: uuid.UUID | None, create: bool) -> str | None:
+    """A reading taken at home has no visit; a named visit must be this family's and not deleted."""
+    if (visit_id or create) and place_kind == "home":
+        return "a reading at home cannot belong to a visit"
+    if visit_id:
+        v = db.get(DoctorVisit, visit_id)
+        if v is None or v.family_id != member.family_id or v.deleted_at is not None:
+            return "unknown visit"
+    return None
+
+
+def _visit_for(db: Session, member: Member, row: VitalEntry) -> None:
+    """Create the done visit a reading asked for and link it."""
+    me = member.user.id
+    visit = DoctorVisit(
+        family_id=member.family_id, kid_id=member.kid_id, scheduled_at=row.measured_at, place=row.place_name,
+        status="done", created_by=me, updated_by=me,
+    )
+    db.add(visit)
+    db.flush()
+    row.visit_id = visit.id
 
 
 def _fmt(d: Decimal) -> str:
@@ -124,6 +152,7 @@ def vital_json(v: VitalEntry, names: dict[uuid.UUID, str]) -> dict:
         "measured_by": v.measured_by,
         "note": v.note,
         **{k: _num(getattr(v, k)) for k in KEYS},
+        "visit_id": str(v.visit_id) if v.visit_id else None,
         "entered_by_name": names.get(v.created_by, ""),
     }
 
@@ -137,6 +166,7 @@ def _one(db: Session, member: Member, vital_id: uuid.UUID) -> VitalEntry:
 
 def _new_row(member: Member, data: dict) -> VitalEntry:
     me = member.user.id
+    data = {k: v for k, v in data.items() if k != "create_visit"}
     return VitalEntry(family_id=member.family_id, kid_id=member.kid_id, created_by=me, updated_by=me, **_rounded(data))
 
 
@@ -159,11 +189,15 @@ def create_vital(
     if db.get(VitalEntry, body.id) is not None:
         return existing_or_409()
     data = body.model_dump()
-    problem = check_values(data, db.get(Kid, member.kid_id).birth_date, now, settings.app_timezone)
+    problem = check_values(data, db.get(Kid, member.kid_id).birth_date, now, settings.app_timezone) or check_visit(
+        db, member, body.place_kind, body.visit_id, body.create_visit
+    )
     if problem:
         raise HTTPException(422, problem)
     row = _new_row(member, data)
     db.add(row)
+    if body.create_visit and not body.visit_id:
+        _visit_for(db, member, row)
     try:
         db.commit()
     except IntegrityError:  # another request stored this id between our lookup and insert
@@ -213,7 +247,9 @@ def bulk_vitals(
             if stored[p.id].family_id != member.family_id:
                 errors.append({"index": i, "detail": "id already used"})
             continue  # already saved by an earlier submit: returned unchanged
-        problem = check_values(p.model_dump(), birth, now, settings.app_timezone)
+        problem = check_values(p.model_dump(), birth, now, settings.app_timezone) or check_visit(
+            db, member, p.place_kind, p.visit_id, p.create_visit
+        )
         if problem:
             errors.append({"index": i, "detail": problem})
     if errors:
@@ -227,6 +263,8 @@ def bulk_vitals(
         else:
             row = _new_row(member, p.model_dump())
             db.add(row)
+            if p.create_visit and not p.visit_id:
+                _visit_for(db, member, row)
             rows.append(row)
             created += 1
     try:
@@ -311,12 +349,23 @@ def patch_vital(
     for k in ("measured_at", "place_kind", "place_name", "measured_by", "note"):
         if k in changes and changes[k] is None:
             raise HTTPException(422, f"{k} cannot be empty")
+    create = changes.pop("create_visit", False)
+    place = changes.get("place_kind", row.place_kind)
+    if place == "home":
+        # moving a reading home drops its visit
+        if "visit_id" in changes and changes["visit_id"] or create:
+            raise HTTPException(422, "a reading at home cannot belong to a visit")
+        changes["visit_id"] = None
     merged = {k: getattr(row, k) for k in ("measured_at", *KEYS)} | changes
-    problem = check_values(merged, db.get(Kid, member.kid_id).birth_date, now, settings.app_timezone)
+    problem = check_values(merged, db.get(Kid, member.kid_id).birth_date, now, settings.app_timezone) or check_visit(
+        db, member, place, changes.get("visit_id"), False
+    )
     if problem:
         raise HTTPException(422, problem)
     for k, v in _rounded(changes).items():
         setattr(row, k, v)
+    if create and not changes.get("visit_id"):
+        _visit_for(db, member, row)
     row.updated_by = member.user.id
     db.commit()
     return vital_json(row, user_names(db, {row.created_by}))
