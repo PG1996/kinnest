@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
@@ -24,6 +24,16 @@ class SleepStart(BaseModel):
 
 class SleepEnd(BaseModel):
     ended_at: AwareDatetime
+
+
+class SleepPast(BaseModel):
+    id: uuid.UUID
+    started_at: AwareDatetime
+    ended_at: AwareDatetime
+    note: str = ""
+
+
+MAX_SLEEP = timedelta(hours=24)
 
 
 class SleepPatch(BaseModel):
@@ -63,6 +73,22 @@ def _one(db: Session, member: Member, sleep_id: uuid.UUID) -> SleepSession:
     return s
 
 
+def _overlapping(db: Session, kid_id: uuid.UUID, start: datetime, end: datetime | None, exclude: uuid.UUID | None) -> SleepSession | None:
+    """Another sleep that shares any time with [start, end); an open one counts as lasting until now."""
+    now = datetime.now(UTC)
+    for other in db.scalars(select(SleepSession).where(SleepSession.kid_id == kid_id, SleepSession.deleted_at.is_(None))):
+        if other.id == exclude:
+            continue
+        other_end = other.ended_at or now
+        if other.started_at < (end or now) and other_end > start:
+            return other
+    return None
+
+
+def _overlap_refusal(db: Session, other: SleepSession) -> JSONResponse:
+    return JSONResponse(status_code=409, content={"detail": "overlaps another sleep", "overlaps": _render(db, other)})
+
+
 def _already_asleep(db: Session, open_session: SleepSession) -> JSONResponse:
     return JSONResponse(status_code=409, content={"detail": "already asleep", "open": _render(db, open_session)})
 
@@ -98,6 +124,36 @@ def start_sleep(
     return _render(db, s)
 
 
+@router.post("/sleep/past", status_code=201)
+def add_past_sleep(
+    body: SleepPast, response: Response, member: Member = Depends(require_caregiver), db: Session = Depends(get_session)
+):
+    """A sleep that has already ended, logged afterwards. It may not overlap another sleep."""
+    existing = db.get(SleepSession, body.id)
+    if existing is not None:
+        if existing.family_id != member.family_id:
+            raise HTTPException(409, "id already used")
+        response.status_code = 200
+        return _render(db, existing)
+    reject_future(body.started_at)
+    reject_future(body.ended_at)
+    if body.ended_at <= body.started_at:
+        raise HTTPException(422, "a sleep must end after it starts")
+    if body.ended_at - body.started_at > MAX_SLEEP:
+        raise HTTPException(422, "a sleep can be at most 24 hours")
+    other = _overlapping(db, member.kid_id, body.started_at, body.ended_at, None)
+    if other is not None:
+        return _overlap_refusal(db, other)
+    me = member.user.id
+    s = SleepSession(
+        id=body.id, family_id=member.family_id, kid_id=member.kid_id, started_at=body.started_at, ended_at=body.ended_at,
+        started_by_user_id=me, ended_by_user_id=me, note=body.note, created_by=me, updated_by=me,
+    )
+    db.add(s)
+    db.commit()
+    return _render(db, s)
+
+
 @router.post("/sleep/{sleep_id}/end")
 def end_sleep(
     sleep_id: uuid.UUID, body: SleepEnd, member: Member = Depends(require_caregiver), db: Session = Depends(get_session)
@@ -128,6 +184,10 @@ def patch_sleep(
             reject_future(ts)
     if ended is not None and ended < started:
         raise HTTPException(422, "cannot end before it started")
+    if "started_at" in data or "ended_at" in data:
+        other = _overlapping(db, member.kid_id, started, ended, s.id)
+        if other is not None and not (ended is None and other.ended_at is None):
+            return _overlap_refusal(db, other)
     if ended is None and s.ended_at is not None:  # reopening: only one session may be open at a time
         other = _open_session(db, member.kid_id)
         if other is not None and other.id != s.id:
