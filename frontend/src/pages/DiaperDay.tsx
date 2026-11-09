@@ -1,20 +1,20 @@
 import { ChevronLeft, ChevronRight, Droplets } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useDiaperRange, useMe, type Diaper, type DiaperKind } from '../api/hooks'
+import { useDiaperRange, useMe, type DiaperKind } from '../api/hooks'
 import DiaperForm from '../components/DiaperForm'
 import PageHeader from '../components/PageHeader'
+import RowLink from '../components/RowLink'
 import { Button, IconButton } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { EmptyState } from '../components/ui/empty'
-import { useUndoDiaper } from '../hooks/log'
-import { formatTime } from '../lib/time'
+import { formatTime, toLocalDate } from '../lib/time'
 import { useNow } from '../lib/useNow'
 
 const midnight = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
 const KINDS: DiaperKind[] = ['wet', 'dirty', 'both']
 
-/** One day of diapers: counts by kind, the list, and past diapers added, fixed or deleted. */
+/** One day of diapers: counts by kind, the list, and past diapers added. Fixing or deleting one happens in the timeline. */
 export default function DiaperDay() {
   const { t } = useTranslation()
   const canEdit = (useMe().data?.role ?? 'viewer') !== 'viewer'
@@ -26,9 +26,7 @@ export default function DiaperDay() {
   const rows = (Array.isArray(data) ? data : [])
     .filter((d) => Date.parse(d.at) >= range.from.getTime() && Date.parse(d.at) <= range.to.getTime())
     .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
-  const [form, setForm] = useState<{ diaper?: Diaper } | null>(null)
-  const [confirming, setConfirming] = useState<string | null>(null)
-  const remove = useUndoDiaper()
+  const [form, setForm] = useState(false)
   const shift = (days: number) => setDay(new Date(day.getFullYear(), day.getMonth(), day.getDate() + days))
   const label = isToday ? t('timeline.today') : day.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })
   const count = (k: DiaperKind) => rows.filter((r) => r.kind === k).length
@@ -60,7 +58,7 @@ export default function DiaperDay() {
         </div>
       </Card>
       {canEdit && (
-        <Button variant="soft" className="w-full" onClick={() => setForm({})}>
+        <Button variant="soft" className="w-full" onClick={() => setForm(true)}>
           {t('diapers.addPast')}
         </Button>
       )}
@@ -68,40 +66,19 @@ export default function DiaperDay() {
       <ul aria-label={t('diapers.listLabel')} className="space-y-2">
         {rows.map((d) => (
           <li key={d.id}>
-            <Card tone="diaper" className="space-y-1 p-3">
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="font-semibold">{t(`diaperKinds.${d.kind}`)}</span>
-                <span className="text-sm font-semibold text-diaper-ink">{formatTime(d.at)}</span>
-              </div>
-              <p className="text-sm text-muted">{[t('home.by', { name: d.changed_by_name }), d.note].filter(Boolean).join(' · ')}</p>
-              {canEdit && (
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {confirming === d.id ? (
-                    <>
-                      <Button variant="danger" onClick={() => remove.mutate(d.id, { onSuccess: () => setConfirming(null) })}>
-                        {t('diapers.confirmDelete')}
-                      </Button>
-                      <Button variant="ghost" onClick={() => setConfirming(null)}>
-                        {t('diapers.keep')}
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <Button variant="outline" onClick={() => setForm({ diaper: d })}>
-                        {t('diapers.edit')}
-                      </Button>
-                      <Button variant="ghost" onClick={() => setConfirming(d.id)}>
-                        {t('diapers.delete')}
-                      </Button>
-                    </>
-                  )}
+            <RowLink to={`/timeline?day=${toLocalDate(new Date(d.at))}&entry=diaper:${d.id}`} enabled={canEdit} label={t('timeline.edit')}>
+              <Card tone="diaper" className="space-y-1 p-3">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="font-semibold">{t(`diaperKinds.${d.kind}`)}</span>
+                  <span className="text-sm font-semibold text-diaper-ink">{formatTime(d.at)}</span>
                 </div>
-              )}
-            </Card>
+                <p className="text-sm text-muted">{[t('home.by', { name: d.changed_by_name }), d.note].filter(Boolean).join(' · ')}</p>
+              </Card>
+            </RowLink>
           </li>
         ))}
       </ul>
-      {form && <DiaperForm key={form.diaper?.id ?? 'new'} diaper={form.diaper} onClose={() => setForm(null)} />}
+      {form && <DiaperForm onClose={() => setForm(false)} />}
     </>
   )
 }

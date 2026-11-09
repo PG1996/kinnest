@@ -50,6 +50,23 @@ export function useLogFeed() {
   })
 }
 
+export function useUpdateFeed() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...body }: Partial<Omit<FeedInput, 'id' | 'duration_min' | 'quantity_ml'>> & { id: string; duration_min?: number | null; quantity_ml?: number | null }) =>
+      api(`/api/feeds/${id}`, { method: 'PATCH', json: body }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['summary'] }),
+  })
+}
+
+export function useDeleteFeed() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api(`/api/feeds/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['summary'] }),
+  })
+}
+
 const refreshDiapers = (qc: ReturnType<typeof useQueryClient>) => {
   qc.invalidateQueries({ queryKey: ['summary'] })
   qc.invalidateQueries({ queryKey: ['diapers'] })
