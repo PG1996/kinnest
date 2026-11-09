@@ -5,14 +5,14 @@ import { expect, test } from 'vitest'
 import { Button } from './button'
 import { Input, Select } from './field'
 
-test('inputs are 44px tall with 16px text, so they are easy to tap and iPhones do not zoom', () => {
+test('inputs are sleek: 40px tall, with 16px text so iPhones do not zoom', () => {
   render(<Input aria-label="x" />)
   const cls = screen.getByLabelText('x').className
-  expect(cls).toContain('min-h-11')
+  expect(cls).toContain('min-h-10')
   expect(cls).toContain('text-base')
-  expect(cls).not.toContain('min-h-12')
+  expect(cls).not.toContain('min-h-11')
   render(<Select aria-label="y" />)
-  expect(screen.getByLabelText('y').className).toContain('min-h-11')
+  expect(screen.getByLabelText('y').className).toContain('min-h-10')
 })
 
 test('buttons are 44px by default and 48px when large', () => {

@@ -46,7 +46,7 @@ export default function Sheet({
           <IconButton label={t('home.close')} onClick={onClose} className="bg-transparent shadow-none">
             <ChevronLeft size={24} />
           </IconButton>
-          <h2 ref={titleRef} tabIndex={-1} className="text-lg font-bold outline-none">
+          <h2 ref={titleRef} tabIndex={-1} className="text-base font-bold outline-none">
             {title}
           </h2>
         </div>

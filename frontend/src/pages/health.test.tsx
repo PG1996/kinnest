@@ -1,4 +1,5 @@
 import { screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import App from '../App'
 import en from '../i18n/en.json'
 import { ME_ADMIN, ME_VIEWER, mockApi, renderApp } from '../test/utils'
@@ -57,6 +58,7 @@ test('viewer sees no write controls on vaccines, visits or medicines', async () 
   renderApp(<App />, '/health?tab=medicines')
   await screen.findByText(/Vitamin D/)
   expect(screen.queryByRole('button', { name: en.medicines.page.add })).not.toBeInTheDocument()
+  await userEvent.click(screen.getByTestId('medicine-m1'))
   expect(screen.queryByRole('button', { name: en.medicines.page.edit })).not.toBeInTheDocument()
 })
 

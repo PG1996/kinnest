@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import en from '../i18n/en.json'
 import { DOSE_UNITS } from '../lib/units'
@@ -99,7 +99,8 @@ test('caregiver sees the list without add, edit or delete', async () => {
   mockApi(base([med()], { ...ME_ADMIN, role: 'caregiver' }))
   renderApp(<MedicinesPage />, '/medicines')
   expect(await screen.findByText(/Vitamin D/)).toBeInTheDocument()
-  expect(screen.getByText(text(en.medicines.page.fixed, { times: '09:00, 21:00' }))).toBeInTheDocument()
+  await userEvent.click(screen.getByTestId('medicine-m1'))
+  expect(within(await screen.findByRole('dialog', { name: 'Vitamin D' })).getByText(text(en.medicines.page.fixed, { times: '09:00, 21:00' }))).toBeInTheDocument()
   for (const name of [en.medicines.page.add, en.medicines.page.edit, en.medicines.page.delete]) {
     expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
   }
@@ -108,6 +109,7 @@ test('caregiver sees the list without add, edit or delete', async () => {
 test('delete needs a second confirm', async () => {
   const calls = mockApi({ ...base([med()]), 'DELETE /api/medicines/m1': { body: { ok: true } } })
   renderApp(<MedicinesPage />, '/medicines')
+  await userEvent.click(await screen.findByTestId('medicine-m1'))
   await userEvent.click(await screen.findByRole('button', { name: en.medicines.page.delete }))
   expect(calls.some((c) => c.key === 'DELETE /api/medicines/m1')).toBe(false)
   await userEvent.click(screen.getByRole('button', { name: en.medicines.page.confirmDelete }))
@@ -126,6 +128,7 @@ test('past medicines are listed separately', async () => {
 test('editing prefills the form and PATCHes the change', async () => {
   const calls = mockApi({ ...base([med()]), 'PATCH /api/medicines/m1': { body: med({ dose_amount: 7.5, dose_unit: 'mg' }) } })
   renderApp(<MedicinesPage />, '/medicines')
+  await userEvent.click(await screen.findByTestId('medicine-m1'))
   await userEvent.click(await screen.findByRole('button', { name: en.medicines.page.edit }))
   expect(screen.getByLabelText(en.medicines.form.name)).toHaveValue('Vitamin D')
   expect(screen.getByLabelText(text(en.medicines.form.timeN, { n: '2' }))).toHaveValue('21:00')
@@ -193,6 +196,7 @@ test('a medicine saved before structured doses asks for a dose, and editing requ
   const calls = mockApi({ ...base([med({ dose_amount: null, dose_unit: null })]), 'PATCH /api/medicines/m1': { body: med() } })
   renderApp(<MedicinesPage />, '/medicines')
   expect(await screen.findByText(en.medicines.page.setDose)).toBeInTheDocument()
+  await userEvent.click(screen.getByTestId('medicine-m1'))
   await userEvent.click(screen.getByRole('button', { name: en.medicines.page.edit }))
   expect(screen.getByLabelText(en.medicines.form.doseAmount)).toHaveValue(null)
   await save()
@@ -209,4 +213,41 @@ test('the set-a-dose notice is only for the admin', async () => {
   renderApp(<MedicinesPage />, '/medicines')
   await screen.findByText(/Vitamin D/)
   expect(screen.queryByText(en.medicines.page.setDose)).not.toBeInTheDocument()
+})
+
+test('medicines are square tiles, two per row', async () => {
+  mockApi(base([med(), med({ id: 'm2', name: 'Iron' })]))
+  renderApp(<MedicinesPage />, '/medicines')
+  const grid = await screen.findByTestId('medicine-tiles')
+  expect(grid.className).toContain('grid-cols-2')
+  for (const id of ['m1', 'm2']) expect(screen.getByTestId(`medicine-${id}`).className).toContain('aspect-square')
+})
+
+test('tapping a tile opens its details with history, edit and delete', async () => {
+  mockApi(base([med()]))
+  renderApp(<MedicinesPage />, '/medicines')
+  await userEvent.click(await screen.findByTestId('medicine-m1'))
+  const d = await screen.findByRole('dialog', { name: 'Vitamin D' })
+  for (const name of [en.medicines.history.open, en.medicines.page.edit, en.medicines.page.delete]) expect(within(d).getByRole('button', { name })).toBeInTheDocument()
+})
+
+test('Add medicine and Add SOS medicine open the form as a popup', async () => {
+  mockApi(base())
+  renderApp(<MedicinesPage />, '/medicines')
+  await userEvent.click(await screen.findByRole('button', { name: en.medicines.page.add }))
+  const d = await screen.findByRole('dialog', { name: en.medicines.page.add })
+  expect(within(d).getByLabelText(en.medicines.form.name)).toBeInTheDocument()
+  await userEvent.click(within(d).getByRole('button', { name: en.medicines.form.cancel }))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: en.medicines.page.addSos }))
+  expect(await screen.findByRole('dialog', { name: en.medicines.page.addSos })).toBeInTheDocument()
+})
+
+test('saving the popup form closes it', async () => {
+  mockApi({ ...base(), 'POST /api/medicines': created })
+  renderApp(<MedicinesPage />, '/medicines')
+  await openForm()
+  await fillBasics()
+  await save()
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 })
