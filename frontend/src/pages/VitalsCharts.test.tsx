@@ -207,3 +207,27 @@ test('the temperature chart explains the fever line', async () => {
   const chart = await screen.findByRole('figure', { name: en.vitals.measurements.temperature_c })
   expect(within(chart).getByText(en.vitals.charts.feverNote.replace('{{value}}', '38 °C'))).toBeInTheDocument()
 })
+
+test('the five metric tabs scroll sideways instead of squeezing, each with its name over its value', async () => {
+  mockApi(withFull())
+  renderApp(<VitalsCharts />)
+  const tabs = await screen.findAllByRole('tab')
+  expect(tabs).toHaveLength(5)
+  for (const tab of tabs) {
+    expect(tab.className).toContain('shrink-0') // never narrower than its own text
+    expect(tab.className).toContain('whitespace-nowrap')
+  }
+  expect(tabs[0]!.parentElement!.className).toContain('overflow-x-auto')
+  const heart = screen.getByRole('tab', { name: new RegExp(en.vitals.measurements.heart_rate) })
+  await waitFor(() => expect(within(heart).getByTestId('tab-value')).toHaveTextContent('142'))
+  expect(within(heart).getByTestId('tab-name')).toHaveTextContent(en.vitals.measurements.heart_rate)
+})
+
+test('arrow keys still move between the metric tabs', async () => {
+  mockApi(withFull())
+  renderApp(<VitalsCharts />)
+  const first = (await screen.findAllByRole('tab'))[0]!
+  first.focus()
+  await userEvent.keyboard('{ArrowRight}')
+  expect(screen.getByRole('tab', { name: new RegExp(en.vitals.measurements.height_cm), selected: true })).toBeInTheDocument()
+})
