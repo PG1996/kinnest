@@ -21,6 +21,7 @@ const api = (me: object = ME_ADMIN, extra: object = {}) => ({
   'POST /api/diapers': (b: unknown) => ({ status: 201, body: { ...(b as object), changed_by_name: 'Owner', recent_other: null } }),
   'PATCH /api/diapers/d1': (b: unknown) => ({ body: { ...D[0], ...(b as object) } }),
   'DELETE /api/diapers/d1': { body: { ok: true } },
+  'GET /api/timeline': { body: { items: [{ kind: 'diaper', id: 'd1', at: D[0]!.at, data: D[0] }] } },
   ...extra,
 })
 const near = (iso: unknown, when: Date) => Math.abs(Date.parse(String(iso)) - when.getTime()) < 90_000
@@ -88,8 +89,8 @@ test('a time in the future is refused before anything is sent', async () => {
 
 test('editing a diaper sends only what changed', async () => {
   const calls = mockApi(api())
-  renderApp(<App />, '/diapers')
-  await userEvent.click((await screen.findAllByRole('button', { name: en.diapers.edit }))[0]!)
+  renderApp(<App />, '/timeline?entry=diaper:d1')
+  await userEvent.click(await screen.findByRole('button', { name: en.timeline.edit }))
   const form = await screen.findByRole('dialog', { name: en.diapers.editTitle })
   expect(within(form).getByRole('button', { name: en.diaperKinds.wet, pressed: true })).toBeInTheDocument()
   expect(within(form).getByLabelText(en.diapers.form.when)).toHaveValue(toLocalInput(new Date(D[0]!.at)))
@@ -101,8 +102,8 @@ test('editing a diaper sends only what changed', async () => {
 
 test('a new time is sent when it was changed', async () => {
   const calls = mockApi(api())
-  renderApp(<App />, '/diapers')
-  await userEvent.click((await screen.findAllByRole('button', { name: en.diapers.edit }))[0]!)
+  renderApp(<App />, '/timeline?entry=diaper:d1')
+  await userEvent.click(await screen.findByRole('button', { name: en.timeline.edit }))
   const form = await screen.findByRole('dialog', { name: en.diapers.editTitle })
   const when = today(0, 10)
   fireEvent.change(within(form).getByLabelText(en.diapers.form.when), { target: { value: toLocalInput(when) } })
@@ -111,20 +112,18 @@ test('a new time is sent when it was changed', async () => {
   expect(near((calls.find((c) => c.key === 'PATCH /api/diapers/d1')!.body as { at: string }).at, when)).toBe(true)
 })
 
-test('deleting a diaper asks twice', async () => {
-  const calls = mockApi(api())
-  renderApp(<App />, '/diapers')
-  await userEvent.click((await screen.findAllByRole('button', { name: en.diapers.delete }))[0]!)
-  expect(calls.some((c) => c.key === 'DELETE /api/diapers/d1')).toBe(false)
-  await userEvent.click(screen.getByRole('button', { name: en.diapers.confirmDelete }))
-  await waitFor(() => expect(calls.some((c) => c.key === 'DELETE /api/diapers/d1')).toBe(true))
-})
-
-test('a viewer can look but not add, edit or delete', async () => {
+test('diapers on the day open in the timeline to be fixed or deleted, and a viewer cannot', async () => {
+  mockApi(api())
+  const admin = renderApp(<App />, '/diapers')
+  const links = await screen.findAllByRole('link', { name: en.timeline.edit })
+  expect(links[0]).toHaveAttribute('href', expect.stringMatching(/^\/timeline\?day=\d{4}-\d{2}-\d{2}&entry=diaper:d1$/))
+  for (const name of [en.diapers.edit, en.diapers.delete]) expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
+  admin.unmount()
   mockApi(api(ME_VIEWER))
   renderApp(<App />, '/diapers')
   await screen.findByRole('list', { name: en.diapers.listLabel })
-  for (const name of [en.diapers.addPast, en.diapers.edit, en.diapers.delete]) expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: en.timeline.edit })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: en.diapers.addPast })).not.toBeInTheDocument()
 })
 
 test('the diaper card on Home opens the diaper day screen', async () => {

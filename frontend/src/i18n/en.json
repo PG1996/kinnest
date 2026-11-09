@@ -608,7 +608,25 @@
     "slept": "Slept {{duration}}",
     "asleep": "Asleep",
     "doseSkipped": "{{name}} skipped",
-    "vaccineGiven": "Vaccine given"
+    "vaccineGiven": "Vaccine given",
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirmDelete": "Yes, delete",
+    "keep": "Keep",
+    "save": "Save",
+    "saveError": "Couldn't save. Try again.",
+    "openInHealth": "Open in Health",
+    "addPast": "Add past entry",
+    "addKind": {
+      "feed": "Feed",
+      "diaper": "Diaper",
+      "sleep": "Sleep",
+      "dose": "Medicine dose",
+      "vital": "Vitals"
+    },
+    "pickMedicine": "Which medicine?",
+    "feedEditTitle": "Edit feed",
+    "feedAddTitle": "Add a past feed"
   },
   "patterns": {
     "title": "Patterns",

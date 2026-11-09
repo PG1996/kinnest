@@ -20,7 +20,7 @@ function slotLabel(due: string, t: (k: string) => string): string {
 }
 
 /** Add a past dose, or fix an existing one (admin). */
-function DoseForm({ medicine, dose, onClose }: { medicine: Medicine; dose?: DoseRow; onClose: () => void }) {
+export function DoseForm({ medicine, dose, onClose }: { medicine: Medicine; dose?: DoseRow; onClose: () => void }) {
   const { t } = useTranslation()
   const record = useRecordPastDose()
   const fix = useFixDose()

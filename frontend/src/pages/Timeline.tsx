@@ -1,7 +1,10 @@
 import { Baby, CalendarDays, Droplets, HeartPulse, Moon, Pill, Syringe, type LucideIcon } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useSearchParams } from 'react-router-dom'
 import { useMe, useTimeline } from '../api/hooks'
+import AddPastEntry from '../components/AddPastEntry'
+import EntryEditor, { canOpen } from '../components/EntryEditor'
 import PageHeader from '../components/PageHeader'
 import { Button } from '../components/ui/button'
 import { Chip } from '../components/ui/chip'
@@ -35,7 +38,7 @@ const TINT: Record<string, string> = {
 
 const startOf = (iso: string) => new Date(`${iso}T12:00:00`)
 
-function DaySection({ day, kinds, myName }: { day: Date; kinds?: TimelineKind[]; myName: string }) {
+function DaySection({ day, kinds, myName, role, entry, onOpen }: { day: Date; kinds?: TimelineKind[]; myName: string; role: string; entry: string | null; onOpen: (it: TimelineItem) => void }) {
   const { t } = useTranslation()
   const { from, to } = useMemo(() => dayRange(day), [day])
   const server = useTimeline({ from, to, kinds }).data
@@ -45,6 +48,11 @@ function DaySection({ day, kinds, myName }: { day: Date; kinds?: TimelineKind[];
     const known = new Set((server ?? []).map((i) => i.id))
     return [...queued.filter((i) => !known.has(i.id)), ...(server ?? [])].sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
   }, [server, pending, day, kinds, myName])
+  // a link such as /timeline?entry=sleep:<id> opens that entry as soon as it shows up
+  useEffect(() => {
+    const hit = entry && items.find((i) => `${i.kind}:${i.id}` === entry)
+    if (hit && canOpen(hit, role)) onOpen(hit)
+  }, [entry, items, role, onOpen])
   const now = new Date()
   const diff = Math.round((new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() - from.getTime()) / 86_400_000)
   const date = day.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })
@@ -57,8 +65,8 @@ function DaySection({ day, kinds, myName }: { day: Date; kinds?: TimelineKind[];
         {items.map((it) => {
           const d = describe(it, t)
           const Icon = ICONS[it.kind]
-          return (
-            <li key={`${it.kind}-${it.id}`} className="flex items-center gap-3 rounded-tile bg-surface p-3 shadow-sm">
+          const inner = (
+            <>
               <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-xl', TINT[d.tone])}>
                 <Icon size={20} aria-hidden="true" />
               </span>
@@ -69,6 +77,18 @@ function DaySection({ day, kinds, myName }: { day: Date; kinds?: TimelineKind[];
                 </span>
               </span>
               <span className="text-sm font-bold text-muted">{formatTime(it.at)}</span>
+            </>
+          )
+          const row = 'flex w-full items-center gap-3 rounded-tile bg-surface p-3 text-left shadow-sm'
+          return (
+            <li key={`${it.kind}-${it.id}`}>
+              {canOpen(it, role) ? (
+                <button type="button" onClick={() => onOpen(it)} className={cn(row, 'active:bg-surface-2')}>
+                  {inner}
+                </button>
+              ) : (
+                <div className={row}>{inner}</div>
+              )}
             </li>
           )
         })}
@@ -82,8 +102,25 @@ export default function Timeline() {
   const { t } = useTranslation()
   const me = useMe().data
   const [filter, setFilter] = useState('all')
-  const [start, setStart] = useState(() => toLocalDate(new Date()))
+  const [params, setParams] = useSearchParams()
+  // a link can name the day to show (the day of the entry it opens)
+  const [start, setStart] = useState(() => (/^\d{4}-\d{2}-\d{2}$/.test(params.get('day') ?? '') ? params.get('day')! : toLocalDate(new Date())))
   const [count, setCount] = useState(1)
+  const entry = params.get('entry')
+  const role = me?.role ?? 'viewer'
+  const [opened, setOpened] = useState<TimelineItem | null>(null)
+  const [adding, setAdding] = useState(false)
+  const openEntry = useCallback(
+    (it: TimelineItem) => {
+      setOpened(it)
+      if (params.has('entry')) {
+        params.delete('entry')
+        params.delete('day')
+        setParams(params, { replace: true })
+      }
+    },
+    [params, setParams],
+  )
   const kinds = FILTERS.find((f) => f.id === filter)?.kinds
   const days = useMemo(() => Array.from({ length: count }, (_, i) => new Date(startOf(start).getTime() - i * 86_400_000)), [start, count])
   return (
@@ -106,6 +143,11 @@ export default function Timeline() {
           />
         }
       />
+      {role !== 'viewer' && (
+        <Button variant="soft" className="w-full" onClick={() => setAdding(true)}>
+          {t('timeline.addPast')}
+        </Button>
+      )}
       <div role="group" aria-label={t('timeline.filterLabel')} className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
         {FILTERS.map((f) => (
           <Chip key={f.id} pressed={filter === f.id} onClick={() => setFilter(f.id)} className="shrink-0">
@@ -114,11 +156,13 @@ export default function Timeline() {
         ))}
       </div>
       {days.map((d) => (
-        <DaySection key={d.toISOString()} day={d} kinds={kinds} myName={me?.user.name ?? ''} />
+        <DaySection key={d.toISOString()} day={d} kinds={kinds} myName={me?.user.name ?? ''} role={role} entry={entry} onOpen={openEntry} />
       ))}
       <Button variant="soft" className="w-full" onClick={() => setCount(count + 1)}>
         {t('timeline.earlier')}
       </Button>
+      {opened && <EntryEditor key={`${opened.kind}-${opened.id}`} item={opened} onClose={() => setOpened(null)} />}
+      {adding && <AddPastEntry isAdmin={role === 'admin'} onClose={() => setAdding(false)} />}
     </>
   )
 }

@@ -19,6 +19,7 @@ const api = (me: object = ME_ADMIN, extra: object = {}) => ({
   'POST /api/sleep/past': (b: unknown) => ({ status: 201, body: { ...(b as object), started_by_name: 'Owner', ended_by_name: 'Owner', duration_min: 60 } }),
   'PATCH /api/sleep/s1': (b: unknown) => ({ body: { ...SLEEPS[0], ...(b as object) } }),
   'DELETE /api/sleep/s1': { body: { ok: true } },
+  'GET /api/timeline': { body: { items: [{ kind: 'sleep', id: 's1', at: SLEEPS[0]!.started_at, data: SLEEPS[0] }] } },
   ...extra,
 })
 const sleepCalls = (calls: { key: string; url: string }[]) => calls.filter((c) => c.key === 'GET /api/sleep').map((c) => new URL(c.url, 'http://x'))
@@ -101,8 +102,8 @@ test('an overlap with another sleep is explained', async () => {
 
 test('editing a sleep sends the new times', async () => {
   const calls = mockApi(api())
-  renderApp(<App />, '/sleep')
-  await userEvent.click(await screen.findByRole('button', { name: en.sleep.edit }))
+  renderApp(<App />, '/timeline?entry=sleep:s1')
+  await userEvent.click(await screen.findByRole('button', { name: en.timeline.edit }))
   const form = await screen.findByRole('dialog', { name: en.sleep.editTitle })
   expect(within(form).getByLabelText(en.sleep.form.start)).toHaveValue(toLocalInput(yest(23, 0)))
   fireEvent.change(within(form).getByLabelText(en.sleep.form.end), { target: { value: toLocalInput(today(1, 30)) } })
@@ -111,13 +112,17 @@ test('editing a sleep sends the new times', async () => {
   expect(near((calls.find((c) => c.key === 'PATCH /api/sleep/s1')!.body as { ended_at: string }).ended_at, today(1, 30))).toBe(true)
 })
 
-test('deleting a sleep asks twice', async () => {
-  const calls = mockApi(api())
+test('sleeps on the day open in the timeline to be fixed or deleted, and a viewer cannot', async () => {
+  mockApi(api())
+  const admin = renderApp(<App />, '/sleep')
+  const links = await screen.findAllByRole('link', { name: en.timeline.edit })
+  expect(links[0]).toHaveAttribute('href', expect.stringMatching(/^\/timeline\?day=\d{4}-\d{2}-\d{2}&entry=sleep:s1$/))
+  for (const name of [en.sleep.edit, en.sleep.delete]) expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
+  admin.unmount()
+  mockApi(api(ME_VIEWER))
   renderApp(<App />, '/sleep')
-  await userEvent.click(await screen.findByRole('button', { name: en.sleep.delete }))
-  expect(calls.some((c) => c.key === 'DELETE /api/sleep/s1')).toBe(false)
-  await userEvent.click(screen.getByRole('button', { name: en.sleep.confirmDelete }))
-  await waitFor(() => expect(calls.some((c) => c.key === 'DELETE /api/sleep/s1')).toBe(true))
+  await screen.findByRole('img', { name: /Slept/ })
+  expect(screen.queryByRole('link', { name: en.timeline.edit })).not.toBeInTheDocument()
 })
 
 test('a viewer can look but not add, edit or delete', async () => {
@@ -136,12 +141,12 @@ test('the sleep card on Home opens the day screen', async () => {
 // --- editing short sleeps and clearing the wake-up time ----------------------------------------------------------------
 
 const SHORT = { id: 's9', started_at: new Date(today(0, 30).getTime() + 37_000).toISOString(), ended_at: new Date(today(0, 30).getTime() + 40_000).toISOString(), started_by_name: 'Mom', ended_by_name: 'Mom', duration_min: 0, note: '' }
-const shortApi = (extra: object = {}) => api(ME_ADMIN, { 'GET /api/sleep': { body: [SHORT] }, 'PATCH /api/sleep/s9': (b: unknown) => ({ body: { ...SHORT, ...(b as object) } }), ...extra })
+const shortApi = (extra: object = {}) => api(ME_ADMIN, { 'GET /api/sleep': { body: [SHORT] }, 'GET /api/timeline': { body: { items: [{ kind: 'sleep', id: 's9', at: SHORT.started_at, data: SHORT }] } }, 'PATCH /api/sleep/s9': (b: unknown) => ({ body: { ...SHORT, ...(b as object) } }), ...extra })
 
 test('editing only the note of a sleep a few seconds long saves without a time error', async () => {
   const calls = mockApi(shortApi())
-  renderApp(<App />, '/sleep')
-  await userEvent.click(await screen.findByRole('button', { name: en.sleep.edit }))
+  renderApp(<App />, '/timeline?entry=sleep:s9')
+  await userEvent.click(await screen.findByRole('button', { name: en.timeline.edit }))
   const form = await screen.findByRole('dialog', { name: en.sleep.editTitle })
   await userEvent.type(within(form).getByLabelText(en.sleep.form.note), 'tap test')
   await userEvent.click(within(form).getByRole('button', { name: en.sleep.form.save }))
@@ -152,8 +157,8 @@ test('editing only the note of a sleep a few seconds long saves without a time e
 
 test('emptying Woke up on a finished sleep marks it as still asleep', async () => {
   const calls = mockApi(shortApi())
-  renderApp(<App />, '/sleep')
-  await userEvent.click(await screen.findByRole('button', { name: en.sleep.edit }))
+  renderApp(<App />, '/timeline?entry=sleep:s9')
+  await userEvent.click(await screen.findByRole('button', { name: en.timeline.edit }))
   const form = await screen.findByRole('dialog', { name: en.sleep.editTitle })
   fireEvent.change(within(form).getByLabelText(en.sleep.form.end), { target: { value: '' } })
   await userEvent.click(within(form).getByRole('button', { name: en.sleep.form.save }))
@@ -163,8 +168,8 @@ test('emptying Woke up on a finished sleep marks it as still asleep', async () =
 
 test('when another sleep is already going, reopening says so instead of a vague error', async () => {
   mockApi(shortApi({ 'PATCH /api/sleep/s9': { status: 409, body: { detail: 'already asleep', open: { ...SHORT, id: 'other', started_by_name: 'Nanny' } } } }))
-  renderApp(<App />, '/sleep')
-  await userEvent.click(await screen.findByRole('button', { name: en.sleep.edit }))
+  renderApp(<App />, '/timeline?entry=sleep:s9')
+  await userEvent.click(await screen.findByRole('button', { name: en.timeline.edit }))
   const form = await screen.findByRole('dialog', { name: en.sleep.editTitle })
   fireEvent.change(within(form).getByLabelText(en.sleep.form.end), { target: { value: '' } })
   await userEvent.click(within(form).getByRole('button', { name: en.sleep.form.save }))
