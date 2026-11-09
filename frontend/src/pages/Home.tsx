@@ -155,7 +155,7 @@ export default function Home() {
         <>
           <Today summary={summary} />
           <UpcomingCard vaccines={vaccines} visits={visits} now={now} />
-          {summary.vitals && <LatestVitalsCard latest={summary.vitals.latest} canLog={canLog} now={now} />}
+          {summary.vitals && <LatestVitalsCard latest={summary.vitals.latest} previous={summary.vitals.previous} canLog={canLog} now={now} />}
           {medicines.length > 0 && (
             <div ref={medsRef} className="space-y-4">
               <MedicinesToday
