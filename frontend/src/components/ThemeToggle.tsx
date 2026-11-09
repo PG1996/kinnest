@@ -1,41 +1,29 @@
-import { Moon, Sun } from 'lucide-react'
-import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button } from './ui/button'
+import { cn } from '../lib/cn'
+import { useThemeMode, type ThemeMode } from '../lib/theme'
 
-const KEY = 'kinnest-theme'
+const OPTIONS: ThemeMode[] = ['light', 'dark', 'auto', 'night']
 
-function current(): 'light' | 'dark' {
-  const set = document.documentElement.dataset.theme
-  if (set === 'dark' || set === 'light') return set
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-}
-
-export function applySavedTheme() {
-  try {
-    const saved = localStorage.getItem(KEY)
-    if (saved) document.documentElement.dataset.theme = saved
-  } catch {
-    /* storage blocked: follow the system theme */
-  }
-}
-
+/** Light, Dark, Auto (follow the phone) and Night dim (dark from 22:00 to 06:00). */
 export default function ThemeToggle() {
   const { t } = useTranslation()
-  const [theme, setTheme] = useState(current)
-  const toggle = () => {
-    const next = theme === 'dark' ? 'light' : 'dark'
-    document.documentElement.dataset.theme = next
-    try {
-      localStorage.setItem(KEY, next)
-    } catch {
-      /* ignore */
-    }
-    setTheme(next)
-  }
+  const [mode, setMode] = useThemeMode()
   return (
-    <Button variant="ghost" aria-label={t('theme.toggle')} onClick={toggle} className="min-h-12 w-12 px-0">
-      {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-    </Button>
+    <div role="radiogroup" aria-label={t('theme.label')} className="flex gap-1 rounded-2xl bg-surface-2 p-1">
+      {OPTIONS.map((m) => (
+        <button
+          key={m}
+          role="radio"
+          aria-checked={mode === m}
+          onClick={() => setMode(m)}
+          className={cn(
+            'min-h-11 flex-1 rounded-xl px-2 text-sm font-semibold',
+            mode === m ? 'bg-surface text-ink shadow-sm' : 'text-muted',
+          )}
+        >
+          {t(`theme.${m}`)}
+        </button>
+      ))}
+    </div>
   )
 }

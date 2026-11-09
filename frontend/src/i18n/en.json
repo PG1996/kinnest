@@ -9,7 +9,11 @@
     "signOut": "Sign out"
   },
   "theme": {
-    "toggle": "Toggle dark mode"
+    "label": "Appearance",
+    "light": "Light",
+    "dark": "Dark",
+    "auto": "Auto",
+    "night": "Night dim"
   },
   "nav": {
     "home": "Home",
