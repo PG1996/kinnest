@@ -10,6 +10,8 @@ export type FeedInput = {
   duration_min?: number
   quantity_ml?: number
   note?: string
+  /** only when someone else gave the feed; the server records the logger otherwise */
+  fed_by_user_id?: string
 }
 export type DiaperInput = { id: string; kind: DiaperKind; at: string; note?: string }
 export type LogResult = {

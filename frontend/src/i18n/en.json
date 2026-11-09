@@ -79,7 +79,16 @@
     "quick": {
       "medicine": "Medicine",
       "vital": "Vital"
-    }
+    },
+    "timerStart": "Start timer",
+    "timerStop": "Stop timer",
+    "timerRunning": "Feeding for {{time}}",
+    "fedBy": "Fed by",
+    "started": "Started",
+    "nextFeedHint": "Next feed due about {{time}} (every {{every}})",
+    "amountLabel": "Amount",
+    "stepLess": "less",
+    "stepMore": "more"
   },
   "roles": {
     "admin": "Admin",
