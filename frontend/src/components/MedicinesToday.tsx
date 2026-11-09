@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
+import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../api/client'
@@ -36,6 +37,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
   const cancelNudge = useCancelNudge()
   const [confirming, setConfirming] = useState<{ medicine: Medicine; amount?: number } | null>(null)
   const [partial, setPartial] = useState<{ medicine: Medicine; slot?: Slot; max: number } | null>(null)
+  const [open, setOpen] = useState<Record<string, boolean>>({})
   const [nudgeFor, setNudgeFor] = useState<{ medicine: Medicine; slot: Slot; left: number } | null>(null)
   if (medicines.length === 0) return null
   const queued = queuedDoseSlots(pending)
@@ -228,6 +230,75 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
     )
   }
 
+  const flip = (k: string) => setOpen((o) => ({ ...o, [k]: !o[k] }))
+  const SOON_MS = 30 * 60_000
+
+  /** Skips every listed slot, one after another; each can still be put back with Undo. */
+  const skipAll = async (m: Medicine, slots: Slot[]) => {
+    for (const s of slots) {
+      try {
+        await give.mutateAsync({ id: crypto.randomUUID(), medicine_id: m.id, status: 'skipped', scheduled_for: s.due_at })
+      } catch (e) {
+        failed(m)(e)
+        return
+      }
+    }
+    onToast({ message: t('home.logged') })
+  }
+
+  const disclosure = (key: string, label: string, children: React.ReactNode) => (
+    <div className="space-y-2">
+      <button
+        type="button"
+        aria-expanded={!!open[key]}
+        onClick={() => flip(key)}
+        className="flex min-h-11 w-full items-center justify-between rounded-tile bg-surface/70 px-3 text-sm font-extrabold text-med-ink"
+      >
+        {label}
+        <ChevronDown size={18} aria-hidden="true" className={open[key] ? 'rotate-180 transition' : 'transition'} />
+      </button>
+      {open[key] && <div className="space-y-3 border-l-2 border-med/30 pl-3">{children}</div>}
+    </div>
+  )
+
+  /** One dose at a time: the one due now has the buttons; earlier missed, later and done doses stay out of the way. */
+  const scheduledView = (m: Medicine) => {
+    const actionable = m.slots.filter((s) => s.status === 'pending' || s.status === 'partial')
+    const done = m.slots.filter((s) => s.status === 'given' || s.status === 'skipped')
+    const soon = actionable.filter((s) => Date.parse(s.due_at) <= now + SOON_MS)
+    const later = actionable.filter((s) => Date.parse(s.due_at) > now + SOON_MS)
+    const current = soon.at(-1)
+    const missed = soon.slice(0, -1)
+    return (
+      <div className="space-y-3">
+        {current && slotRow(m, current)}
+        {!current && later[0] && <p className="text-sm font-bold text-med-ink">{t('medicines.nextDose', { time: formatClock(later[0].due_at) })}</p>}
+        {current && later.length > 0 && (
+          <p className="text-sm text-muted">{t('medicines.laterToday', { times: later.map((s) => formatClock(s.due_at)).join(', ') })}</p>
+        )}
+        {missed.length > 0 &&
+          disclosure(
+            `${m.id}:missed`,
+            t('medicines.missedEarlier', { count: missed.length }),
+            <>
+              {missed.map((s) => slotRow(m, s))}
+              {canLog && (
+                <Button variant="outline" disabled={give.isPending} onClick={() => void skipAll(m, missed)}>
+                  {t('medicines.skipAllMissed')}
+                </Button>
+              )}
+            </>,
+          )}
+        {/* nothing left to do: show the last thing recorded (with Undo); otherwise all done doses wait under "Done" */}
+        {!current && done.length > 0 && slotRow(m, done.at(-1)!)}
+        {(() => {
+          const rest = current ? done : done.slice(0, -1)
+          return rest.length > 0 ? disclosure(`${m.id}:done`, t('medicines.doneCount', { count: rest.length }), rest.map((s) => slotRow(m, s))) : null
+        })()}
+      </div>
+    )
+  }
+
   const asNeededRow = (m: Medicine) => {
     const waiting = queuedAsNeeded(pending, m.id)
     const structured = m.dose_amount != null && !!m.dose_unit
@@ -262,9 +333,9 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
     <>
       <h2 className="font-medium">{t('medicines.title')}</h2>
       {medicines.map((m) => (
-        <Card key={m.id} className="space-y-3">
+        <Card key={m.id} tone="med" className="space-y-3">
           <p className="text-lg font-medium">{m.dose_amount != null && m.dose_unit ? `${m.name} · ${fmt(m, m.dose_amount)}` : m.name}</p>
-          {m.schedule_kind === 'as_needed' ? asNeededRow(m) : m.slots.map((s) => slotRow(m, s))}
+          {m.schedule_kind === 'as_needed' ? asNeededRow(m) : scheduledView(m)}
         </Card>
       ))}
       {partial && (
