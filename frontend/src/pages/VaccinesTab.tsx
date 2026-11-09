@@ -1,9 +1,9 @@
-import { useQuery } from '@tanstack/react-query'
+import { CheckCircle2 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { api, ApiError } from '../api/client'
-import { useMe, useVaccines, useVaccineTemplates, type Vaccination } from '../api/hooks'
+import { ApiError } from '../api/client'
+import { useKid, useMe, useVaccines, useVaccineTemplates, type Vaccination } from '../api/hooks'
 import Sheet from '../components/Sheet'
 import TemplatePicker from '../components/TemplatePicker'
 import VaccineForm, { type VaccineFormMode } from '../components/VaccineForm'
@@ -21,7 +21,7 @@ const groupOf = (v: Vaccination): Group =>
 export default function VaccinesTab() {
   const { t } = useTranslation()
   const canEdit = (useMe().data?.role ?? 'viewer') !== 'viewer'
-  const kid = useQuery({ queryKey: ['kid'], queryFn: () => api<{ birth_date: string | null }>('/api/kid') })
+  const kid = useKid()
   const vaccines = useVaccines()
   const templates = useVaccineTemplates().data ?? []
   const apply = useApplyTemplate()
@@ -101,17 +101,27 @@ export default function VaccinesTab() {
         if (items.length === 0) return null
         return (
           <section key={g} className="space-y-2">
-            <h3 className={cn('font-medium', g === 'overdue' && 'text-danger')}>{t(`vaccines.groups.${g}`)}</h3>
+            <h3 className={cn('text-sm font-extrabold uppercase tracking-wide text-muted', g === 'overdue' && 'text-warn-ink')}>
+              {t(`vaccines.groups.${g}`)}
+            </h3>
             <ul className="space-y-2">
               {items.map((v) => (
                 <li key={v.id}>
-                  <Card className="space-y-1 p-4">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className="font-medium">{`${v.name} ${v.dose_label}`.trim()}</span>
+                  <Card
+                    tone={v.overdue ? 'warn' : 'plain'}
+                    data-testid={`vaccine-${v.id}`}
+                    data-done={v.status === 'given' ? 'true' : 'false'}
+                    className="space-y-1 p-4"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-2 font-bold">
+                        {v.status === 'given' && <CheckCircle2 size={20} aria-hidden="true" className="text-diaper" />}
+                        {`${v.name} ${v.dose_label}`.trim()}
+                      </span>
                       <span
                         className={cn(
-                          'rounded-full px-2 py-0.5 text-xs',
-                          v.overdue ? 'bg-danger/15 text-danger' : v.status === 'given' ? 'bg-primary/15' : 'bg-line/50',
+                          'rounded-full px-2.5 py-0.5 text-xs font-extrabold',
+                          v.overdue ? 'bg-surface text-warn-ink' : v.status === 'given' ? 'bg-diaper-bg text-diaper-ink' : 'bg-surface-2',
                         )}
                       >
                         {t(`vaccines.status.${v.overdue ? 'overdue' : v.status}`)}
