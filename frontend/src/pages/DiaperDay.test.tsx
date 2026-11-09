@@ -54,7 +54,8 @@ test('previous day fetches the earlier range, and there is no day after today', 
   await screen.findByRole('list', { name: en.diapers.listLabel })
   expect(screen.getByRole('button', { name: en.diapers.nextDay })).toBeDisabled()
   await userEvent.click(screen.getByRole('button', { name: en.diapers.prevDay }))
-  await waitFor(() => expect(new Set(rangeCalls(calls).map((u) => u.searchParams.get('from'))).size).toBe(2))
+  const yesterday = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - 1).toISOString()
+  await waitFor(() => expect(rangeCalls(calls).map((u) => u.searchParams.get('from'))).toContain(yesterday))
   expect(await within(screen.getByRole('list', { name: en.diapers.listLabel })).findAllByRole('listitem')).toHaveLength(1)
   expect(screen.getByRole('button', { name: en.diapers.nextDay })).toBeEnabled()
 })
@@ -130,4 +131,13 @@ test('the diaper card on Home opens the diaper day screen', async () => {
   mockApi({ 'GET /api/me': { body: ME_ADMIN }, 'GET /api/summary': { body: { last_feed: null, next_feed_due_at: null, last_diaper: { id: 'd', kind: 'wet', at: new Date().toISOString(), changed_by_name: 'Mom' }, feeds_today: 0, diapers_today: { wet: 1, dirty: 0, both: 0 }, sleep: { open: null, last: null } } } })
   renderApp(<Home />)
   expect(await screen.findByRole('link', { name: new RegExp(en.home.lastDiaperLabel) })).toHaveAttribute('href', '/diapers')
+})
+
+test('the diapers screen shows the week and asks for seven days of diapers', async () => {
+  const calls = mockApi(api())
+  renderApp(<App />, '/diapers')
+  expect(await screen.findByRole('img', { name: en.diapers.weekLabel })).toBeInTheDocument()
+  const froms = rangeCalls(calls).map((u) => new Date(u.searchParams.get('from')!).getTime())
+  const sixDaysAgo = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - 6).getTime()
+  expect(froms).toContain(sixDaysAgo)
 })

@@ -13,3 +13,15 @@ export function feedStats(feeds: Feed[]): FeedStats {
     avgGapMin: gaps.length ? Math.round(gaps.reduce((a, b) => a + b, 0) / gaps.length / 60_000) : null,
   }
 }
+
+export type FeedGap = { from: string; to: string; minutes: number }
+
+/** The time from each feed's start to the next one's, oldest first. */
+export function feedGaps(feeds: Feed[]): FeedGap[] {
+  const sorted = [...feeds].sort((a, b) => Date.parse(a.started_at) - Date.parse(b.started_at))
+  return sorted.slice(1).map((f, i) => ({
+    from: sorted[i]!.started_at,
+    to: f.started_at,
+    minutes: Math.round((Date.parse(f.started_at) - Date.parse(sorted[i]!.started_at)) / 60_000),
+  }))
+}

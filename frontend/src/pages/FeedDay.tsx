@@ -1,7 +1,9 @@
 import { Baby, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useFeedRange, useMe } from '../api/hooks'
+import { useFeedRange, useKid, useMe } from '../api/hooks'
+import FeedClock from '../components/FeedClock'
+import FeedGaps from '../components/FeedGaps'
 import FeedEditForm from '../components/FeedEditForm'
 import PageHeader from '../components/PageHeader'
 import RowLink from '../components/RowLink'
@@ -28,6 +30,7 @@ export default function FeedDay() {
     .sort((a, b) => Date.parse(b.started_at) - Date.parse(a.started_at))
   const stats = feedStats(rows)
   const [form, setForm] = useState(false)
+  const interval = useKid().data?.feed_interval_minutes
   const shift = (days: number) => setDay(new Date(day.getFullYear(), day.getMonth(), day.getDate() + days))
   const label = isToday ? t('timeline.today') : day.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })
   const stat = (value: string, name: string) => (
@@ -57,6 +60,17 @@ export default function FeedDay() {
           {stat(stats.avgGapMin !== null ? formatAgo(stats.avgGapMin * 60_000) : '–', t('feeds.statGap'))}
         </div>
       </Card>
+      {data !== undefined && (
+        <Card className="py-6">
+          <FeedClock day={day} feeds={rows} />
+        </Card>
+      )}
+      {rows.length > 1 && (
+        <Card className="space-y-2 p-4">
+          <h2 className="text-sm font-semibold text-muted">{t('feeds.gapsTitle')}</h2>
+          <FeedGaps feeds={rows} intervalMin={interval} />
+        </Card>
+      )}
       {canEdit && (
         <Button variant="soft" className="w-full" onClick={() => setForm(true)}>
           {t('feeds.addPast')}

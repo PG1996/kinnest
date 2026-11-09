@@ -710,7 +710,11 @@
       "note": "Note",
       "save": "Save",
       "future": "That time is in the future."
-    }
+    },
+    "weekTitle": "Last 7 days",
+    "weekLabel": "Diapers per day for the last 7 days, by kind",
+    "wetTarget": "6 wet",
+    "weekTip": "{{day}}: {{wet}} wet, {{both}} both, {{dirty}} dirty"
   },
   "relations": {
     "mom": "Mom",
@@ -739,6 +743,14 @@
     "statFeeds": "feeds",
     "statBottle": "bottle",
     "statBreast": "breast",
-    "statGap": "avg gap"
+    "statGap": "avg gap",
+    "clockLabel": "{{count}} feeds through the day",
+    "legendBreast": "Breast (length = duration)",
+    "legendBottle": "Bottle",
+    "gapsTitle": "Time between feeds",
+    "gapsLabel": "Bars of the time between feeds, with the feed interval marked",
+    "gapTarget": "every {{every}}",
+    "gapTip": "{{from}} → {{to}} · {{gap}}",
+    "centreFeeds": "feeds"
   }
 }

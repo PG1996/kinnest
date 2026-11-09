@@ -90,3 +90,10 @@ test('the last-fed card on Home opens the feeds screen', async () => {
   renderApp(<Home />)
   expect(await screen.findByRole('link', { name: en.feeds.title })).toHaveAttribute('href', '/feeds')
 })
+
+test('the feeds screen shows the feed clock and the gaps', async () => {
+  mockApi(api({ ...ME_ADMIN }, { 'GET /api/kid': { body: { id: 'k1', name: 'Baby', birth_date: null, feed_interval_minutes: 180, diaper_alert_minutes: 240 } } }))
+  renderApp(<App />, '/feeds')
+  expect(await screen.findByRole('img', { name: /3 feeds/ })).toBeInTheDocument()
+  expect(await screen.findByRole('img', { name: en.feeds.gapsLabel })).toBeInTheDocument()
+})
