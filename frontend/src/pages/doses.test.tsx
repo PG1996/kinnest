@@ -90,7 +90,7 @@ test('"At another time" on an as-needed medicine gives that dose at the chosen t
 test('a viewer has no way to give a dose at another time', async () => {
   mockApi(base([syrup()], ME_VIEWER))
   renderApp(<Home />)
-  await screen.findByText(/Syrup/)
+  await screen.findByTestId('medicine-grid')
   expect(screen.queryByRole('button', { name: en.medicines.atOtherTime })).not.toBeInTheDocument()
 })
 

@@ -59,29 +59,35 @@ test('a viewer and a caregiver have no add buttons', async () => {
   expect(screen.queryByRole('button', { name: en.medicines.page.addSos })).not.toBeInTheDocument()
 })
 
-test('on Home SOS medicines have their own section, apart from the scheduled ones', async () => {
+test('on Home an SOS medicine is a tile with an SOS badge, next to the scheduled ones', async () => {
   mockApi(base([med(), sos()]))
   renderApp(<Home />)
-  const sosSection = await screen.findByRole('region', { name: en.medicines.sosTitle })
-  expect(within(sosSection).getByText(/Paracetamol/)).toBeInTheDocument()
-  expect(within(sosSection).queryByText(/Vitamin D/)).not.toBeInTheDocument()
-  expect(within(sosSection).getByRole('button', { name: en.medicines.giveFull })).toBeInTheDocument()
-  const scheduled = screen.getByRole('region', { name: en.medicines.title })
-  expect(within(scheduled).getByText(/Vitamin D/)).toBeInTheDocument()
-  expect(within(scheduled).queryByText(/Paracetamol/)).not.toBeInTheDocument()
+  const grid = await screen.findByTestId('medicine-grid')
+  expect(within(grid).getByRole('button', { name: /Vitamin D/ })).not.toHaveTextContent(en.medicines.sosBadge)
+  expect(within(grid).getByRole('button', { name: /Paracetamol/ })).toHaveTextContent(en.medicines.sosBadge)
 })
 
-test('with only SOS medicines there is no empty scheduled section', async () => {
+test('tapping the SOS tile opens its dose buttons', async () => {
+  mockApi(base([med(), sos()]))
+  renderApp(<Home />)
+  await userEvent.click(within(await screen.findByTestId('medicine-grid')).getByRole('button', { name: /Paracetamol/ }))
+  const detail = screen.getByTestId('medicine-detail')
+  expect(within(detail).getByText(/Paracetamol/)).toBeInTheDocument()
+  expect(within(detail).getByRole('button', { name: en.medicines.giveFull })).toBeInTheDocument()
+  expect(within(detail).getByRole('button', { name: en.medicines.atOtherTime })).toBeInTheDocument()
+})
+
+test('with only SOS medicines the one SOS medicine is opened by itself', async () => {
   mockApi(base([sos()]))
   renderApp(<Home />)
-  await screen.findByRole('region', { name: en.medicines.sosTitle })
-  expect(screen.queryByRole('region', { name: en.medicines.title })).not.toBeInTheDocument()
+  await screen.findByTestId('medicine-grid')
+  expect(within(screen.getByTestId('medicine-detail')).getByRole('button', { name: en.medicines.giveFull })).toBeInTheDocument()
 })
 
 test('an SOS medicine says when it was last given and how long until it is safe again', async () => {
   mockApi(base([sos({ last_dose: { id: 'd1', status: 'given', amount: 1.5, given_at: minsAgo(120), by_name: 'Mom' } })]))
   renderApp(<Home />)
-  const section = await screen.findByRole('region', { name: en.medicines.sosTitle })
-  expect(within(section).getByText(/Mom/)).toBeInTheDocument()
-  expect(within(section).getByText(new RegExp(en.medicines.sosWait.replace('{{time}}', '.+')))).toBeInTheDocument()
+  const detail = await screen.findByTestId('medicine-detail')
+  expect(within(detail).getByText(/Mom/)).toBeInTheDocument()
+  expect(within(detail).getByText(new RegExp(en.medicines.sosWait.replace('{{time}}', '.+')))).toBeInTheDocument()
 })

@@ -1,10 +1,11 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Pill } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../api/client'
 import type { Medicine, Slot } from '../api/hooks'
 import { useCancelNudge, useCreateNudge, useGiveDose, useUndoDose, type DoseResult } from '../hooks/log'
+import { cn } from '../lib/cn'
 import { formatAgo, formatClock } from '../lib/time'
 import { formatDose } from '../lib/units'
 import { queuedAmount, queuedDoseSlots, queuedAsNeeded, slotKey } from '../offline/pending'
@@ -38,6 +39,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
   const [confirming, setConfirming] = useState<{ medicine: Medicine; amount?: number; givenAt?: string | null } | null>(null)
   const [partial, setPartial] = useState<{ medicine: Medicine; slot?: Slot; max: number; mode?: 'full' | 'partial'; askTime?: boolean } | null>(null)
   const [open, setOpen] = useState<Record<string, boolean>>({})
+  const [picked, setPicked] = useState<string | null>(null)
   const [nudgeFor, setNudgeFor] = useState<{ medicine: Medicine; slot: Slot; left: number } | null>(null)
   if (medicines.length === 0) return null
   const queued = queuedDoseSlots(pending)
@@ -265,14 +267,17 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
     </div>
   )
 
-  /** One dose at a time: the one due now has the buttons; earlier missed, later and done doses stay out of the way. */
-  const scheduledView = (m: Medicine) => {
+  const groups = (m: Medicine) => {
     const actionable = m.slots.filter((s) => s.status === 'pending' || s.status === 'partial')
     const done = m.slots.filter((s) => s.status === 'given' || s.status === 'skipped')
     const soon = actionable.filter((s) => Date.parse(s.due_at) <= now + SOON_MS)
     const later = actionable.filter((s) => Date.parse(s.due_at) > now + SOON_MS)
-    const current = soon.at(-1)
-    const missed = soon.slice(0, -1)
+    return { done, soon, later, current: soon.at(-1), missed: soon.slice(0, -1) }
+  }
+
+  /** One dose at a time: the one due now has the buttons; earlier missed, later and done doses stay out of the way. */
+  const scheduledView = (m: Medicine) => {
+    const { done, later, current, missed } = groups(m)
     return (
       <div className="space-y-3">
         {current && slotRow(m, current)}
@@ -346,42 +351,85 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
     )
   }
 
-  const scheduledMeds = medicines.filter((m) => m.schedule_kind !== 'as_needed')
-  const sosMeds = medicines.filter((m) => m.schedule_kind === 'as_needed')
+  const ordered = [...medicines.filter((m) => m.schedule_kind !== 'as_needed'), ...medicines.filter((m) => m.schedule_kind === 'as_needed')]
   const title = (m: Medicine) => (m.dose_amount != null && m.dose_unit ? `${m.name} · ${fmt(m, m.dose_amount)}` : m.name)
   /** An SOS medicine with a minimum gap: when it is safe to give again, while that is still ahead. */
-  const sosWait = (m: Medicine) => {
+  const sosWaitAt = (m: Medicine) => {
     const last = m.last_dose
     if (!m.min_gap_hours || last?.status !== 'given') return null
     const safeAt = Date.parse(last.given_at) + m.min_gap_hours * 3_600_000
-    return safeAt > now ? t('medicines.sosWait', { time: formatClock(new Date(safeAt).toISOString()) }) : null
+    return safeAt > now ? new Date(safeAt).toISOString() : null
   }
+  const sosWait = (m: Medicine) => (sosWaitAt(m) ? t('medicines.sosWait', { time: formatClock(sosWaitAt(m)!) }) : null)
+
+  /** What a tile says: whether a dose is due, what is next, or that all is done. `urgent` tiles are highlighted. */
+  const tileStatus = (m: Medicine): { text: string; urgent: boolean; extra?: string } => {
+    if (m.schedule_kind === 'as_needed') {
+      const wait = sosWaitAt(m)
+      if (wait) return { text: t('medicines.tileWait', { time: formatClock(wait) }), urgent: false }
+      return { text: m.last_dose?.status === 'given' ? t('medicines.tileLast', { ago: formatAgo(now - Date.parse(m.last_dose.given_at)) }) : t('medicines.tileNever'), urgent: false }
+    }
+    const { current, missed, later, done } = groups(m)
+    const extra = missed.length > 0 ? t('medicines.tileMissed', { count: missed.length }) : undefined
+    if (current) return { text: t('medicines.tileDue'), urgent: true, extra }
+    if (later[0]) return { text: t('medicines.tileNext', { time: formatClock(later[0].due_at) }), urgent: false, extra }
+    return { text: done.length > 0 ? t('medicines.tileDone') : t('medicines.tileNever'), urgent: false, extra }
+  }
+
+  // the medicine opened below the grid: the one picked, else the first that needs a dose, else the first
+  const needing = ordered.find((m) => m.schedule_kind !== 'as_needed' && tileStatus(m).urgent)
+  const selected = ordered.find((m) => m.id === picked) ?? needing ?? ordered[0]
 
   return (
     <>
-      {scheduledMeds.length > 0 && (
-        <section aria-label={t('medicines.title')} className="space-y-3">
-          <h2 className="font-medium">{t('medicines.title')}</h2>
-          {scheduledMeds.map((m) => (
-            <Card key={m.id} tone="med" className="space-y-3">
-              <p className="text-base font-semibold">{title(m)}</p>
-              {scheduledView(m)}
-            </Card>
-          ))}
-        </section>
-      )}
-      {sosMeds.length > 0 && (
-        <section aria-label={t('medicines.sosTitle')} className="space-y-3">
-          <h2 className="font-medium">{t('medicines.sosTitle')}</h2>
-          {sosMeds.map((m) => (
-            <Card key={m.id} tone="med" className="space-y-3">
-              <p className="text-base font-semibold">{title(m)}</p>
-              {asNeededRow(m)}
-              {sosWait(m) && <p className="text-sm font-bold text-warn-ink">{sosWait(m)}</p>}
-            </Card>
-          ))}
-        </section>
-      )}
+      <section aria-label={t('medicines.title')} className="space-y-3">
+        <h2 className="font-medium">{t('medicines.title')}</h2>
+        <div data-testid="medicine-grid" className="grid grid-cols-3 gap-2">
+          {ordered.map((m) => {
+            const st = tileStatus(m)
+            const isSos = m.schedule_kind === 'as_needed'
+            return (
+              <button
+                key={m.id}
+                type="button"
+                aria-pressed={selected?.id === m.id}
+                onClick={() => setPicked(m.id)}
+                className={cn(
+                  'flex aspect-square flex-col justify-between rounded-tile p-2.5 text-left transition active:scale-[0.97]',
+                  st.urgent ? 'bg-warn-bg text-warn-ink' : 'bg-med-bg text-ink',
+                  selected?.id === m.id && 'ring-2 ring-primary',
+                )}
+              >
+                <span className="flex items-start justify-between gap-1">
+                  <Pill size={16} aria-hidden="true" className={st.urgent ? 'text-warn-ink' : 'text-med'} />
+                  {isSos && <span className="rounded-full bg-surface px-1.5 text-[10px] font-bold text-med-ink">{t('medicines.sosBadge')}</span>}
+                </span>
+                <span className="min-w-0">
+                  <span className="line-clamp-2 block text-[13px] leading-tight font-semibold">{m.name}</span>
+                  {m.dose_amount != null && m.dose_unit && <span className="block text-[11px] text-muted">{fmt(m, m.dose_amount)}</span>}
+                </span>
+                <span className="block text-[11px] leading-tight font-semibold">
+                  {st.text}
+                  {st.extra && <span className="block font-bold text-danger">{st.extra}</span>}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+        {selected && (
+          <Card tone="med" data-testid="medicine-detail" className="space-y-3">
+            <p className="text-base font-semibold">{title(selected)}</p>
+            {selected.schedule_kind === 'as_needed' ? (
+              <>
+                {asNeededRow(selected)}
+                {sosWait(selected) && <p className="text-sm font-bold text-warn-ink">{sosWait(selected)}</p>}
+              </>
+            ) : (
+              scheduledView(selected)
+            )}
+          </Card>
+        )}
+      </section>
       {partial && (
         <GiveDoseSheet
           medicine={partial.medicine}
