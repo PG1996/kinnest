@@ -508,7 +508,33 @@
   },
   "patterns": {
     "title": "Patterns",
-    "soon": "Feeding and sleep patterns for the last 7 days will show here."
+    "subtitle": "Last 7 days",
+    "modeLabel": "Pattern",
+    "modes": {
+      "feeds": "Feeds",
+      "sleep": "Sleep"
+    },
+    "gridFeeds": "Feeds by day and 2-hour block, last 7 days",
+    "gridSleep": "Sleep by day and 2-hour block, last 7 days",
+    "avgFeeds": "{{value}} feeds a day",
+    "avgSleep": "{{value}} of sleep a day",
+    "tapCell": "Tap a cell",
+    "notYet": "Not yet",
+    "cell": "{{day}}, {{range}}, {{value}}",
+    "feedsCount_one": "{{count}} feed",
+    "feedsCount_other": "{{count}} feeds",
+    "asleepFor": "{{duration}} asleep",
+    "fewer": "Fewer",
+    "more": "More",
+    "clearer": "Patterns get clearer after a week of logging.",
+    "stats": {
+      "feeds": "Feeds / day",
+      "sleep": "Sleep / day",
+      "diapers": "Diapers / day"
+    },
+    "vsLast": "{{delta}} vs last week",
+    "longest": "Longest sleep: {{duration}}",
+    "longestWhen": "{{day}}, {{from}} – {{to}}"
   },
   "scan": {
     "snap": "Snap a record",
