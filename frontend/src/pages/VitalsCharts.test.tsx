@@ -167,3 +167,41 @@ test('bulk shows a message when the whole request is refused or there is no conn
   await userEvent.click(screen.getByRole('button', { name: en.vitals.bulk.save }))
   expect(await screen.findByText(en.vitals.bulk.offline)).toBeInTheDocument()
 })
+
+// --- chart-led layout -------------------------------------------------------------------------------------------
+
+const FULL = (id: string, hours: number, over: object = {}) => ({ ...VITAL(id, 'home', 36.8, hours), weight_kg: 3.42, height_cm: 51.2, head_cm: 35.1, ...over })
+const withFull = () => ({ ...routes(), 'GET /api/vitals': { body: [FULL('f1', 5), VITAL('t2', 'hospital', 38.4, 3)] } })
+
+test('metric tabs show the latest value of weight, height, head and temperature', async () => {
+  mockApi(withFull())
+  renderApp(<VitalsCharts />)
+  for (const [key, value] of [['weight_kg', '3.42'], ['height_cm', '51.2'], ['head_cm', '35.1'], ['temperature_c', '38.4']] as const) {
+    await waitFor(() => expect(screen.getByRole('tab', { name: new RegExp(en.vitals.measurements[key]) })).toHaveTextContent(value))
+  }
+})
+
+test('choosing a metric tab puts its chart first', async () => {
+  mockApi(withFull())
+  renderApp(<VitalsCharts />)
+  await weightChart()
+  expect(screen.getAllByRole('figure')[0]).toHaveAccessibleName(en.vitals.charts.growth.weight)
+  await userEvent.click(screen.getByRole('tab', { name: new RegExp(en.vitals.measurements.temperature_c) }))
+  expect(screen.getAllByRole('figure')[0]).toHaveAccessibleName(en.vitals.measurements.temperature_c)
+  expect(screen.getByRole('tab', { name: new RegExp(en.vitals.measurements.temperature_c), selected: true })).toBeInTheDocument()
+})
+
+test('the weight chart shades the WHO 3rd to 97th percentile band', async () => {
+  mockApi(routes())
+  renderApp(<VitalsCharts />)
+  const chart = await weightChart()
+  await waitFor(() => expect(chart.querySelector('.who-band')).not.toBeNull())
+  expect(within(chart).getByText(en.vitals.charts.bandLegend)).toBeInTheDocument()
+})
+
+test('the temperature chart explains the fever line', async () => {
+  mockApi(routes())
+  renderApp(<VitalsCharts />)
+  const chart = await screen.findByRole('figure', { name: en.vitals.measurements.temperature_c })
+  expect(within(chart).getByText(en.vitals.charts.feverNote)).toBeInTheDocument()
+})

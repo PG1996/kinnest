@@ -21,9 +21,14 @@ const routes = (me = ME_ADMIN, vitals: object[] = [VITAL()]) => ({
   'DELETE /api/vitals/v1': { body: { ok: true } },
 })
 
-const chip = (name: string) => screen.getByRole('button', { name })
+// inside the form dialog when one is open (the charts behind it have place filters with the same names)
+const chip = (name: string) => within(screen.queryByRole('dialog') ?? document.body).getByRole('button', { name })
+// the form is a full-screen dialog over the charts, whose figures carry similar labels: look inside it
 const input = (key: keyof typeof en.vitals.measurements) =>
-  screen.getByLabelText(new RegExp(`^${en.vitals.measurements[key]}`))
+  within(screen.getByRole('dialog')).getByLabelText(new RegExp(`^${en.vitals.measurements[key]}`))
+
+/** The tab opens on charts; the list is one tap away. */
+const toList = async () => userEvent.click(await screen.findByRole('radio', { name: en.vitals.charts.list }))
 
 async function openForm() {
   await userEvent.click(await screen.findByRole('button', { name: en.vitals.add }))
@@ -76,6 +81,7 @@ test('shows the range in the error and refuses 98.6', async () => {
 test('edit prefills and PATCHes', async () => {
   const calls = mockApi(routes())
   renderApp(<VitalsTab />)
+  await toList()
   await userEvent.click(await screen.findByRole('button', { name: en.vitals.list.edit }))
   expect(input('weight_kg')).toHaveValue(3.42)
   expect(screen.getByLabelText(en.vitals.form.placeName)).toHaveValue('City Hospital')
@@ -90,6 +96,7 @@ test('edit prefills and PATCHes', async () => {
 test('delete needs a second confirm', async () => {
   const calls = mockApi(routes())
   renderApp(<VitalsTab />)
+  await toList()
   await userEvent.click(await screen.findByRole('button', { name: en.vitals.list.delete }))
   expect(calls.some((c) => c.key === 'DELETE /api/vitals/v1')).toBe(false)
   await userEvent.click(screen.getByRole('button', { name: en.vitals.list.confirmDelete }))
@@ -99,6 +106,7 @@ test('delete needs a second confirm', async () => {
 test('filters list by place', async () => {
   mockApi(routes())
   renderApp(<VitalsTab />)
+  await toList()
   expect(await screen.findByText(/City Hospital/)).toBeInTheDocument()
   await userEvent.selectOptions(screen.getByLabelText(en.vitals.list.place), 'hospital')
   await waitFor(() =>
@@ -131,6 +139,7 @@ test('Home card shows the latest value of each measurement with its place', asyn
 test('viewer sees no buttons', async () => {
   mockApi(routes(ME_VIEWER))
   renderApp(<VitalsTab />)
+  await toList()
   expect(await screen.findByText(/City Hospital/)).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: en.vitals.add })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: en.vitals.list.edit })).not.toBeInTheDocument()
@@ -144,6 +153,7 @@ test('queued entry shows waiting to sync', async () => {
   })
   mockApi(routes(ME_ADMIN, []))
   renderApp(<VitalsTab />)
+  await toList()
   expect(await screen.findByText(en.vitals.list.waiting)).toBeInTheDocument()
   expect(screen.getByText(/3\.6 kg/)).toBeInTheDocument()
 })
@@ -152,4 +162,13 @@ test('the add form opens from a link with ?add=1', async () => {
   mockApi(routes(ME_ADMIN, []))
   renderApp(<VitalsTab />, '/health?tab=vitals&add=1')
   expect(await screen.findByRole('dialog')).toBeInTheDocument()
+})
+
+test('charts are the default view and the list is one tap away', async () => {
+  mockApi({ ...routes(), 'GET /api/vitals/growth/weight': { status: 409, body: { detail: 'birth date not set' } }, 'GET /api/vitals/growth/height': { status: 409, body: {} }, 'GET /api/vitals/growth/head': { status: 409, body: {} } })
+  renderApp(<VitalsTab />)
+  expect(await screen.findByRole('radio', { name: en.vitals.charts.title, checked: true })).toBeInTheDocument()
+  expect(screen.queryByText('City Hospital')).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('radio', { name: en.vitals.charts.list }))
+  expect(await screen.findByText(/City Hospital/)).toBeInTheDocument()
 })

@@ -7,6 +7,7 @@ import Sheet from '../components/Sheet'
 import VitalForm from '../components/VitalForm'
 import VitalList, { type VitalRow } from '../components/VitalList'
 import { Button } from '../components/ui/button'
+import { Segmented } from '../components/ui/segmented'
 import { Input, Select } from '../components/ui/field'
 import { useCreateVital, useDeleteVital, useUpdateVital } from '../hooks/log'
 import { PLACES } from '../lib/vitalsFormat'
@@ -42,7 +43,7 @@ export default function VitalsTab() {
   const waiting = useQueue().pending.filter((p) => p.kind === 'vital').map(fromQueue)
   const [editing, setEditing] = useState<Vital | 'new' | null>(null)
   const [bulkOpen, setBulkOpen] = useState(false)
-  const [view, setView] = useState<'list' | 'charts'>('list')
+  const [view, setView] = useState<'list' | 'charts'>('charts')
   const create = useCreateVital()
   const update = useUpdateVital()
   const remove = useDeleteVital()
@@ -69,13 +70,15 @@ export default function VitalsTab() {
           </Button>
         </div>
       )}
-      <div className="flex gap-2">
-        {(['list', 'charts'] as const).map((v) => (
-          <Button key={v} variant={view === v ? 'primary' : 'ghost'} aria-pressed={view === v} onClick={() => setView(v)}>
-            {t(`vitals.charts.${v === 'list' ? 'list' : 'title'}`)}
-          </Button>
-        ))}
-      </div>
+      <Segmented
+        label={t('vitals.charts.view')}
+        value={view}
+        onChange={setView}
+        options={[
+          { value: 'charts', label: t('vitals.charts.title') },
+          { value: 'list', label: t('vitals.charts.list') },
+        ]}
+      />
       {view === 'charts' ? (
         <Suspense fallback={<p className="text-sm text-muted">{t('common.loading')}</p>}>
           <VitalsCharts />
@@ -118,12 +121,12 @@ export default function VitalsTab() {
         </>
       )}
       {bulkOpen && (
-        <Sheet title={t('vitals.bulk.title')} onClose={() => setBulkOpen(false)}>
+        <Sheet variant="full" title={t('vitals.bulk.title')} onClose={() => setBulkOpen(false)}>
           <BulkVitals />
         </Sheet>
       )}
       {editing && (
-        <Sheet title={t(editing === 'new' ? 'vitals.form.title' : 'vitals.form.editTitle')} onClose={() => setEditing(null)}>
+        <Sheet variant="full" title={t(editing === 'new' ? 'vitals.form.title' : 'vitals.form.editTitle')} onClose={() => setEditing(null)}>
           <VitalForm
             initial={editing === 'new' ? undefined : editing}
             saving={save.isPending}

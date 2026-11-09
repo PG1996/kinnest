@@ -355,7 +355,12 @@
       "feverLine": "38.0 °C fever line (information, not medical advice)",
       "noData": "No readings yet",
       "showPlaces": "Show readings from",
-      "range": "Date range"
+      "range": "Date range",
+      "bandLegend": "WHO 3rd–97th percentile",
+      "medianLegend": "Median",
+      "feverNote": "Fever line at 38.0 °C. Call your doctor for a fever under 3 months.",
+      "metrics": "Chart",
+      "view": "View"
     },
     "bulk": {
       "title": "Add past readings",

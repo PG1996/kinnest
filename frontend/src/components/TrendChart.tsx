@@ -28,7 +28,7 @@ export default function TrendChart({ measurement, vitals }: { measurement: Measu
         <div className="h-48">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={rows} margin={{ top: 8, right: 8, bottom: 8, left: -16 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-line, #ddd)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
               <XAxis
                 type="number"
                 dataKey="t"
@@ -41,7 +41,7 @@ export default function TrendChart({ measurement, vitals }: { measurement: Measu
               {measurement === 'temperature_c' && (
                 <ReferenceLine
                   y={FEVER_C}
-                  stroke="#c2410c"
+                  stroke="var(--danger)"
                   strokeDasharray="6 4"
                   ifOverflow="extendDomain"
                   label={{ value: t('vitals.charts.feverLine'), position: 'insideTopLeft', fontSize: 10 }}
@@ -49,7 +49,7 @@ export default function TrendChart({ measurement, vitals }: { measurement: Measu
               )}
               <Line
                 dataKey="value"
-                stroke="#334155"
+                stroke="var(--primary)"
                 strokeWidth={2}
                 isAnimationActive={false}
                 dot={(props: { cx?: number; cy?: number; payload?: Row; index?: number }) => (
@@ -71,6 +71,7 @@ export default function TrendChart({ measurement, vitals }: { measurement: Measu
           </ResponsiveContainer>
         </div>
       )}
+      {measurement === 'temperature_c' && <p className="text-xs text-muted">{t('vitals.charts.feverNote')}</p>}
     </Card>
   )
 }
