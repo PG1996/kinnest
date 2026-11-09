@@ -25,12 +25,14 @@ type Props = {
   myName: string
   now: number
   onToast: (t: ToastData) => void
+  /** a medicine to open (from a tapped reminder) */
+  focusId?: string | null
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 
 /** Medicines on Home: today's slots with full or partial dosing, progress, and a reminder for the rest of a dose. */
-export default function MedicinesToday({ medicines, pending, canLog, myName, now, onToast }: Props) {
+export default function MedicinesToday({ medicines, pending, canLog, myName, now, onToast, focusId }: Props) {
   const { t } = useTranslation()
   const qc = useQueryClient()
   const give = useGiveDose()
@@ -40,7 +42,13 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
   const [confirming, setConfirming] = useState<{ medicine: Medicine; amount?: number; givenAt?: string | null } | null>(null)
   const [partial, setPartial] = useState<{ medicine: Medicine; slot?: Slot; max: number; mode?: 'full' | 'partial'; askTime?: boolean } | null>(null)
   const [open, setOpen] = useState<Record<string, boolean>>({})
-  const [picked, setPicked] = useState<string | null>(null)
+  const [picked, setPicked] = useState<string | null>(focusId ?? null)
+  const [focused, setFocused] = useState(focusId)
+  // a reminder tapped while the app is open points at another medicine
+  if (focusId !== focused) {
+    setFocused(focusId)
+    if (focusId) setPicked(focusId)
+  }
   const [maxAsk, setMaxAsk] = useState<{ medicine: Medicine; run: () => void } | null>(null)
   const [nudgeFor, setNudgeFor] = useState<{ medicine: Medicine; slot: Slot; left: number } | null>(null)
   if (medicines.length === 0) return null

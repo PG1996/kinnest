@@ -47,12 +47,12 @@ def add_dose(w, med, scheduled_for, status="given", given_at=None):
 
 
 def test_fixed_dose_level0_to_caregivers_not_viewers(world):
-    add_med(world)
+    med = add_med(world)
     s = FakeSender()
     tick(world.db, SLOT, s)
     assert s.recipients() == ids(world, "owner", "mom")
     assert {x[1] for x in s.sent} == {"med_due"} and {x[2] for x in s.sent} == {"normal"}
-    assert {x[3] for x in s.sent} == {"/?log=medicine"}
+    assert {x[3] for x in s.sent} == {f"/?log=medicine&med={med.id}"}  # tapping it opens that medicine
 
 
 def test_nothing_before_the_slot_is_due(world):
@@ -63,7 +63,7 @@ def test_nothing_before_the_slot_is_due(world):
 
 
 def test_level1_and_level2_admin_only_high(world):
-    add_med(world)
+    med = add_med(world)
     s = FakeSender()
     tick(world.db, SLOT, s)
     s.sent.clear()
@@ -71,7 +71,7 @@ def test_level1_and_level2_admin_only_high(world):
     assert s.recipients() == ids(world, "owner", "mom") and {x[1] for x in s.sent} == {"med_due_again"}
     s.sent.clear()
     tick(world.db, SLOT + timedelta(minutes=30), s)
-    assert s.sent == [(world.users["owner"].id, "med_overdue_admin", "high", "/?log=medicine")]
+    assert s.sent == [(world.users["owner"].id, "med_overdue_admin", "high", f"/?log=medicine&med={med.id}")]
 
 
 def test_given_dose_stops_chain(world):

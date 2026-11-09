@@ -4,7 +4,17 @@ import App from '../App'
 import en from '../i18n/en.json'
 import { toLocalInput } from '../lib/time'
 import { ME_ADMIN, ME_VIEWER, mockApi, renderApp } from '../test/utils'
+import { afterAll, beforeAll, vi } from 'vitest'
 import Home from './Home'
+
+// these fixtures sit at fixed hours of today: pin the clock to noon so they are never in the future, whenever the suite runs
+beforeAll(() => {
+  const noon = new Date()
+  noon.setHours(12, 0, 0, 0)
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(noon)
+})
+afterAll(() => vi.useRealTimers())
 
 const today = (h: number, m = 0) => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, m) }
 const yest = (h: number, m = 0) => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1, h, m) }

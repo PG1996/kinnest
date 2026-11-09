@@ -122,7 +122,7 @@ def test_nudge_fires_once_at_its_time_to_all_caregivers_not_viewers(world):
     assert nudges(s) == []
     tick(world.db, SLOT + timedelta(minutes=10), s)
     assert {x[0] for x in nudges(s)} == ids(world, "owner", "mom") and {x[2] for x in nudges(s)} == {"normal"}
-    assert {x[3] for x in nudges(s)} == {"/?log=medicine"}
+    assert {x[3] for x in nudges(s)} == {f"/?log=medicine&med={med.id}"}
     assert n.fired_at is not None
     s.sent.clear()
     tick(world.db, SLOT + timedelta(minutes=11), s)

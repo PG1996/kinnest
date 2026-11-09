@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import en from '../i18n/en.json'
 import { ME_ADMIN, ME_VIEWER, mockApi, renderApp } from '../test/utils'
@@ -90,4 +90,19 @@ test('a viewer sees the tiles and the details but no dose buttons', async () => 
   await screen.findByTestId('medicine-grid')
   expect(screen.queryByRole('button', { name: en.medicines.giveFull })).not.toBeInTheDocument()
   expect(tiles()).toHaveLength(4)
+})
+
+test('a medicine reminder link opens that medicine below the grid', async () => {
+  mockApi(base(MEDS))
+  renderApp(<Home />, '/?log=medicine&med=m2')
+  const detail = await screen.findByTestId('medicine-detail')
+  await waitFor(() => expect(within(detail).getByText(/Domstal/)).toBeInTheDocument()) // not Iron, the one that is overdue
+  expect(screen.getByRole('button', { name: /Domstal/, pressed: true })).toBeInTheDocument()
+})
+
+test('without a medicine in the link the one needing a dose is shown, as before', async () => {
+  mockApi(base(MEDS))
+  renderApp(<Home />, '/?log=medicine')
+  const detail = await screen.findByTestId('medicine-detail')
+  expect(within(detail).getByText(/Iron/)).toBeInTheDocument()
 })

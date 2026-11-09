@@ -220,3 +220,12 @@ def test_a_crashing_sender_counts_as_a_failed_send_not_a_crashed_tick(world):
     sent = tick(world.db, DUE, sender)
     assert {s.user_id for s in sent} == ids(world, "owner")
     assert world.db.query(ReminderState).filter_by(kind="feed").one().level == 0
+
+
+def test_a_diaper_logged_after_the_alert_time_stops_it(world):
+    add_diaper(world, BASE)
+    s = FakeSender()
+    alert = BASE + timedelta(minutes=world.kid.diaper_alert_minutes)
+    add_diaper(world, alert - timedelta(minutes=10))  # changed just before the alert was due
+    tick(world.db, alert + timedelta(minutes=5), s)
+    assert [x for x in s.sent if x[1] == "diaper_alert"] == []

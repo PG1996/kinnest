@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useMe, useMedicines, useSummary, useTimeline, useVaccines, useVisits, type DiaperKind } from '../api/hooks'
+import { useKid, useMe, useMedicines, useSummary, useTimeline, useVaccines, useVisits, type DiaperKind } from '../api/hooks'
 import DiaperSheet from '../components/DiaperSheet'
 import FeedSheet from '../components/FeedSheet'
 import HomeHeader from '../components/HomeHeader'
@@ -21,6 +21,7 @@ import { useLogDiaper, useLogFeed, useUndoDiaper, type FeedInput } from '../hook
 import { useSleepActions } from '../hooks/sleepActions'
 import { lastDays, wetPerDay } from '../lib/timeline'
 import { formatClock, toLocalDate } from '../lib/time'
+import { useDismissStaleNotifications } from '../lib/staleNotifications'
 import { useNow } from '../lib/useNow'
 import { mergePending, useQueue } from '../offline/pending'
 import { clearRejected, remove } from '../offline/queue'
@@ -35,8 +36,11 @@ export default function Home() {
   const medicines = useMedicines().data ?? []
   const medsRef = useRef<HTMLDivElement>(null)
   const [scrollToMeds, setScrollToMeds] = useState(false)
+  const [focusMed, setFocusMed] = useState<string | null>(null)
   const summary = serverSummary && mergePending(serverSummary, pending, me?.user.name ?? '')
   const now = useNow()
+  const kid = useKid().data
+  useDismissStaleNotifications({ summary, kid, medicines, now })
   const today = toLocalDate(new Date(now))
   // the seven local days ending today; stable for the whole day so the query key does not change every tick
   const week = useMemo(() => {
@@ -64,6 +68,7 @@ export default function Home() {
       navigate(`/health?tab=${want === 'vaccine' ? 'vaccines' : 'visits'}`, { replace: true })
     } else if (want === 'medicine') {
       setScrollToMeds(true)
+      setFocusMed(params.get('med'))
       setParams({}, { replace: true })
     } else if (canLog && (want === 'feed' || want === 'diaper')) {
       setSheet(want)
@@ -159,6 +164,7 @@ export default function Home() {
           {medicines.length > 0 && (
             <div ref={medsRef} className="space-y-4">
               <MedicinesToday
+                focusId={focusMed}
                 medicines={medicines}
                 pending={pending}
                 canLog={canLog}
