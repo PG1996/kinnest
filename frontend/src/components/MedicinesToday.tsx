@@ -35,8 +35,8 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
   const undo = useUndoDose()
   const createNudge = useCreateNudge()
   const cancelNudge = useCancelNudge()
-  const [confirming, setConfirming] = useState<{ medicine: Medicine; amount?: number } | null>(null)
-  const [partial, setPartial] = useState<{ medicine: Medicine; slot?: Slot; max: number } | null>(null)
+  const [confirming, setConfirming] = useState<{ medicine: Medicine; amount?: number; givenAt?: string | null } | null>(null)
+  const [partial, setPartial] = useState<{ medicine: Medicine; slot?: Slot; max: number; mode?: 'full' | 'partial'; askTime?: boolean } | null>(null)
   const [open, setOpen] = useState<Record<string, boolean>>({})
   const [nudgeFor, setNudgeFor] = useState<{ medicine: Medicine; slot: Slot; left: number } | null>(null)
   if (medicines.length === 0) return null
@@ -65,9 +65,9 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
     }
   }
 
-  const submit = (m: Medicine, status: 'given' | 'skipped', slot?: Slot, amount?: number, nudgeMinutes: number | null = null) =>
+  const submit = (m: Medicine, status: 'given' | 'skipped', slot?: Slot, amount?: number, nudgeMinutes: number | null = null, givenAt: string | null = null) =>
     give.mutate(
-      { id: crypto.randomUUID(), medicine_id: m.id, status, scheduled_for: slot?.due_at, amount },
+      { id: crypto.randomUUID(), medicine_id: m.id, status, scheduled_for: slot?.due_at, amount, ...(givenAt ? { given_at: givenAt } : {}) },
       {
         onSuccess: (r) => {
           saved(r)
@@ -86,11 +86,12 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
       },
     )
 
-  const giveAsNeeded = (m: Medicine, amount: number | undefined) => {
+  const giveAsNeeded = (m: Medicine, amount: number | undefined, givenAt: string | null = null) => {
     const last = m.last_dose
-    const insideGap = m.min_gap_hours && last?.status === 'given' && now - Date.parse(last.given_at) < m.min_gap_hours * 3_600_000
-    if (insideGap) setConfirming({ medicine: m, amount })
-    else submit(m, 'given', undefined, amount)
+    const at = givenAt ? Date.parse(givenAt) : now
+    const insideGap = m.min_gap_hours && last?.status === 'given' && Math.abs(at - Date.parse(last.given_at)) < m.min_gap_hours * 3_600_000
+    if (insideGap) setConfirming({ medicine: m, amount, givenAt })
+    else submit(m, 'given', undefined, amount, null, givenAt)
   }
 
   const makeNudge = (m: Medicine, slot: Slot, minutes: number) => {
@@ -224,6 +225,9 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
             <Button variant="ghost" disabled={give.isPending} onClick={() => submit(m, 'skipped', s)}>
               {t('medicines.skip')}
             </Button>
+            <Button variant="ghost" disabled={give.isPending} onClick={() => setPartial({ medicine: m, slot: s, max: left, mode: 'full', askTime: true })}>
+              {t('medicines.atOtherTime')}
+            </Button>
           </div>
         )}
       </div>
@@ -329,6 +333,9 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
               <Button variant="ghost" disabled={give.isPending} onClick={() => setPartial({ medicine: m, max: m.dose_amount! })}>
                 {t('medicines.givePartial')}
               </Button>
+              <Button variant="ghost" disabled={give.isPending} onClick={() => setPartial({ medicine: m, max: m.dose_amount!, mode: 'full', askTime: true })}>
+                {t('medicines.atOtherTime')}
+              </Button>
             </div>
           ) : (
             <Button variant="soft" disabled={give.isPending} onClick={() => giveAsNeeded(m, undefined)}>
@@ -353,6 +360,8 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
           medicine={partial.medicine}
           slot={partial.slot}
           max={partial.max}
+          initialMode={partial.mode}
+          askTime={partial.askTime}
           onCancel={() => setPartial(null)}
           onSkip={
             partial.slot
@@ -363,11 +372,11 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
                 }
               : undefined
           }
-          onGive={(amount, nudgeMinutes) => {
+          onGive={(amount, nudgeMinutes, givenAt) => {
             const { medicine, slot } = partial
             setPartial(null)
-            if (slot) submit(medicine, 'given', slot, amount, nudgeMinutes)
-            else giveAsNeeded(medicine, amount)
+            if (slot) submit(medicine, 'given', slot, amount, nudgeMinutes, givenAt)
+            else giveAsNeeded(medicine, amount, givenAt)
           }}
         />
       )}
@@ -377,7 +386,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
           now={now}
           onCancel={() => setConfirming(null)}
           onConfirm={() => {
-            submit(confirming.medicine, 'given', undefined, confirming.amount)
+            submit(confirming.medicine, 'given', undefined, confirming.amount, null, confirming.givenAt)
             setConfirming(null)
           }}
         />
