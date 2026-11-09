@@ -96,11 +96,11 @@ export default function Home() {
       },
     })
 
-  const pickDiaper = (kind: DiaperKind) => {
+  const pickDiaper = (kind: DiaperKind, changedBy?: string) => {
     const id = crypto.randomUUID()
     setSheet(null)
     logDiaper.mutate(
-      { id, kind, at: new Date().toISOString() },
+      { id, kind, at: new Date().toISOString(), ...(changedBy ? { changed_by_user_id: changedBy } : {}) },
       {
         onError: () => setToast({ message: t('home.saveError'), tone: 'error' }),
         onSuccess: (r) =>
