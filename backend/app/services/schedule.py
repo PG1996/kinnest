@@ -103,27 +103,64 @@ def is_active(m: Medicine, now: datetime, tz: str) -> bool:
     return m.deleted_at is None and _in_course(m, _local_date(now, tz))
 
 
-def next_interval_due(m: Medicine, doses: list[MedicineDose]) -> datetime | None:
+def _usual_start(m: Medicine, tz: str) -> time:
+    """The usual first dose time of the day: the one the user set, else the time of day of the first dose."""
+    if m.day_start:
+        hh, mm = (int(x) for x in m.day_start.split(":"))
+        return time(hh, mm)
+    return m.first_dose_at.astimezone(ZoneInfo(tz)).time().replace(second=0, microsecond=0)
+
+
+def _next_usual_start(m: Medicine, after: datetime, tz: str) -> datetime:
+    """The first moment at or after `after` that is the usual first dose time, in the family timezone."""
+    zone = ZoneInfo(tz)
+    t = _usual_start(m, tz)
+    local = after.astimezone(zone)
+    candidate = datetime.combine(local.date(), t, tzinfo=zone)
+    if candidate < after:
+        candidate = datetime.combine(local.date() + timedelta(days=1), t, tzinfo=zone)
+    return candidate.astimezone(UTC)
+
+
+def next_interval_due(m: Medicine, doses: list[MedicineDose], tz: str = "UTC") -> datetime | None:
     """First dose time, then the finish time of the last resolved slot plus the interval.
 
     A slot only counts once it is resolved (given in full, or skipped), so a half-given dose does not move the schedule.
+
+    With a daily maximum, a day is that many slots: the last slot of a day (given or skipped) is followed by the next usual
+    first dose time instead of by another interval. Slots of one day follow each other by exactly the interval, so a slot
+    that does not is the start of a day; counting back from the last slot to that start gives how many of today's doses
+    have been dealt with.
     """
-    resolved = []
+    resolved: list[SlotState] = []
     for due, group in _by_slot(doses).items():
         state = slot_progress(m, due, group)
         if state.status in ("given", "skipped"):
             resolved.append(state)
     if not resolved:
         return m.first_dose_at
-    last = max(resolved, key=lambda s: s.due_at)
-    base = last.doses[-1].given_at if last.status == "given" else last.due_at
-    return base + timedelta(hours=m.interval_hours)
+    resolved.sort(key=lambda s: s.due_at)
+    step = timedelta(hours=m.interval_hours)
+
+    def base(s: SlotState) -> datetime:
+        return s.doses[-1].given_at if s.status == "given" else s.due_at
+
+    due = base(resolved[-1]) + step
+    cap = m.max_per_day if m.schedule_kind == "interval" else None
+    if cap:
+        position, i = 1, len(resolved) - 1
+        while i > 0 and resolved[i].due_at == base(resolved[i - 1]) + step:
+            position += 1
+            i -= 1
+        if position >= cap:
+            return _next_usual_start(m, due, tz)
+    return due
 
 
 def _interval_slot(m: Medicine, doses: list[MedicineDose], now: datetime, tz: str) -> datetime | None:
     if not is_active(m, now, tz):
         return None
-    due = next_interval_due(m, doses)
+    due = next_interval_due(m, doses, tz)
     if due is None or not _in_course(m, _local_date(due, tz)):
         return None
     return due
