@@ -5,12 +5,13 @@ import { I18nextProvider } from 'react-i18next'
 import { BrowserRouter } from 'react-router-dom'
 import { registerSW } from 'virtual:pwa-register'
 import App from './App'
-import { applySavedTheme } from './components/ThemeToggle'
 import i18n from './i18n'
+import { initTheme } from './lib/theme'
 import { createQueryClient } from './queryClient'
+import '@fontsource-variable/nunito'
 import './index.css'
 
-applySavedTheme()
+initTheme()
 registerSW({ immediate: true })
 const client = createQueryClient()
 

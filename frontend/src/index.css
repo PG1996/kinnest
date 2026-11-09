@@ -12,12 +12,41 @@
   --color-accent: var(--accent);
   --color-mint: var(--mint);
   --color-danger: var(--danger);
+  --color-surface-2: var(--surface-2);
+  --color-primary-soft: var(--primary-soft);
+  --color-feed-bg: var(--feed-bg);
+  --color-feed-ink: var(--feed-ink);
+  --color-feed: var(--feed);
+  --color-diaper-bg: var(--diaper-bg);
+  --color-diaper-ink: var(--diaper-ink);
+  --color-diaper: var(--diaper);
+  --color-sleep-bg: var(--sleep-bg);
+  --color-sleep-ink: var(--sleep-ink);
+  --color-sleep: var(--sleep);
+  --color-med-bg: var(--med-bg);
+  --color-med-ink: var(--med-ink);
+  --color-med: var(--med);
+  --color-warn-bg: var(--warn-bg);
+  --color-warn-ink: var(--warn-ink);
+  --color-heat-0: var(--heat-0);
+  --color-heat-1: var(--heat-1);
+  --color-heat-2: var(--heat-2);
+  --color-heat-3: var(--heat-3);
+  --color-heat-4: var(--heat-4);
   --radius-card: var(--radius);
+  --radius-tile: var(--radius-tile);
 }
 
 body {
   margin: 0;
   background: var(--app);
   color: var(--ink);
-  font-family: ui-rounded, 'SF Pro Rounded', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: 'Nunito Variable', ui-rounded, 'SF Pro Rounded', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

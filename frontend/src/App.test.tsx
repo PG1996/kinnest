@@ -34,13 +34,13 @@ test('nav has Health and the old tabs still work', async () => {
   expect(await screen.findByRole('heading', { name: en.medicines.page.title })).toBeInTheDocument()
 })
 
-test('theme toggle switches the data-theme attribute', async () => {
+test('theme control switches the data-theme attribute', async () => {
   mockApi({ 'GET /api/me': { body: ME_ADMIN } })
   renderApp(<App />, '/')
-  const toggle = await screen.findByRole('button', { name: en.theme.toggle })
-  const before = document.documentElement.dataset.theme
-  toggle.click()
-  expect(document.documentElement.dataset.theme).not.toBe(before)
+  await userEvent.click(await screen.findByRole('radio', { name: en.theme.dark }))
+  expect(document.documentElement.dataset.theme).toBe('dark')
+  await userEvent.click(screen.getByRole('radio', { name: en.theme.light }))
+  expect(document.documentElement.dataset.theme).toBe('light')
 })
 
 test('signing out removes this phone push subscription first', async () => {
