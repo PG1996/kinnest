@@ -447,7 +447,8 @@
       "title": "Latest vitals",
       "empty": "No vitals yet",
       "updated": "Updated {{ago}} ago",
-      "fever": "Fever"
+      "fever": "Fever",
+      "open": "Open vitals"
     },
     "charts": {
       "title": "Charts",
