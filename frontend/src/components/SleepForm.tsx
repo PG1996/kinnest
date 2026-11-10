@@ -63,7 +63,7 @@ export default function SleepForm({ sleep, onClose }: { sleep?: Sleep; onClose: 
   }
 
   return (
-    <Sheet title={t(sleep ? 'sleep.editTitle' : 'sleep.addTitle')} onClose={onClose}>
+    <Sheet tone="sleep" title={t(sleep ? 'sleep.editTitle' : 'sleep.addTitle')} onClose={onClose}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <div className="space-y-1">
           <label htmlFor="sleep-start" className="block text-[13px] font-semibold text-muted">

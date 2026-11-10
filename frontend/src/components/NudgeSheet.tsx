@@ -12,7 +12,7 @@ export default function NudgeSheet({ left, from, onPick, onSkip }: { left: strin
   const [other, setOther] = useState(false)
   const [custom, setCustom] = useState<number | null>(null)
   return (
-    <Sheet title={t('medicines.nudgeTitle')} onClose={onSkip}>
+    <Sheet tone="med" title={t('medicines.nudgeTitle')} onClose={onSkip}>
       <p>{t('medicines.nudgeText', { left })}</p>
       <p className="text-sm text-muted">{t('medicines.nudgeFrom', { time: formatClock(new Date(from).toISOString()) })}</p>
       <div className="grid grid-cols-3 gap-3">

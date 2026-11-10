@@ -108,8 +108,6 @@
     --warn-ink: #f2c878;
     --warn-solid: #e9a82c;
     --warn-solid-ink: #2b1c00;
-  --warn-solid: #e9a82c;
-  --warn-solid-ink: #2b1c00;
     --danger: #f2a39d;
     --heat-0: #24222f;
     --heat-1: #3a3360;
@@ -121,3 +119,10 @@
     --chart-both: #9170e8;
   }
 }
+
+/* A sheet opened from a coloured card wears that card's colour: its accent (buttons, chosen chips, focus) follows the tone. */
+[data-sheet-tone='feed'] { --primary: var(--feed-ink); --primary-soft: var(--surface); }
+[data-sheet-tone='diaper'] { --primary: var(--diaper-ink); --primary-soft: var(--surface); }
+[data-sheet-tone='sleep'] { --primary: var(--sleep-ink); --primary-soft: var(--surface); }
+[data-sheet-tone='med'] { --primary: var(--med-ink); --primary-soft: var(--surface); }
+[data-sheet-tone='warn'] { --primary: var(--warn-ink); --primary-soft: var(--surface); }

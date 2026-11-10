@@ -641,7 +641,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
         />
       )}
       {maxAsk && (
-        <Sheet title={t('medicines.maxTitle')} onClose={() => setMaxAsk(null)}>
+        <Sheet tone="med" title={t('medicines.maxTitle')} onClose={() => setMaxAsk(null)}>
           <p>{t('medicines.maxBody', { count: givenToday(maxAsk.medicine), max: maxAsk.medicine.max_per_day ?? 0 })}</p>
           <div className="grid grid-cols-2 gap-3">
             <Button

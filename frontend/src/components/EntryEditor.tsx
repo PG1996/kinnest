@@ -30,11 +30,12 @@ export default function EntryEditor({ item, onClose }: { item: TimelineItem; onC
   const delDose = useUndoDose()
   const updateVital = useUpdateVital()
   const d = describe(item, t)
+  const tone = ({ feed: 'feed', diaper: 'diaper', sleep: 'sleep', dose: 'med' } as const)[item.kind as 'feed'] ?? 'plain'
   const data = item.data as Record<string, unknown>
 
   if (item.kind === 'vaccine' || item.kind === 'visit') {
     return (
-      <Sheet title={d.title} onClose={onClose}>
+      <Sheet tone={tone} title={d.title} onClose={onClose}>
         <p className="text-sm text-muted">{[d.meta, formatTime(item.at)].filter(Boolean).join(' · ')}</p>
         <Link to={`/health?tab=${item.kind === 'vaccine' ? 'vaccines' : 'visits'}`} className={linkButtonClass('soft')}>
           {t('timeline.openInHealth')}
@@ -72,7 +73,7 @@ export default function EntryEditor({ item, onClose }: { item: TimelineItem; onC
   }
 
   return (
-    <Sheet title={d.title} onClose={onClose}>
+    <Sheet tone={tone} title={d.title} onClose={onClose}>
       <p className="text-sm text-muted">{[d.meta, formatTime(item.at)].filter(Boolean).join(' · ')}</p>
       <div className="flex flex-wrap gap-2">
         {confirming ? (

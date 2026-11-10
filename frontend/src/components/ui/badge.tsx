@@ -6,20 +6,20 @@ import type { Tone } from './card'
 export type BadgeVariant = 'soft' | 'solid' | 'outline'
 
 const SOFT: Record<Tone, string> = {
-  plain: 'bg-surface-2 text-ink',
-  feed: 'bg-feed-bg text-feed-ink',
-  diaper: 'bg-diaper-bg text-diaper-ink',
-  sleep: 'bg-sleep-bg text-sleep-ink',
-  med: 'bg-med-bg text-med-ink',
-  warn: 'bg-warn-bg text-warn-ink',
+  plain: 'border-line bg-surface-2 text-ink',
+  feed: 'border-feed/30 bg-feed-bg text-feed-ink',
+  diaper: 'border-diaper/30 bg-diaper-bg text-diaper-ink',
+  sleep: 'border-sleep/30 bg-sleep-bg text-sleep-ink',
+  med: 'border-med/30 bg-med-bg text-med-ink',
+  warn: 'border-warn-solid/50 bg-warn-bg text-warn-ink',
 }
 const SOLID: Record<Tone, string> = {
-  plain: 'bg-ink text-app',
-  feed: 'bg-feed text-primary-ink',
-  diaper: 'bg-diaper text-primary-ink',
-  sleep: 'bg-sleep text-primary-ink',
-  med: 'bg-med text-primary-ink',
-  warn: 'bg-warn-solid text-warn-solid-ink',
+  plain: 'border-transparent bg-ink text-app',
+  feed: 'border-transparent bg-feed text-primary-ink',
+  diaper: 'border-transparent bg-diaper text-primary-ink',
+  sleep: 'border-transparent bg-sleep text-primary-ink',
+  med: 'border-transparent bg-med text-primary-ink',
+  warn: 'border-transparent bg-warn-solid text-warn-solid-ink',
 }
 const OUTLINE: Record<Tone, string> = {
   plain: 'border-line text-ink',
@@ -53,7 +53,7 @@ export function Badge({
 }) {
   const dotColor = variant === 'solid' ? 'bg-current' : DOT[tone]
   return (
-    <span data-badge className={cn('inline-flex h-6 items-center gap-1.5 rounded-full border border-transparent px-2.5 text-xs font-bold whitespace-nowrap', STYLES[variant][tone], className)}>
+    <span data-badge className={cn('inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-xs font-bold whitespace-nowrap', STYLES[variant][tone], className)}>
       {dot && (
         <span data-badge-dot aria-hidden="true" className="relative flex size-1.5 shrink-0">
           {pulse && <span className={cn('absolute inset-0 animate-ping rounded-full opacity-60 motion-reduce:animate-none', dotColor)} />}
