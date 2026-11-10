@@ -85,12 +85,14 @@ export type Medicine = {
   interval_hours: number | null
   first_dose_at: string | null
   min_gap_hours: number | null
-  /** interval and SOS medicines: at most this many doses a day (rolling 24 hours for SOS) */
+  /** interval and SOS medicines: at most this many doses a day (per calendar day) */
   max_per_day?: number | null
   /** interval medicines with a maximum: the usual first dose time, "HH:MM" */
   day_start?: string | null
-  /** doses given in the last 24 hours; pieces of one dose count once */
-  given_last_24h?: number
+  /** doses given today (midnight to midnight, family timezone); pieces of one dose count once */
+  given_today?: number
+  /** when that count starts again from zero (the next midnight) */
+  day_ends_at?: string
   start_date: string
   end_date: string | null
   notes: string

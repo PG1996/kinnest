@@ -364,9 +364,11 @@
     "tileLast": "{{ago}} ago",
     "tileWait": "Wait till {{time}}",
     "maxTitle": "Maximum reached",
-    "maxBody": "{{count}} of {{max}} doses already given in the last 24 hours.",
-    "tileMax": "Max reached",
-    "dosesToday": "{{count}} of {{max}} doses in the last 24 h"
+    "maxBody": "{{count}} of {{max}} doses already given today.",
+    "tileMax": "Done for today",
+    "dosesToday": "{{count}}/{{max}} given today",
+    "doneToday": "{{count}}/{{max}} done today",
+    "giveAhead": "Give a dose now"
   },
   "units": {
     "ml": "ml",
