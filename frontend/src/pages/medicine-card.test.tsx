@@ -142,3 +142,20 @@ test('only a partly given dose renames the main button to Give the rest', async 
   expect(d.getByRole('button', { name: text(en.medicines.giveRest, { amount: '0.5 ml' }) }).className).toContain('bg-primary') // reminder-less rest is not "due"
   expect(d.queryByRole('button', { name: 'Give a dose now' })).not.toBeInTheDocument()
 })
+
+// --- the reminder for the rest has gone off: the rest is due, so tile and button turn yellow ---------------------------
+
+test.each([
+  ['it has fired', { reminder_due: true }],
+  ['its time has come', { nudge: { id: 'n1', remind_at: minsAgo(1) } }],
+])('when the reminder for the rest of a dose is reached (%s) the tile and the button turn yellow', async (_name, over) => {
+  mockApi(api([med([partial(over)])]))
+  renderApp(<Home />)
+  expect(await tile(/Vitamin D/)).toHaveTextContent(en.medicines.tileDue)
+  const d = await detail()
+  expect(d.getByRole('button', { name: text(en.medicines.giveRest, { amount: '0.5 ml' }) }).className).toContain('bg-warn-solid')
+  expect(d.getByText(text(en.medicines.restDue, { amount: '0.5 ml' }))).toBeInTheDocument()
+  expect(d.queryByText(/overdue/i)).not.toBeInTheDocument()
+  expect(d.queryByText(new RegExp(en.medicines.reminderAt.split('{{')[0]!))).not.toBeInTheDocument() // no reminder pill for one that has passed
+  expect(d.getByRole('button', { name: en.medicines.remindMe })).toBeInTheDocument() // and another can be set
+})

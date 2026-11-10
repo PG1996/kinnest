@@ -59,6 +59,8 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
   /** Doses given on today's calendar date; a list fetched before midnight counts as zero once the day has ended. */
   const givenToday = (m: Medicine) => (m.day_ends_at && now >= Date.parse(m.day_ends_at) ? 0 : (m.given_today ?? 0))
   const fmt = (m: Medicine, n: number) => formatDose(n, m.dose_unit ?? '', t)
+  /** The rest of a partly given dose is due: its reminder has gone off (or its time has come and it is about to). */
+  const restDue = (s: Slot) => s.status === 'partial' && (!!s.reminder_due || (!!s.nudge && Date.parse(s.nudge.remind_at) <= now))
   /** What can still be given for a slot, counting pieces that are waiting to sync. */
   const effectiveRemaining = (m: Medicine, s: Slot) => round2(Math.max(0, (s.remaining ?? 0) - queuedAmount(pending, m.id, s.due_at)))
 
@@ -324,7 +326,9 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
     const line = partly
       ? reminderAhead
         ? t('medicines.restAt', { amount: fmt(m, left), time: formatClock(s.nudge!.remind_at) })
-        : t('medicines.rest', { amount: fmt(m, left) })
+        : restDue(s)
+          ? t('medicines.restDue', { amount: fmt(m, left) })
+          : t('medicines.rest', { amount: fmt(m, left) })
       : overdue
         ? t('medicines.slotOverdue', { time: when, ago: formatAgo(now - due) })
         : t('medicines.slotDueAt', { time: when })
@@ -335,7 +339,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
         {!ahead && (
           <div className="flex items-center justify-between gap-2">
             <p className={overdue ? 'text-sm font-semibold text-danger' : 'text-sm font-semibold'}>{line}</p>
-            {partly && !s.nudge && canLog && (
+            {partly && !reminderAhead && canLog && (
               <Button size="sm" variant="chip" onClick={() => setNudgeFor({ medicine: m, slot: s, left })}>
                 {t('medicines.remindMe')}
               </Button>
@@ -482,7 +486,8 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
   const facts = (m: Medicine) => {
     const last = m.last_dose
     const next = nextFact(m)
-    const nudge = m.schedule_kind === 'as_needed' ? null : groups(m).current?.nudge
+    const upcoming = m.schedule_kind === 'as_needed' ? null : groups(m).current?.nudge
+    const nudge = upcoming && Date.parse(upcoming.remind_at) > now ? upcoming : null
     return (
       <div className="flex flex-wrap items-center gap-1.5">
         {m.max_per_day != null &&
@@ -535,7 +540,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
       // part of the dose is given: the tile is about the rest, and is only highlighted once its reminder is due
       const at = current.nudge ? Date.parse(current.nudge.remind_at) : null
       if (at && at > now) return { text: t('medicines.tileRest', { time: formatClock(current.nudge!.remind_at) }), urgent: false, extra }
-      if (at) return { text: t('medicines.tileDue'), urgent: true, extra }
+      if (restDue(current)) return { text: t('medicines.tileDue'), urgent: true, extra }
       return { text: t('medicines.tileRestLeft', { amount: fmt(m, round2(current.remaining ?? 0)) }), urgent: false, extra }
     }
     if (current) return { text: t('medicines.tileDue'), urgent: true, extra }

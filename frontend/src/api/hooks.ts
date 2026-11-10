@@ -73,6 +73,8 @@ export type Slot = {
   given_at: string | null
   by_name: string | null
   nudge: { id: string; remind_at: string } | null
+  /** the reminder for the rest of this dose has gone off and the dose is still open */
+  reminder_due?: boolean
 }
 export type Medicine = {
   id: string
