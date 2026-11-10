@@ -2,6 +2,8 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import en from '../i18n/en.json'
 import { ME_ADMIN, ME_VIEWER, mockApi, renderApp } from '../test/utils'
+import App from '../App'
+import { formatTime } from '../lib/time'
 import Home from './Home'
 
 const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString()
@@ -105,4 +107,60 @@ test('without a medicine in the link the one needing a dose is shown, as before'
   renderApp(<Home />, '/?log=medicine')
   const detail = await screen.findByTestId('medicine-detail')
   expect(within(detail).getByText(/Iron/)).toBeInTheDocument()
+})
+
+// --- last and next dose on the card, and the way to the history -------------------------------------------------------
+
+const lastDose = (over: object = {}) => ({ id: 'd9', status: 'given', amount: 1, given_at: minsAgo(125), by_name: 'Mom', ...over })
+const line = (key: string, vars: Record<string, string>) => Object.entries(vars).reduce((s, [k, v]) => s.replace(`{{${k}}}`, v), key)
+
+test('the open card shows when the last dose was given and by whom, and when the next one is', async () => {
+  const next = minsFromNow(180)
+  const last = lastDose()
+  mockApi(base([med('m2', 'Domstal', [slot({ due_at: next })], { last_dose: last })]))
+  renderApp(<Home />)
+  const detail = await screen.findByTestId('medicine-detail')
+  expect(within(detail).getByText(line(en.medicines.lastDoseLine, { time: formatTime(last.given_at), ago: '2h 5m', name: 'Mom' }))).toBeInTheDocument()
+  expect(within(detail).getByText(line(en.medicines.nextDoseLine, { time: formatTime(next) }))).toBeInTheDocument()
+})
+
+test('a dose that is due now says so, and a medicine never given says that', async () => {
+  mockApi(base([med('m3', 'Iron', [slot({ due_at: minsAgo(15) })])]))
+  renderApp(<Home />)
+  const detail = await screen.findByTestId('medicine-detail')
+  expect(within(detail).getByText(en.medicines.noDoseYet)).toBeInTheDocument()
+  expect(within(detail).getByText(en.medicines.nextDoseNow)).toBeInTheDocument()
+})
+
+test('a skipped last dose is shown as skipped', async () => {
+  const last = lastDose({ status: 'skipped', amount: null })
+  mockApi(base([med('m2', 'Domstal', [slot({ due_at: minsFromNow(180) })], { last_dose: last })]))
+  renderApp(<Home />)
+  const detail = await screen.findByTestId('medicine-detail')
+  expect(within(detail).getByText(line(en.medicines.lastDoseSkipped, { time: formatTime(last.given_at) }))).toBeInTheDocument()
+})
+
+test('an SOS medicine can be given whenever it is needed', async () => {
+  mockApi(base([sos({ last_dose: lastDose() })]))
+  renderApp(<Home />)
+  const detail = await screen.findByTestId('medicine-detail')
+  expect(within(detail).getByText(en.medicines.nextDoseAnytime)).toBeInTheDocument()
+})
+
+test('Dose history on the card opens that medicine history on the medicines page', async () => {
+  mockApi({
+    ...base([med('m2', 'Domstal', [slot({ due_at: minsFromNow(180) })])]),
+    'GET /api/medicines/m2/doses': { body: [] },
+  })
+  renderApp(<App />, '/')
+  const detail = await screen.findByTestId('medicine-detail')
+  await userEvent.click(within(detail).getByRole('button', { name: en.medicines.history.open }))
+  const dialog = await screen.findByRole('dialog', { name: en.medicines.history.title })
+  expect(within(dialog).getByText('Domstal')).toBeInTheDocument()
+})
+
+test('a viewer can open the history from the card too', async () => {
+  mockApi({ ...base([med('m2', 'Domstal', [slot({ due_at: minsFromNow(180) })])], ME_VIEWER), 'GET /api/medicines/m2/doses': { body: [] } })
+  renderApp(<Home />)
+  expect(within(await screen.findByTestId('medicine-detail')).getByRole('button', { name: en.medicines.history.open })).toBeInTheDocument()
 })

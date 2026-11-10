@@ -30,6 +30,16 @@ export default function MedicinesPage() {
       setParams(params, { replace: true })
     }
   }, [isAdmin, params, setParams])
+  useEffect(() => {
+    // the dose history of one medicine, opened from its card on Home
+    const wanted = params.get('history')
+    if (!wanted) return
+    const m = all.find((x) => x.id === wanted)
+    if (!m) return
+    setHistoryFor(m)
+    params.delete('history')
+    setParams(params, { replace: true })
+  }, [all, params, setParams])
   const refresh = () => qc.invalidateQueries({ queryKey: ['medicines'] })
 
   const save = useMutation({

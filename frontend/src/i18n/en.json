@@ -352,7 +352,8 @@
       "noSlot": "No slot (history only)",
       "dayToday": "Today",
       "dayYesterday": "Yesterday",
-      "logged": "Logged {{time}}"
+      "logged": "Logged {{time}}",
+      "open": "Dose history"
     },
     "sosTitle": "SOS medicines",
     "sosWait": "Wait until {{time}} before the next dose",
@@ -370,7 +371,16 @@
     "tileMax": "Done for today",
     "dosesToday": "{{count}}/{{max}} given today",
     "doneToday": "{{count}}/{{max}} done today",
-    "giveAhead": "Give a dose now"
+    "giveAhead": "Give a dose now",
+    "lastDoseLine": "Last dose: {{time}} · {{ago}} ago · by {{name}}",
+    "lastDoseSkipped": "Last dose skipped at {{time}}",
+    "noDoseYet": "No doses given yet",
+    "nextDoseLine": "Next dose: {{time}}",
+    "nextDoseNow": "Next dose: now",
+    "nextDoseNone": "No more doses scheduled",
+    "nextDoseAnytime": "Next dose: whenever needed",
+    "nextDoseFrom": "Next dose: from {{time}}",
+    "tomorrow": "tomorrow"
   },
   "units": {
     "ml": "ml",
