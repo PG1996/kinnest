@@ -1,5 +1,5 @@
 import { Baby, CalendarDays, Droplets, HeartPulse, Moon, Pill, Syringe, type LucideIcon } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import { useMe, useTimeline } from '../api/hooks'
@@ -15,6 +15,10 @@ import { dayRange, describe, fromQueue, type TimelineItem, type TimelineKind } f
 import { useQueue } from '../offline/pending'
 import { History } from 'lucide-react'
 import { DateField } from '../components/ui/datetime'
+import DayStrip, { type StripTone } from '../components/DayStrip'
+import { midnight, useStripRange } from '../lib/dayPager'
+import { prefersReducedMotion } from '../lib/motion'
+import { useNow } from '../lib/useNow'
 
 const FILTERS: { id: string; kinds?: TimelineKind[] }[] = [
   { id: 'all' },
@@ -37,6 +41,18 @@ const TINT: Record<string, string> = {
 }
 
 const startOf = (iso: string) => new Date(`${iso}T12:00:00`)
+const daysBetween = (later: string, earlier: string) => Math.round((startOf(later).getTime() - startOf(earlier).getTime()) / 86_400_000)
+
+// the strip's dots and words for a day: one per kind of thing logged, in this order
+const MARKS: { tone: StripTone; filter: string; kinds: TimelineKind[] }[] = [
+  { tone: 'feed', filter: 'feed', kinds: ['feed'] },
+  { tone: 'diaper', filter: 'diaper', kinds: ['diaper'] },
+  { tone: 'sleep', filter: 'sleep', kinds: ['sleep'] },
+  { tone: 'med', filter: 'dose', kinds: ['dose'] },
+  { tone: 'primary', filter: 'health', kinds: ['vital', 'vaccine', 'visit'] },
+]
+// days loaded by reaching the end of the list; after that, the Earlier day button
+const AUTO_DAYS = 60
 
 function DaySection({ day, kinds, myName, role, entry, onOpen }: { day: Date; kinds?: TimelineKind[]; myName: string; role: string; entry: string | null; onOpen: (it: TimelineItem) => void }) {
   const { t } = useTranslation()
@@ -58,7 +74,8 @@ function DaySection({ day, kinds, myName, role, entry, onOpen }: { day: Date; ki
   const date = day.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })
   const heading = diff === 0 ? `${t('timeline.today')} · ${date}` : diff === 1 ? `${t('timeline.yesterday')} · ${date}` : date
   return (
-    <section className="space-y-2">
+    // scroll-mt keeps a day's heading clear of the sticky strip when the strip scrolls to it
+    <section data-day={toLocalDate(day)} className="scroll-mt-20 space-y-2">
       <h2 className="text-[13px] font-semibold text-muted">{heading}</h2>
       {server !== undefined && items.length === 0 && <EmptyState icon={<History size={28} />} title={t('timeline.empty')} />}
       <ul className="space-y-2">
@@ -123,6 +140,85 @@ export default function Timeline() {
   )
   const kinds = FILTERS.find((f) => f.id === filter)?.kinds
   const days = useMemo(() => Array.from({ length: count }, (_, i) => new Date(startOf(start).getTime() - i * 86_400_000)), [start, count])
+
+  // the strip: the day at the top of the list is the chosen one; tapping a day scrolls the list to it
+  const [active, setActive] = useState(start)
+  const todayMs = midnight(new Date(useNow())).getTime()
+  const activeDay = useMemo(() => midnight(startOf(active)), [active])
+  const strip = useStripRange(activeDay, todayMs)
+  const stripItems = useTimeline({ from: strip.from, to: strip.to, kinds }).data
+  const logged = useMemo(() => {
+    const byDay = new Map<string, Set<TimelineKind>>()
+    for (const it of Array.isArray(stripItems) ? stripItems : []) {
+      const key = toLocalDate(new Date(it.at))
+      if (!byDay.has(key)) byDay.set(key, new Set())
+      byDay.get(key)!.add(it.kind)
+    }
+    return byDay
+  }, [stripItems])
+  const marksOf = (d: Date) => MARKS.filter((m) => m.kinds.some((k) => logged.get(toLocalDate(d))?.has(k)))
+  const stripWrap = useRef<HTMLDivElement>(null)
+  const scrollTo = useRef<string | null>(null)
+
+  const pickDay = (d: Date) => {
+    const iso = toLocalDate(d)
+    const oldest = toLocalDate(new Date(startOf(start).getTime() - (count - 1) * 86_400_000))
+    if (iso > start) {
+      setStart(iso)
+      setCount(count + daysBetween(iso, start))
+    } else if (iso < oldest) setCount(daysBetween(start, iso) + 1)
+    setActive(iso)
+    scrollTo.current = iso
+  }
+  const jumpTo = (iso: string) => {
+    setStart(iso)
+    setCount(1)
+    setActive(iso)
+    scrollTo.current = iso
+  }
+
+  // after a tap, bring that day to the top, under the strip
+  useEffect(() => {
+    const iso = scrollTo.current
+    if (!iso) return
+    const el = document.querySelector<HTMLElement>(`[data-day="${iso}"]`)
+    if (!el) return
+    scrollTo.current = null
+    el.scrollIntoView?.({ block: 'start', behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
+  })
+
+  // while the list scrolls, the strip follows the day at its top
+  useEffect(() => {
+    const pending = { frame: 0 }
+    const later = window.requestAnimationFrame?.bind(window) ?? ((cb: () => void) => window.setTimeout(cb, 16))
+    const onScroll = () => {
+      if (pending.frame) return
+      pending.frame = later(() => {
+        pending.frame = 0
+        const limit = (stripWrap.current?.getBoundingClientRect().bottom ?? 0) + 8
+        let top: string | undefined
+        for (const el of document.querySelectorAll<HTMLElement>('[data-day]')) {
+          if (!top) top = el.dataset.day
+          if (el.getBoundingClientRect().top <= limit) top = el.dataset.day
+          else break
+        }
+        if (top) setActive(top)
+      }) as number
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // reaching the end of the list loads the day before, up to a couple of months; then the button
+  const end = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined' || !end.current || count >= AUTO_DAYS) return
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) setCount((c) => c + 1)
+    }, { rootMargin: '600px 0px' })
+    io.observe(end.current)
+    return () => io.disconnect()
+  }, [count])
   return (
     <>
       <PageHeader
@@ -134,10 +230,7 @@ export default function Timeline() {
             compact
             value={start}
             onChange={(v) => {
-              if (v) {
-                setStart(v)
-                setCount(1)
-              }
+              if (v) jumpTo(v)
             }}
             className="min-h-11 w-auto"
           />
@@ -155,9 +248,20 @@ export default function Timeline() {
           </Chip>
         ))}
       </div>
+      <div ref={stripWrap} className="sticky top-[env(safe-area-inset-top)] z-10 -mx-4 bg-app px-4 py-2">
+        <DayStrip
+          days={strip.days}
+          selected={activeDay}
+          onPick={pickDay}
+          tone="primary"
+          marks={(d) => marksOf(d).map((m) => m.tone)}
+          describe={(d) => marksOf(d).map((m) => t(`timeline.filters.${m.filter}`)).join(', ')}
+        />
+      </div>
       {days.map((d) => (
         <DaySection key={d.toISOString()} day={d} kinds={kinds} myName={me?.user.name ?? ''} role={role} entry={entry} onOpen={openEntry} />
       ))}
+      <div ref={end} aria-hidden="true" />
       <Button variant="soft" className="w-full" onClick={() => setCount(count + 1)}>
         {t('timeline.earlier')}
       </Button>

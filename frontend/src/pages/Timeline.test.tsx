@@ -61,8 +61,8 @@ test('show earlier day fetches the previous day', async () => {
   await screen.findByText(`${en.feedTypes.formula} · 60 ml`)
   await userEvent.click(screen.getByRole('button', { name: en.timeline.earlier }))
   await waitFor(() => expect(timelineCalls(calls).length).toBeGreaterThanOrEqual(2))
-  const froms = timelineCalls(calls).map((u) => new Date(u.searchParams.get('from')!).getDate())
-  expect(new Set(froms).size).toBe(2)
+  const yesterday = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - 1).toISOString()
+  await waitFor(() => expect(timelineCalls(calls).map((u) => u.searchParams.get('from'))).toContain(yesterday))
   expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(2)
 })
 
