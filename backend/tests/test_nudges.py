@@ -69,6 +69,23 @@ def test_a_new_nudge_replaces_the_previous_one_for_the_slot(family, clock, db_se
     assert db_session.get(MedicineNudge, uuid.UUID(first["id"])).cancelled_at is not None
 
 
+def test_a_fired_nudge_leaves_the_slot_marked_as_due_until_it_is_replaced(family, clock, db_session):
+    med = make(family.owner, syrup(clock))
+    slot = clock.at(9)
+    give(family.mom, med, piece(0.25, slot))
+    assert slot_json(family.aunt, slot)["reminder_due"] is False  # no reminder at all
+    first = post_nudge(family.mom, med, nudge_body(slot, minutes=10, base=clock.now)).json()
+    assert slot_json(family.aunt, slot)["reminder_due"] is False  # set, not fired yet
+    row = db_session.get(MedicineNudge, uuid.UUID(first["id"]))
+    row.fired_at = clock.now + timedelta(minutes=10)
+    db_session.commit()
+    due = slot_json(family.aunt, slot)
+    assert due["nudge"] is None and due["reminder_due"] is True  # it fired: the rest is due now
+    post_nudge(family.mom, med, nudge_body(slot, minutes=30, base=clock.now))
+    again = slot_json(family.aunt, slot)
+    assert again["nudge"] is not None and again["reminder_due"] is False  # a new reminder replaces the fired one
+
+
 def test_nudge_same_id_is_idempotent_and_viewers_cannot_create(family, clock, db_session):
     med = make(family.owner, syrup(clock))
     slot = clock.at(9)

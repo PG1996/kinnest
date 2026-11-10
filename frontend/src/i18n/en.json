@@ -388,7 +388,8 @@
     "barLabel": "{{given}} / {{total}}",
     "doseOf": "{{time}} dose",
     "tileRest": "Rest {{time}}",
-    "tileRestLeft": "Rest {{amount}}"
+    "tileRestLeft": "Rest {{amount}}",
+    "restDue": "Rest · {{amount}} · due now"
   },
   "units": {
     "ml": "ml",

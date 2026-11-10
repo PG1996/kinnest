@@ -153,10 +153,10 @@ def nudge_json(n: MedicineNudge) -> dict:
 
 
 def _active_nudges(db: Session, medicine_id: uuid.UUID) -> dict[datetime, MedicineNudge]:
-    """Temporary reminders still waiting to fire, by the slot they are about."""
+    """The live temporary reminder of each slot (waiting to fire, or fired and not yet replaced or cancelled)."""
     rows = db.scalars(
         select(MedicineNudge)
-        .where(MedicineNudge.medicine_id == medicine_id, MedicineNudge.fired_at.is_(None), MedicineNudge.cancelled_at.is_(None))
+        .where(MedicineNudge.medicine_id == medicine_id, MedicineNudge.cancelled_at.is_(None))
         .order_by(MedicineNudge.remind_at)
     ).all()
     return {n.scheduled_for: n for n in rows if n.scheduled_for is not None}
@@ -208,7 +208,13 @@ def medicine_json(
                 "dose_id": str(s.dose.id) if s.dose else None,  # the latest piece
                 "given_at": _iso(s.dose.given_at) if s.dose else None,
                 "by_name": names.get(s.dose.by_user_id, "") if s.dose else None,
-                "nudge": {"id": str(nudges[s.due_at].id), "remind_at": _iso(nudges[s.due_at].remind_at)} if s.due_at in nudges else None,
+                "nudge": (
+                    {"id": str(nudges[s.due_at].id), "remind_at": _iso(nudges[s.due_at].remind_at)}
+                    if s.due_at in nudges and nudges[s.due_at].fired_at is None
+                    else None
+                ),
+                # the reminder for the rest of this dose has gone off and the dose is still open: it is due now
+                "reminder_due": s.due_at in nudges and nudges[s.due_at].fired_at is not None,
             }
             for s in slots
         ],
