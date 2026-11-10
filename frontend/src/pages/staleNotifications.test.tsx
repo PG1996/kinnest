@@ -63,3 +63,27 @@ test('without a service worker nothing breaks', async () => {
   mockApi({ 'GET /api/me': { body: ME_ADMIN }, 'GET /api/summary': { body: summary() }, 'GET /api/kid': { body: KID }, 'GET /api/medicines': { body: [] } })
   expect(() => renderApp(<Home />)).not.toThrow()
 })
+
+// --- the "feeding since" notification --------------------------------------------------------------------------------------
+
+const timerNote = () => ({ tag: 'feed_timer', data: { url: '/?log=feed' }, close: vi.fn() })
+const RUNNING = { id: 'tm1', type: 'breast_left', started_at: minsAgo(10), ended_at: null, paused_at: null, paused_total_s: 0, started_by_name: 'Mom' }
+
+test('the feeding notification stays while a timer runs, even though no feed is due', async () => {
+  const n = timerNote()
+  run([n], summary({ feed_timer: RUNNING })) // a feed was logged recently: a plain feed reminder would be stale
+  await new Promise((r) => setTimeout(r, 200))
+  expect(n.close).not.toHaveBeenCalled()
+})
+
+test('the feeding notification is cleared once the feed is saved or the timer discarded', async () => {
+  const n = timerNote()
+  run([n], summary({ feed_timer: null }))
+  await waitFor(() => expect(n.close).toHaveBeenCalled())
+})
+
+test('a feed reminder already on the phone is cleared while a feed is being timed', async () => {
+  const feed = note('/?log=feed')
+  run([feed], summary({ next_feed_due_at: minsAgo(30), feed_timer: RUNNING }))
+  await waitFor(() => expect(feed.close).toHaveBeenCalled())
+})

@@ -23,6 +23,7 @@ export default function FeedEditForm({ feed, onClose }: { feed?: Feed; onClose: 
   const [type, setType] = useState<FeedType>(feed?.type ?? 'formula')
   const [ml, setMl] = useState(feed?.quantity_ml ?? 60)
   const [duration, setDuration] = useState(feed?.duration_min != null ? String(feed.duration_min) : '')
+  const [breaks, setBreaks] = useState(String(feed?.break_min ?? 0))
   const [note, setNote] = useState(feed?.note ?? '')
   const [by, setBy] = useState<string | null>(null)
   const [error, setError] = useState('')
@@ -35,6 +36,8 @@ export default function FeedEditForm({ feed, onClose }: { feed?: Feed; onClose: 
     if (Number.isNaN(at.getTime()) || at.getTime() > Date.now() + 2 * 60_000) return setError(t('diapers.form.future'))
     const minutes = duration.trim() === '' ? null : Number(duration)
     if (!bottle && minutes !== null && !(Number.isInteger(minutes) && minutes >= 0 && minutes <= 600)) return setError(t('timeline.saveError'))
+    const breakMin = breaks.trim() === '' ? 0 : Number(breaks)
+    if (!bottle && !(Number.isInteger(breakMin) && breakMin >= 0 && breakMin <= 600)) return setError(t('timeline.saveError'))
     setError('')
     const done = { onSuccess: onClose, onError: () => setError(t('timeline.saveError')) }
     if (feed) {
@@ -44,6 +47,7 @@ export default function FeedEditForm({ feed, onClose }: { feed?: Feed; onClose: 
         ...(bottle && (ml !== feed.quantity_ml || type !== feed.type) ? { quantity_ml: ml } : {}),
         ...(bottle && feed.duration_min != null ? { duration_min: null } : {}),
         ...(!bottle && (minutes !== feed.duration_min || type !== feed.type) ? { duration_min: minutes } : {}),
+        ...(!bottle && breakMin !== (feed.break_min ?? 0) ? { break_min: breakMin } : {}),
         ...(!bottle && feed.quantity_ml != null ? { quantity_ml: null } : {}),
         ...(note !== (feed.note ?? '') ? { note } : {}),
         ...(by && !type.startsWith('breast') ? { fed_by_user_id: by } : {}),
@@ -52,7 +56,7 @@ export default function FeedEditForm({ feed, onClose }: { feed?: Feed; onClose: 
       update.mutate({ id: feed.id, ...changes }, done)
     } else {
       add.mutate(
-        { id: crypto.randomUUID(), type, started_at: at.toISOString(), ...(bottle ? { quantity_ml: ml } : minutes !== null ? { duration_min: minutes } : {}), ...(note ? { note } : {}), ...(by && !type.startsWith('breast') ? { fed_by_user_id: by } : {}) },
+        { id: crypto.randomUUID(), type, started_at: at.toISOString(), ...(bottle ? { quantity_ml: ml } : minutes !== null ? { duration_min: minutes } : {}), ...(!bottle && breakMin > 0 ? { break_min: breakMin } : {}), ...(note ? { note } : {}), ...(by && !type.startsWith('breast') ? { fed_by_user_id: by } : {}) },
         done,
       )
     }
@@ -70,6 +74,10 @@ export default function FeedEditForm({ feed, onClose }: { feed?: Feed; onClose: 
               {t('home.duration')}
             </label>
             <Input id="feed-edit-duration" type="number" inputMode="numeric" min={0} value={duration} onChange={(e) => setDuration(e.target.value)} />
+            <label htmlFor="feed-edit-breaks" className="block pt-2 text-xs font-medium text-muted">
+              {t('feed.breaksInput')}
+            </label>
+            <Input id="feed-edit-breaks" type="number" inputMode="numeric" min={0} value={breaks} onChange={(e) => setBreaks(e.target.value)} />
           </div>
         )}
         <FedBy type={type} value={by ?? feed?.fed_by_user_id ?? null} onChange={setBy} />

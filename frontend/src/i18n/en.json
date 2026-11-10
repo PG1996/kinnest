@@ -98,7 +98,9 @@
     "timerOpen": "Open",
     "timerBanner": "Feeding now",
     "timerStopped": "Stopped at {{time}}",
-    "timerHalted": "Timer stopped"
+    "timerHalted": "Timer stopped",
+    "timerPause": "Pause",
+    "timerPaused": "Paused"
   },
   "roles": {
     "admin": "Admin",
@@ -794,7 +796,16 @@
   "feed": {
     "fedByMom": "Fed by mom · {{name}}",
     "momGroup": "Mom's feed",
-    "bottleGroup": "Bottle"
+    "bottleGroup": "Bottle",
+    "breaksTitle": "Any breaks? (burping, changing)",
+    "breaksNone": "None",
+    "breaksMin": "{{n}} min",
+    "breaksOther": "Other",
+    "breaksOtherLabel": "Break minutes",
+    "onClock": "{{n}} min on the clock",
+    "feedingTime": "Feeding time: {{n}} min",
+    "breakTotal": "{{n}} min of breaks",
+    "breaksInput": "Breaks (min)"
   },
   "feeds": {
     "title": "Feeds",

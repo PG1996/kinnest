@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest'
-import { dayRange, lastDays } from './timeline'
+import i18n from '../i18n'
+import { dayRange, describe, lastDays } from './timeline'
 
 test('dayRange runs from local midnight to the last millisecond of the day', () => {
   const { from, to } = dayRange(new Date(2026, 10, 8, 15, 30))
@@ -70,4 +71,12 @@ test('fromQueue turns waiting entries for that day into pending timeline items',
     ['vital', 'v1', true],
   ])
   expect(items[0]!.data).toMatchObject({ fed_by_name: 'Mom', quantity_ml: 60 })
+})
+
+test('a feed with breaks says so in its details, one without says nothing about breaks', () => {
+  const t = i18n.t.bind(i18n)
+  const item = (data: object) => ({ kind: 'feed', id: 'f', at: new Date().toISOString(), data: { type: 'breast_left', duration_min: 35, fed_by_name: 'Mom', ...data } }) as never
+  expect(describe(item({ break_min: 15 }), t).meta).toBe('by Mom · 15 min of breaks')
+  expect(describe(item({ break_min: 0 }), t).meta).toBe('by Mom')
+  expect(describe(item({}), t).meta).toBe('by Mom')
 })

@@ -3,7 +3,17 @@ import type { TimelineItem, TimelineKind } from '../lib/timeline'
 import { ApiError, api } from './client'
 
 /** A feed being timed right now. The server keeps the start (and the stop); each phone works out the elapsed time. */
-export type FeedTimerInfo = { id: string; type: FeedType; started_at: string; ended_at: string | null; started_by_name: string }
+export type FeedTimerInfo = {
+  id: string
+  type: FeedType
+  started_at: string
+  ended_at: string | null
+  /** when the current break began, if the feed is paused */
+  paused_at?: string | null
+  /** seconds of breaks already finished */
+  paused_total_s?: number
+  started_by_name: string
+}
 
 export type Role = 'admin' | 'caregiver' | 'viewer'
 export const RELATIONS = ['mom', 'dad', 'grandparent', 'relative', 'nanny', 'other'] as const
@@ -42,6 +52,8 @@ export type Feed = {
   type: FeedType
   started_at: string
   duration_min: number | null
+  /** minutes of breaks inside the feed (burping, changing); the duration is the feeding itself */
+  break_min?: number
   quantity_ml: number | null
   note: string
   fed_by_user_id?: string

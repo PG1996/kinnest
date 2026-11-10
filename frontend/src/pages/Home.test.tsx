@@ -59,6 +59,13 @@ test('the last diaper card shows what it was as a pill, who changed it, and toda
   expect(today.getByText(en.home.todayBoth.replace('{{n}}', '0'))).toBeInTheDocument()
 })
 
+test('the last feed card shows how long its breaks were', async () => {
+  const last = { ...SUMMARY().last_feed, type: 'breast_left', quantity_ml: null, duration_min: 35, break_min: 15 }
+  mockApi(base(ME_ADMIN, SUMMARY({ last_feed: last })))
+  renderApp(<Home />)
+  expect(await screen.findByText(en.feed.breakTotal.replace('{{n}}', '15'))).toBeInTheDocument()
+})
+
 test('flags an overdue feed', async () => {
   mockApi(base(ME_ADMIN, SUMMARY({ next_feed_due_at: minsAgo(20) })))
   renderApp(<Home />)
@@ -101,6 +108,97 @@ test('once the timer is gone an overdue feed is flagged again', async () => {
   mockApi(base(ME_ADMIN, SUMMARY({ next_feed_due_at: minsAgo(20), feed_timer: null })))
   renderApp(<Home />)
   expect(await screen.findByText(en.home.overdue)).toBeInTheDocument()
+})
+
+// --- the timer on the Home card: start, pause, stop, as icons ----------------------------------------------------------------
+
+const timerRoutes = (state: { timer: object | null }, me = ME_ADMIN) => ({
+  ...base(me, SUMMARY()),
+  'GET /api/summary': () => ({ body: SUMMARY({ feed_timer: state.timer }) }),
+  'POST /api/feed-timer': (b: unknown) => { state.timer = { ...(b as object), ended_at: null, paused_at: null, paused_total_s: 0, started_by_name: 'Owner' }; return { status: 201, body: state.timer } },
+  'PATCH /api/feed-timer': (b: unknown) => {
+    const { paused, ...rest } = b as { paused?: boolean }
+    state.timer = { ...(state.timer as object), ...rest, ...(paused === undefined ? {} : { paused_at: paused ? new Date().toISOString() : null }) }
+    return { body: state.timer }
+  },
+})
+const RUN = (over: object = {}) => ({ id: 'tm1', type: 'breast_left', started_at: minsAgo(10), ended_at: null, paused_at: null, paused_total_s: 0, started_by_name: 'Pankhuri', ...over })
+
+test('the feed card has a start icon that starts a timer with the type of the last feed', async () => {
+  const state = { timer: null as object | null }
+  const calls = mockApi(timerRoutes(state))
+  renderApp(<Home />)
+  await userEvent.click(await screen.findByRole('button', { name: en.home.timerStart }))
+  await waitFor(() => expect(calls.some((c) => c.key === 'POST /api/feed-timer')).toBe(true))
+  const body = calls.find((c) => c.key === 'POST /api/feed-timer')!.body as { type: string; started_at: string; id: string }
+  expect(body.type).toBe('formula') // the type of the last feed
+  expect(Math.abs(Date.parse(body.started_at) - Date.now())).toBeLessThan(5_000)
+  expect(await screen.findByTestId('feed-timer-banner')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: en.home.timerStart })).not.toBeInTheDocument() // one at a time
+})
+
+test('a viewer has no start icon, and a failed start says so', async () => {
+  mockApi(timerRoutes({ timer: null }, ME_VIEWER))
+  renderApp(<Home />)
+  await screen.findByText(en.home.lastFedLabel)
+  expect(screen.queryByRole('button', { name: en.home.timerStart })).not.toBeInTheDocument()
+})
+
+test('if the timer cannot be started the card says so', async () => {
+  mockApi({ ...timerRoutes({ timer: null }), 'POST /api/feed-timer': { status: 500, body: {} } })
+  renderApp(<Home />)
+  await userEvent.click(await screen.findByRole('button', { name: en.home.timerStart }))
+  expect(await screen.findByText(en.home.timerFailed)).toBeInTheDocument()
+})
+
+test('the banner has pause and stop icons; pause pauses on the server and the badge stops pulsing', async () => {
+  const state = { timer: RUN() as object | null }
+  const calls = mockApi(timerRoutes(state))
+  renderApp(<Home />)
+  const banner = await screen.findByTestId('feed-timer-banner')
+  expect(within(banner).getByText(en.home.timerBanner).closest('[data-badge]')!.querySelector('.animate-ping')).not.toBeNull()
+  await userEvent.click(within(banner).getByRole('button', { name: en.home.timerPause }))
+  await waitFor(() => expect(calls.find((c) => c.key === 'PATCH /api/feed-timer')?.body).toEqual({ paused: true }))
+  const paused = await within(banner).findByText(en.home.timerPaused)
+  expect(paused.closest('[data-badge]')!.querySelector('.animate-ping')).toBeNull()
+  await userEvent.click(within(banner).getByRole('button', { name: en.home.timerResume }))
+  await waitFor(() => expect(calls.filter((c) => c.key === 'PATCH /api/feed-timer').at(-1)?.body).toEqual({ paused: false }))
+})
+
+test('a paused banner shows the frozen feeding time, not the time on the clock', async () => {
+  // started 10 min ago, 2 min of breaks done, a break began 3 min ago: 5 minutes of feeding
+  mockApi(timerRoutes({ timer: RUN({ paused_total_s: 120, paused_at: minsAgo(3) }) }))
+  renderApp(<Home />)
+  expect((await screen.findByTestId('feed-timer-elapsed')).textContent).toMatch(/^5:0\d$/)
+})
+
+test('Stop on the banner stops the timer and opens the feed form on the breaks question', async () => {
+  const state = { timer: RUN() as object | null }
+  const calls = mockApi(timerRoutes(state))
+  renderApp(<Home />)
+  const banner = await screen.findByTestId('feed-timer-banner')
+  await userEvent.click(within(banner).getByRole('button', { name: en.home.timerStop }))
+  await waitFor(() => expect(calls.find((c) => c.key === 'PATCH /api/feed-timer')?.body).toMatchObject({ ended_at: expect.any(String) }))
+  const sheet = await screen.findByRole('dialog', { name: en.home.feed })
+  expect(await within(sheet).findByRole('group', { name: en.feed.breaksTitle })).toBeInTheDocument()
+})
+
+test('a stopped timer that was not saved can be resumed or opened from the banner', async () => {
+  mockApi(timerRoutes({ timer: RUN({ ended_at: minsAgo(2) }) }))
+  renderApp(<Home />)
+  const banner = await screen.findByTestId('feed-timer-banner')
+  expect(within(banner).getByText(en.home.timerHalted)).toBeInTheDocument()
+  expect(within(banner).getByRole('button', { name: en.home.timerResume })).toBeInTheDocument()
+  expect(within(banner).queryByRole('button', { name: en.home.timerPause })).not.toBeInTheDocument()
+})
+
+test('the notification\'s Stop button opens the app, stops the timer and asks about breaks', async () => {
+  const state = { timer: RUN() as object | null }
+  const calls = mockApi(timerRoutes(state))
+  renderApp(<Home />, '/?log=feed&timer=stop')
+  await waitFor(() => expect(calls.find((c) => c.key === 'PATCH /api/feed-timer')?.body).toMatchObject({ ended_at: expect.any(String) }))
+  const sheet = await screen.findByRole('dialog', { name: en.home.feed })
+  expect(await within(sheet).findByRole('group', { name: en.feed.breaksTitle })).toBeInTheDocument()
 })
 
 test('shows empty states before anything is logged', async () => {

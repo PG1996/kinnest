@@ -79,7 +79,12 @@ const timerApi = (state: { timer: object | null }) => ({
   ...api(),
   'GET /api/summary': () => ({ body: SUMMARY(state.timer) }),
   'POST /api/feed-timer': (b: unknown) => { state.timer = { ...(b as object), ended_at: null, started_by_name: 'Owner' }; return { status: 201, body: state.timer } },
-  'PATCH /api/feed-timer': (b: unknown) => { state.timer = { ...(state.timer as object), ...(b as object) }; return { body: state.timer } },
+  'PATCH /api/feed-timer': (b: unknown) => {
+    // like the server: a pause starts a break, resuming ends it
+    const { paused, ...rest } = b as { paused?: boolean }
+    state.timer = { ...(state.timer as object), ...rest, ...(paused === undefined ? {} : { paused_at: paused ? new Date().toISOString() : null }) }
+    return { body: state.timer }
+  },
   'DELETE /api/feed-timer': () => { state.timer = null; return { body: { ok: true } } },
 })
 const sheet = (onSave = vi.fn()) => renderApp(<FeedSheet last={null} saving={false} failed={false} onSave={onSave} onClose={() => {}} />)
@@ -229,4 +234,95 @@ test('only one type can be chosen across both groups', async () => {
   await userEvent.click(screen.getByRole('radio', { name: en.feedTypes.expressed }))
   expect(screen.getByRole('radio', { name: en.feedTypes.expressed })).toBeChecked()
   expect(screen.getByRole('radio', { name: en.feedTypes.breast_right })).not.toBeChecked()
+})
+
+// --- pausing, and breaks asked once at the end -------------------------------------------------------------------------
+
+const stoppedTimer = (wallMin: number, over: object = {}) => {
+  const started = Date.now() - (wallMin + 5) * 60_000
+  return { id: 'tm1', type: 'breast_left', started_at: new Date(started).toISOString(), ended_at: new Date(started + wallMin * 60_000).toISOString(), paused_at: null, paused_total_s: 0, started_by_name: 'Mom', ...over }
+}
+const chipsOf = () => within(screen.getByRole('group', { name: en.feed.breaksTitle }))
+const breakChip = (min: number) => chipsOf().getByRole('button', { name: en.feed.breaksMin.replace('{{n}}', String(min)) })
+
+test('Pause pauses it on the server, and Resume (while paused) ends the break', async () => {
+  const state: { timer: object | null } = { timer: running(10, { paused_at: null, paused_total_s: 0 }) }
+  const calls = mockApi(timerApi(state))
+  sheet()
+  await userEvent.click(await screen.findByRole('button', { name: en.home.timerPause }))
+  await waitFor(() => expect(calls.find((c) => c.key === 'PATCH /api/feed-timer')?.body).toEqual({ paused: true }))
+  await userEvent.click(await screen.findByRole('button', { name: new RegExp(en.home.timerResume) }))
+  await waitFor(() => expect(calls.filter((c) => c.key === 'PATCH /api/feed-timer').at(-1)?.body).toEqual({ paused: false }))
+})
+
+test('while paused the clock is frozen and the breaks are not counted as feeding', async () => {
+  // 10 minutes ago it started, 2 minutes of breaks are done and a break began 3 minutes ago: 5 minutes of feeding
+  const state = { timer: running(10, { paused_total_s: 120, paused_at: new Date(Date.now() - 3 * 60_000).toISOString() }) }
+  mockApi(timerApi(state))
+  sheet()
+  expect(await screen.findByRole('button', { name: new RegExp(`${en.home.timerResume} · 5:0`) })).toBeInTheDocument()
+  expect(screen.getByLabelText(en.home.duration)).toHaveValue(5)
+})
+
+test('after Stop the breaks are asked once: None is chosen and the feed is the whole time on the clock', async () => {
+  mockApi(timerApi({ timer: stoppedTimer(40) }))
+  const onSave = vi.fn()
+  sheet(onSave)
+  expect(await screen.findByText(en.feed.onClock.replace('{{n}}', '40'))).toBeInTheDocument()
+  expect(chipsOf().getByRole('button', { name: en.feed.breaksNone, pressed: true })).toBeInTheDocument()
+  expect(screen.getByLabelText(en.home.duration)).toHaveValue(40)
+  await userEvent.click(screen.getByRole('button', { name: en.home.saveFeed }))
+  expect(onSave.mock.calls[0]![0]).toMatchObject({ duration_min: 40, break_min: 0, timer_id: 'tm1' })
+})
+
+test('choosing breaks takes them off the feeding time and saves them with the feed', async () => {
+  mockApi(timerApi({ timer: stoppedTimer(50) }))
+  const onSave = vi.fn()
+  sheet(onSave)
+  await userEvent.click(await screen.findByText(en.feed.onClock.replace('{{n}}', '50')).then(() => breakChip(15)))
+  expect(screen.getByText(en.feed.feedingTime.replace('{{n}}', '35'))).toBeInTheDocument()
+  expect(screen.getByLabelText(en.home.duration)).toHaveValue(35)
+  await userEvent.click(screen.getByRole('button', { name: en.home.saveFeed }))
+  expect(onSave.mock.calls[0]![0]).toMatchObject({ duration_min: 35, break_min: 15 })
+})
+
+test('Other takes any number of minutes, and a break longer than the feed cannot be chosen', async () => {
+  mockApi(timerApi({ timer: stoppedTimer(12) }))
+  const onSave = vi.fn()
+  sheet(onSave)
+  await screen.findByText(en.feed.onClock.replace('{{n}}', '12'))
+  expect(breakChip(15)).toBeDisabled()
+  expect(breakChip(20)).toBeDisabled()
+  expect(breakChip(10)).toBeEnabled()
+  await userEvent.click(chipsOf().getByRole('button', { name: en.feed.breaksOther }))
+  await userEvent.type(screen.getByLabelText(en.feed.breaksOtherLabel), '4')
+  expect(screen.getByLabelText(en.home.duration)).toHaveValue(8)
+  await userEvent.click(screen.getByRole('button', { name: en.home.saveFeed }))
+  expect(onSave.mock.calls[0]![0]).toMatchObject({ duration_min: 8, break_min: 4 })
+})
+
+test('breaks someone paused for are already chosen when the question comes', async () => {
+  mockApi(timerApi({ timer: stoppedTimer(45, { paused_total_s: 600 }) }))
+  const onSave = vi.fn()
+  sheet(onSave)
+  await screen.findByText(en.feed.onClock.replace('{{n}}', '45'))
+  expect(breakChip(10)).toHaveAttribute('aria-pressed', 'true')
+  await userEvent.click(screen.getByRole('button', { name: en.home.saveFeed }))
+  expect(onSave.mock.calls[0]![0]).toMatchObject({ duration_min: 35, break_min: 10 })
+})
+
+test('saving while it still runs keeps the recorded breaks out of the feeding time', async () => {
+  mockApi(timerApi({ timer: running(20, { paused_total_s: 300, paused_at: null }) }))
+  const onSave = vi.fn()
+  sheet(onSave)
+  await screen.findByRole('button', { name: new RegExp(en.home.timerStop) })
+  await userEvent.click(screen.getByRole('button', { name: en.home.saveFeed }))
+  expect(onSave.mock.calls[0]![0]).toMatchObject({ duration_min: 15, break_min: 5, timer_id: 'tm1' })
+})
+
+test('the breaks question only appears once the timer is stopped', async () => {
+  mockApi(timerApi({ timer: running(10) }))
+  sheet()
+  await screen.findByRole('button', { name: new RegExp(en.home.timerStop) })
+  expect(screen.queryByRole('group', { name: en.feed.breaksTitle })).not.toBeInTheDocument()
 })

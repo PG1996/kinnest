@@ -74,7 +74,8 @@ export function describe(item: TimelineItem, t: TFunction): Described {
   switch (item.kind) {
     case 'feed': {
       const amount = d.quantity_ml != null ? ` · ${d.quantity_ml} ml` : d.duration_min != null ? ` · ${d.duration_min} min` : ''
-      return { title: `${t(`feedTypes.${d.type}`)}${amount}`, meta: by(d.fed_by_name), tone: 'feed' }
+      const breaks = d.break_min > 0 ? t('feed.breakTotal', { n: d.break_min }) : ''
+      return { title: `${t(`feedTypes.${d.type}`)}${amount}`, meta: [by(d.fed_by_name), breaks].filter(Boolean).join(' · '), tone: 'feed' }
     }
     case 'diaper':
       return { title: t(`diaperKinds.${d.kind}`), meta: by(d.changed_by_name), tone: 'diaper' }

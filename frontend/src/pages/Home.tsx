@@ -18,7 +18,7 @@ import Toast, { type ToastData } from '../components/Toast'
 import UpcomingCard from '../components/UpcomingCard'
 import Today from '../components/Today'
 import { Button } from '../components/ui/button'
-import { useLogDiaper, useLogFeed, useUndoDiaper, type FeedInput } from '../hooks/log'
+import { useFeedTimerActions, useLogDiaper, useLogFeed, useUndoDiaper, type FeedInput } from '../hooks/log'
 import { useSleepActions } from '../hooks/sleepActions'
 import { lastDays, wetPerDay } from '../lib/timeline'
 import { formatClock, toLocalDate } from '../lib/time'
@@ -73,11 +73,28 @@ export default function Home() {
       setParams({}, { replace: true })
     } else if (canLog && (want === 'feed' || want === 'diaper')) {
       setSheet(want)
+      if (want === 'feed' && params.get('timer') === 'stop') setStopWanted(true)
       setParams({}, { replace: true })
     }
   }, [canLog, navigate, params, setParams])
   const closeToast = useCallback(() => setToast(null), [])
   const logFeed = useLogFeed()
+  const timerActions = useFeedTimerActions()
+  /** The play icon on the feed card: a timer with the type of the last feed (it can be changed in the form). */
+  const startTimer = () =>
+    timerActions.start.mutate(
+      { id: crypto.randomUUID(), type: summary?.last_feed?.type ?? 'breast_both', started_at: new Date().toISOString() },
+      { onError: () => setToast({ message: t('home.timerFailed'), tone: 'error' }) },
+    )
+  // a tapped "Stop" on the notification: stop the timer once the summary is here, then the form asks about breaks
+  const [stopWanted, setStopWanted] = useState(false)
+  useEffect(() => {
+    if (!stopWanted || !serverSummary) return
+    setStopWanted(false)
+    const timer = serverSummary.feed_timer
+    if (timer && !timer.ended_at) timerActions.change.mutate({ ended_at: new Date().toISOString() })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stopWanted, serverSummary])
   const logDiaper = useLogDiaper()
   const undoDiaper = useUndoDiaper()
 
@@ -141,7 +158,7 @@ export default function Home() {
       {summary && (
         <>
           {summary.feed_timer && canLog && <FeedTimerBanner timer={summary.feed_timer} onOpen={() => setSheet('feed')} />}
-          <LastFeedCard summary={summary} now={now} canLog={canLog} feeding={!!summary.feed_timer} onLogFeed={() => setSheet('feed')} />
+          <LastFeedCard summary={summary} now={now} canLog={canLog} feeding={!!summary.feed_timer} onLogFeed={() => setSheet('feed')} onStartTimer={startTimer} />
           <LastDiaperCard summary={summary} now={now} wetPerDay={wetSeries} />
           <SleepCard sleep={summary.sleep} now={now} />
         </>
