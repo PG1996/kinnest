@@ -1,10 +1,11 @@
-import { fireEvent, screen } from '@testing-library/react'
+import { fireEvent, screen, within } from '@testing-library/react'
 import en from '../i18n/en.json'
-import { diaperWeek } from '../lib/diaperWeek'
+import { diaperStats } from '../lib/diaperDays'
 import { feedGaps } from '../lib/feedDay'
 import { formatTime } from '../lib/time'
 import { ME_ADMIN, mockApi, renderApp } from '../test/utils'
-import DiaperWeek from './DiaperWeek'
+import DiaperStrips from './DiaperStrips'
+import DiaperTiles from './DiaperTiles'
 import FeedClock from './FeedClock'
 import FeedGaps from './FeedGaps'
 
@@ -70,34 +71,57 @@ test('with fewer than two feeds there are no gaps to draw', () => {
   expect(container).toBeEmptyDOMElement()
 })
 
-// --- diaper week ---------------------------------------------------------------------------------------------------
+// --- diaper tiles and day strips -----------------------------------------------------------------------------------
 
-const DIAPERS = [diaper('1', 'wet', at(1)), diaper('2', 'wet', at(2)), diaper('3', 'dirty', at(3)), diaper('4', 'both', at(4)), diaper('5', 'wet', at(5, 0, 2))]
+const DIAPERS = [diaper('1', 'wet', at(1)), diaper('2', 'wet', at(2)), diaper('3', 'dirty', at(3)), diaper('4', 'both', at(4)), diaper('5', 'wet', at(5, 0, 2)), diaper('6', 'wet', at(6, 0, 2))]
+const NOW = at(7).getTime()
 
-test('diaperWeek counts each kind for the seven days ending on the day', () => {
-  const week = diaperWeek(DIAPERS, midnight)
-  expect(week).toHaveLength(7)
-  expect(week.at(-1)).toMatchObject({ wet: 2, dirty: 1, both: 1 })
-  expect(week.at(-3)).toMatchObject({ wet: 1, dirty: 0, both: 0 })
-  expect(week[0]).toMatchObject({ wet: 0, dirty: 0, both: 0 })
+test('the tiles show wet and dirty against the usual, the last wet diaper and the longest gap', () => {
+  mockApi({ 'GET /api/me': { body: ME_ADMIN } })
+  renderApp(<DiaperTiles stats={diaperStats(DIAPERS, midnight, NOW)} nowMs={NOW} isToday />)
+  const wet = within(screen.getByTestId('tile-wet'))
+  expect(wet.getByText('3')).toBeInTheDocument() // wet and both
+  expect(wet.getByText(en.diapers.usual.replace('{{n}}', '2'))).toBeInTheDocument()
+  const dirty = within(screen.getByTestId('tile-dirty'))
+  expect(dirty.getByText('2')).toBeInTheDocument() // dirty and both
+  expect(within(screen.getByTestId('tile-last-wet')).getByText(en.diapers.ago.replace('{{ago}}', '3h 0m'))).toBeInTheDocument() // the 4:00 both
+  expect(within(screen.getByTestId('tile-gap')).getByText('1d 19h')).toBeInTheDocument() // 6:00 two days ago -> 1:00 today: the longest wait that ended today
 })
 
-test('the week chart stacks wet, both and dirty per day and marks the chosen day', () => {
+test('on a past day the last wet diaper is a time, not "ago"', () => {
   mockApi({ 'GET /api/me': { body: ME_ADMIN } })
-  const { container } = renderApp(<DiaperWeek diapers={DIAPERS} day={midnight} />)
-  const days = container.querySelectorAll('[data-day]')
-  expect(days).toHaveLength(7)
-  const last = days[6]!
-  expect(last.getAttribute('aria-current')).toBe('date')
-  expect(last.querySelectorAll('[data-kind]')).toHaveLength(3)
-  expect(container.querySelector('[data-testid="wet-target"]')).not.toBeNull()
+  const day = at(0, 0, 2)
+  renderApp(<DiaperTiles stats={diaperStats(DIAPERS, day, NOW)} nowMs={NOW} isToday={false} />)
+  expect(within(screen.getByTestId('tile-last-wet')).getByText(formatTime(at(6, 0, 2)))).toBeInTheDocument()
+})
+
+test('with no data the tiles show dashes and no usual', () => {
+  mockApi({ 'GET /api/me': { body: ME_ADMIN } })
+  renderApp(<DiaperTiles stats={diaperStats([], midnight, NOW)} nowMs={NOW} isToday />)
+  expect(within(screen.getByTestId('tile-last-wet')).getByText('—')).toBeInTheDocument()
+  expect(within(screen.getByTestId('tile-gap')).getByText('—')).toBeInTheDocument()
+  expect(screen.queryByText(/usual/)).not.toBeInTheDocument()
+})
+
+test('the strips are seven days, one dot per diaper by kind, the chosen day marked, with a now marker for today', () => {
+  mockApi({ 'GET /api/me': { body: ME_ADMIN } })
+  const { container } = renderApp(<DiaperStrips diapers={DIAPERS} day={midnight} nowMs={NOW} />)
+  const rows = container.querySelectorAll('[data-strip]')
+  expect(rows).toHaveLength(7)
+  expect(rows[6]!.getAttribute('aria-current')).toBe('date')
+  expect(rows[6]!.querySelectorAll('[data-kind]')).toHaveLength(4)
+  expect(rows[6]!.querySelectorAll('[data-kind="dirty"]')).toHaveLength(1)
+  expect(rows[4]!.querySelectorAll('[data-kind]')).toHaveLength(2)
+  expect(rows[6]!.getAttribute('aria-label')).toContain('3 wet')
+  expect(container.querySelector('[data-testid="strip-now"]')).not.toBeNull()
   for (const k of ['wet', 'dirty', 'both'] as const) expect(screen.getByText(en.diaperKinds[k])).toBeInTheDocument()
 })
 
-test('tapping a day in the week chart shows its counts', () => {
+test('a dot sits at its time of day, and there is no now marker on a past day', () => {
   mockApi({ 'GET /api/me': { body: ME_ADMIN } })
-  const { container } = renderApp(<DiaperWeek diapers={DIAPERS} day={midnight} />)
-  fireEvent.click(container.querySelectorAll('[data-day]')[6]!)
-  const tip = screen.getByRole('status')
-  expect(tip).toHaveTextContent('2 wet, 1 both, 1 dirty')
+  const { container } = renderApp(<DiaperStrips diapers={[diaper('n', 'wet', at(6, 0))]} day={midnight} nowMs={NOW} />)
+  const dot = container.querySelector('[data-strip]:last-of-type [data-kind]') as HTMLElement
+  expect(parseFloat(dot.style.left)).toBeCloseTo(25, 0) // 6 AM is a quarter of the way along
+  const past = renderApp(<DiaperStrips diapers={[]} day={at(0, 0, 1)} nowMs={NOW} />)
+  expect(past.container.querySelector('[data-testid="strip-now"]')).toBeNull()
 })

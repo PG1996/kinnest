@@ -62,7 +62,8 @@ test('with nothing due the card shows the count, the last dose and the next dose
   const d = await detail()
   expect(d.getByText(text(en.medicines.dosesToday, { count: '1', max: '3' }))).toBeInTheDocument()
   expect(d.getByText(text(en.medicines.lastDoseLine, { time: formatClock(last.given_at), name: 'Parth' }))).toBeInTheDocument()
-  expect(d.getAllByText(text(en.medicines.nextDoseLine, { time: formatClock(next) }))).toHaveLength(1)
+  const nextText = text(en.medicines.nextDoseLine, { time: formatClock(next) })
+  expect(d.getAllByText((content) => content.startsWith(nextText))).toHaveLength(1) // "(tomorrow)" follows when it is past midnight
   expect(d.getByRole('button', { name: en.medicines.giveAhead })).toBeInTheDocument()
   expect(d.queryByText(/overdue/i)).not.toBeInTheDocument()
 })
