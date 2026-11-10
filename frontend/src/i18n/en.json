@@ -395,7 +395,8 @@
     "nudgeHours": "Hours",
     "nudgeMinutes": "Minutes",
     "nudgeSet": "Set reminder",
-    "nudgeInvalid": "Pick between 1 minute and 24 hours."
+    "nudgeInvalid": "Pick between 1 minute and 24 hours.",
+    "nudgeFrom": "Counted from the {{time}} dose."
   },
   "units": {
     "ml": "ml",

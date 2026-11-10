@@ -52,7 +52,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
     if (focusId) setPicked(focusId)
   }
   const [maxAsk, setMaxAsk] = useState<{ medicine: Medicine; run: () => void } | null>(null)
-  const [nudgeFor, setNudgeFor] = useState<{ medicine: Medicine; slot: Slot; left: number } | null>(null)
+  const [nudgeFor, setNudgeFor] = useState<{ medicine: Medicine; slot: Slot; left: number; from: number } | null>(null)
   if (medicines.length === 0) return null
   const queued = queuedDoseSlots(pending)
 
@@ -105,8 +105,9 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
             const partlyGiven = r.slot ? r.slot.status === 'partial' : r.queued && (left ?? 0) > 0
             if (partlyGiven && left) {
               // a reminder already chosen on the dose screen is created now; otherwise offer one
-              if (nudgeMinutes) makeNudge(m, slot, nudgeMinutes)
-              else setNudgeFor({ medicine: m, slot, left })
+              const from = givenAt ? Date.parse(givenAt) : Date.now() // counted from the dose just given
+              if (nudgeMinutes) makeNudge(m, slot, nudgeMinutes, from)
+              else setNudgeFor({ medicine: m, slot, left, from })
             }
           }
         },
@@ -123,8 +124,13 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
     else submit(m, 'given', undefined, amount, null, givenAt)
   }
 
-  const makeNudge = (m: Medicine, slot: Slot, minutes: number) => {
-    const remindAt = new Date(Date.now() + minutes * 60_000)
+  /** When the last piece of a dose was given (the reminder for the rest counts from it), or now if nothing is known. */
+  const lastPieceAt = (slot: Slot) => {
+    const times = (slot.doses ?? []).filter((d) => d.status === 'given').map((d) => Date.parse(d.given_at))
+    return times.length > 0 ? Math.max(...times) : Date.now()
+  }
+  const makeNudge = (m: Medicine, slot: Slot, minutes: number, from: number) => {
+    const remindAt = new Date(from + minutes * 60_000)
     createNudge.mutate(
       { id: crypto.randomUUID(), medicine_id: m.id, scheduled_for: slot.due_at, remind_at: remindAt.toISOString() },
       {
@@ -135,7 +141,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
   }
   const pickNudge = (minutes: number) => {
     if (!nudgeFor) return
-    makeNudge(nudgeFor.medicine, nudgeFor.slot, minutes)
+    makeNudge(nudgeFor.medicine, nudgeFor.slot, minutes, nudgeFor.from)
     setNudgeFor(null)
   }
 
@@ -340,7 +346,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
           <div className="flex items-center justify-between gap-2">
             <p className={overdue ? 'text-sm font-semibold text-danger' : 'text-sm font-semibold'}>{line}</p>
             {partly && !reminderAhead && canLog && (
-              <Button size="sm" variant="chip" onClick={() => setNudgeFor({ medicine: m, slot: s, left })}>
+              <Button size="sm" variant="chip" onClick={() => setNudgeFor({ medicine: m, slot: s, left, from: lastPieceAt(s) })}>
                 {t('medicines.remindMe')}
               </Button>
             )}
@@ -664,7 +670,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
           }}
         />
       )}
-      {nudgeFor && <NudgeSheet left={fmt(nudgeFor.medicine, nudgeFor.left)} onPick={pickNudge} onSkip={() => setNudgeFor(null)} />}
+      {nudgeFor && <NudgeSheet left={fmt(nudgeFor.medicine, nudgeFor.left)} from={nudgeFor.from} onPick={pickNudge} onSkip={() => setNudgeFor(null)} />}
     </>
   )
 }

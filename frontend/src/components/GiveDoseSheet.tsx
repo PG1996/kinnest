@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type { Medicine, Slot } from '../api/hooks'
 import { formatClock, toLocalInput } from '../lib/time'
 import { formatDose } from '../lib/units'
-import NudgeOffset, { NUDGE_PRESETS, useNudgeLabel } from './NudgeOffset'
+import NudgeOffset, { presetsFrom, useNudgeLabel } from './NudgeOffset'
 import Sheet from './Sheet'
 import { Button } from './ui/button'
 import { Card, Eyebrow } from './ui/card'
@@ -49,6 +49,9 @@ export default function GiveDoseSheet({ medicine, slot, max, onGive, onSkip, onC
   const total = medicine.dose_amount ?? max
   const shown = mode === 'full' ? max : amount
   const pieces = slot?.doses ?? []
+  /** The reminder is counted from when this dose is given: now, or the other time chosen. */
+  const chosen = other ? new Date(whenValue).getTime() : NaN
+  const nudgeFrom = Number.isNaN(chosen) ? Date.now() : chosen
 
   const give = () => {
     if (!other) return onGive(shown, mode === 'partial' ? nudge : null, null)
@@ -165,7 +168,7 @@ export default function GiveDoseSheet({ medicine, slot, max, onGive, onSkip, onC
             <div className="space-y-2">
               <p className="text-[13px] font-semibold text-muted">{t('medicines.remindIn')}</p>
               <div className="flex flex-wrap gap-2">
-                {NUDGE_PRESETS.map((m) => (
+                {presetsFrom(nudgeFrom).map((m) => (
                   <Chip
                     key={m}
                     pressed={!otherNudge && nudge === m}
@@ -187,7 +190,7 @@ export default function GiveDoseSheet({ medicine, slot, max, onGive, onSkip, onC
                   {t('medicines.nudgeOther')}
                 </Chip>
               </div>
-              {otherNudge && <NudgeOffset onChange={setNudge} />}
+              {otherNudge && <NudgeOffset from={nudgeFrom} onChange={setNudge} />}
             </div>
           )}
         </Card>
