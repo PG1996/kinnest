@@ -120,9 +120,3 @@
   }
 }
 
-/* A sheet opened from a coloured card wears that card's colour: its accent (buttons, chosen chips, focus) follows the tone. */
-[data-sheet-tone='feed'] { --primary: var(--feed-ink); --primary-soft: var(--surface); }
-[data-sheet-tone='diaper'] { --primary: var(--diaper-ink); --primary-soft: var(--surface); }
-[data-sheet-tone='sleep'] { --primary: var(--sleep-ink); --primary-soft: var(--surface); }
-[data-sheet-tone='med'] { --primary: var(--med-ink); --primary-soft: var(--surface); }
-[data-sheet-tone='warn'] { --primary: var(--warn-ink); --primary-soft: var(--surface); }

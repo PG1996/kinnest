@@ -184,7 +184,7 @@ test('a badge without dot or pulse draws neither', () => {
 
 // --- a sheet takes the colour of the card it was opened from -------------------------------------------------------------
 
-test('a sheet with a tone is tinted in that tone and marks it for its accents', () => {
+test('a sheet with a tone is marked with it but stays plain (the tint was tried and dropped)', () => {
   wrap(
     <>
       <Sheet title="Feed sheet" tone="feed" onClose={() => {}}>x</Sheet>
@@ -194,10 +194,11 @@ test('a sheet with a tone is tinted in that tone and marks it for its accents', 
   )
   const feed = screen.getByRole('dialog', { name: 'Feed sheet' })
   expect(feed.getAttribute('data-sheet-tone')).toBe('feed')
-  expect(feed.className).toContain('bg-feed-bg')
+  expect(feed.className).toContain('bg-surface')
+  expect(feed.className).not.toContain('bg-feed-bg')
   const full = screen.getByRole('dialog', { name: 'Full sheet' })
   expect(full.getAttribute('data-sheet-tone')).toBe('med')
-  expect(full.className).toContain('bg-med-bg')
+  expect(full.className).toContain('bg-app')
   const plain = screen.getByRole('dialog', { name: 'Plain sheet' })
   expect(plain.getAttribute('data-sheet-tone')).toBeNull()
   expect(plain.className).toContain('bg-surface')
