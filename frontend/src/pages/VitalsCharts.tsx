@@ -3,13 +3,13 @@ import { useTranslation } from 'react-i18next'
 import { useVitals, type PlaceKind } from '../api/hooks'
 import GrowthChart from '../components/GrowthChart'
 import TrendChart from '../components/TrendChart'
-import { Input } from '../components/ui/field'
 import StatTabs from '../components/StatTabs'
 import { cn } from '../lib/cn'
 import { PLACE_COLORS } from '../lib/placeColors'
 
 import { useTempUnit } from '../lib/tempUnit'
 import { PLACES } from '../lib/vitalsFormat'
+import { DateField } from '../components/ui/datetime'
 
 const dayStart = (d: string) => (d ? new Date(`${d}T00:00:00`).toISOString() : undefined)
 const dayEnd = (d: string) => (d ? new Date(`${d}T23:59:59.999`).toISOString() : undefined)
@@ -84,13 +84,13 @@ export default function VitalsCharts() {
           <label htmlFor="charts-from" className="block text-xs text-muted">
             {t('vitals.list.from')}
           </label>
-          <Input id="charts-from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <DateField id="charts-from" label={t('vitals.list.from')} clearable placeholder={t('picker.anyDay')} value={from} onChange={setFrom} />
         </div>
         <div>
           <label htmlFor="charts-to" className="block text-xs text-muted">
             {t('vitals.list.to')}
           </label>
-          <Input id="charts-to" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          <DateField id="charts-to" label={t('vitals.list.to')} clearable placeholder={t('picker.anyDay')} value={to} onChange={setTo} />
         </div>
       </fieldset>
       {charts[tab]}

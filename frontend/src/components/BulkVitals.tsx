@@ -5,6 +5,7 @@ import { BulkError, useBulkVitals } from '../hooks/log'
 import { MEASUREMENTS, shownUnit, storedValue, validateVital, type MeasurementKey } from '../lib/vitals'
 import { PLACES } from '../lib/vitalsFormat'
 import { Button } from './ui/button'
+import { DateField, TimeField } from './ui/datetime'
 
 type Row = { id: string; date: string; time: string; place: PlaceKind } & Record<MeasurementKey, string>
 
@@ -115,10 +116,10 @@ export default function BulkVitals({ onDone }: { onDone?: () => void }) {
               <Fragment key={r.id}>
                 <tr>
                   <td>
-                    <input aria-label={`${t('vitals.bulk.date')} ${i + 1}`} type="date" className={cellClass} value={r.date} onChange={(e) => set(i, 'date', e.target.value)} />
+                    <DateField label={`${t('vitals.bulk.date')} ${i + 1}`} labelled={false} compact className="min-w-28" value={r.date} onChange={(v) => set(i, 'date', v)} />
                   </td>
                   <td>
-                    <input aria-label={`${t('vitals.bulk.time')} ${i + 1}`} type="time" className={cellClass} value={r.time} onChange={(e) => set(i, 'time', e.target.value)} />
+                    <TimeField label={`${t('vitals.bulk.time')} ${i + 1}`} labelled={false} compact className="min-w-24" value={r.time} onChange={(v) => set(i, 'time', v)} />
                   </td>
                   <td>
                     <select aria-label={`${t('vitals.bulk.place')} ${i + 1}`} className={cellClass} value={r.place} onChange={(e) => set(i, 'place', e.target.value)}>

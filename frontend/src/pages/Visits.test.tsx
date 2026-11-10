@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from '../App'
 import en from '../i18n/en.json'
-import { ME_ADMIN, ME_VIEWER, mockApi, renderApp } from '../test/utils'
+import { ME_ADMIN, ME_VIEWER, mockApi, renderApp, pickDateTime } from '../test/utils'
 import Home from './Home'
 import VisitsTab from './VisitsTab'
 
@@ -31,8 +31,7 @@ test('adds an upcoming visit and posts the right body', async () => {
   renderApp(<VisitsTab />)
   await userEvent.click(await screen.findByRole('button', { name: en.visits.add }))
   const dialog = screen.getByRole('dialog')
-  await userEvent.clear(within(dialog).getByLabelText(en.visits.form.when))
-  await userEvent.type(within(dialog).getByLabelText(en.visits.form.when), '2027-01-05T10:30')
+  await pickDateTime(en.visits.form.when, new Date(2027, 0, 5, 10, 30))
   await userEvent.type(within(dialog).getByLabelText(en.visits.form.doctor), 'Dr Rao')
   await userEvent.type(within(dialog).getByLabelText(en.visits.form.place), 'City Clinic')
   await userEvent.type(within(dialog).getByLabelText(en.visits.form.reason), '10 week check')

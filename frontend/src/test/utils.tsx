@@ -63,6 +63,46 @@ export async function clickAction(name: string) {
 }
 
 const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString()
+const topSheet = () => screen.getAllByRole('dialog').at(-1)!
+
+/** In an open picker, page the calendar to `at`'s month and tap its day. */
+async function tapCalendarDay(at: Date) {
+  const month = at.toLocaleDateString([], { month: 'long', year: 'numeric' })
+  for (let i = 0; i < 60 && !within(topSheet()).queryByRole('group', { name: month }); i++) {
+    const shown = within(topSheet()).getAllByRole('group').find((g) => /\d{4}$/.test(g.getAttribute('aria-label') ?? ''))!
+    const later = new Date(`1 ${shown.getAttribute('aria-label')}`).getTime() < new Date(at.getFullYear(), at.getMonth(), 1).getTime()
+    await userEvent.click(within(topSheet()).getByRole('button', { name: later ? en.picker.nextMonth : en.picker.prevMonth }))
+  }
+  const day = at.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })
+  await userEvent.click(within(within(topSheet()).getByRole('group', { name: month })).getByRole('button', { name: day }))
+}
+
+async function turnWheels(hour: number, minute: number) {
+  const option = (wheel: string, name: string) => within(within(topSheet()).getByRole('listbox', { name: wheel })).getByRole('option', { name })
+  await userEvent.click(option(en.picker.hour, String(((hour + 11) % 12) + 1)))
+  await userEvent.click(option(en.picker.minute, String(minute).padStart(2, '0')))
+  await userEvent.click(option(en.picker.ampm, hour >= 12 ? 'PM' : 'AM'))
+}
+
+/** Set a date field the way a person would: open it, tap the day in the calendar, Done. `field` is its label. */
+export async function pickDate(field: string | RegExp, at: Date) {
+  await userEvent.click(screen.getByRole('button', { name: field }))
+  await tapCalendarDay(at)
+  await userEvent.click(within(topSheet()).getByRole('button', { name: en.picker.done }))
+}
+
+/** Set a time field: open it, turn the wheels, Done. */
+export async function pickTime(field: string | RegExp, hour: number, minute: number) {
+  await userEvent.click(screen.getByRole('button', { name: field }))
+  await turnWheels(hour, minute)
+  await userEvent.click(within(topSheet()).getByRole('button', { name: en.picker.done }))
+}
+
+/** Empty an optional date or time field through its picker's Clear. */
+export async function clearPicker(field: string | RegExp) {
+  await userEvent.click(screen.getByRole('button', { name: field }))
+  await userEvent.click(within(topSheet()).getByRole('button', { name: en.picker.clear }))
+}
 
 /**
  * Set a date-and-time field the way a person would: open it, choose the day (Today, Yesterday, or from the calendar),
@@ -70,7 +110,7 @@ const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString()
  */
 export async function pickDateTime(field: string | RegExp, at: Date) {
   await userEvent.click(screen.getByRole('button', { name: field }))
-  const sheet = () => screen.getAllByRole('dialog').at(-1)!
+  const sheet = topSheet
   const now = new Date()
   const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
   const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
@@ -81,18 +121,8 @@ export async function pickDateTime(field: string | RegExp, at: Date) {
     // the third day chip opens the calendar, whatever it says (Other day, or the day already chosen)
     const opener = within(within(sheet()).getByRole('group', { name: en.picker.day })).getAllByRole('button').find((b) => b.hasAttribute('aria-expanded'))!
     if (opener.getAttribute('aria-expanded') !== 'true') await userEvent.click(opener)
-    const month = at.toLocaleDateString([], { month: 'long', year: 'numeric' })
-    for (let i = 0; i < 36 && !within(sheet()).queryByRole('group', { name: month }); i++) {
-      const shown = within(sheet()).getAllByRole('group').find((g) => /\d{4}$/.test(g.getAttribute('aria-label') ?? ''))!
-      const later = new Date(`1 ${shown.getAttribute('aria-label')}`).getTime() < new Date(at.getFullYear(), at.getMonth(), 1).getTime()
-      await userEvent.click(within(sheet()).getByRole('button', { name: later ? en.picker.nextMonth : en.picker.prevMonth }))
-    }
-    const day = at.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })
-    await userEvent.click(within(within(sheet()).getByRole('group', { name: month })).getByRole('button', { name: day }))
+    await tapCalendarDay(at)
   }
-  const option = (wheel: string, name: string) => within(within(sheet()).getByRole('listbox', { name: wheel })).getByRole('option', { name })
-  await userEvent.click(option(en.picker.hour, String(((at.getHours() + 11) % 12) + 1)))
-  await userEvent.click(option(en.picker.minute, String(at.getMinutes()).padStart(2, '0')))
-  await userEvent.click(option(en.picker.ampm, at.getHours() >= 12 ? 'PM' : 'AM'))
+  await turnWheels(at.getHours(), at.getMinutes())
   await userEvent.click(within(sheet()).getByRole('button', { name: en.picker.done }))
 }

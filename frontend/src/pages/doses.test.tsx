@@ -2,8 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from '../App'
 import en from '../i18n/en.json'
-import { toLocalInput } from '../lib/time'
-import { ME_ADMIN, ME_VIEWER, clickAction, mockApi, renderApp } from '../test/utils'
+import { ME_ADMIN, ME_VIEWER, clickAction, mockApi, renderApp, pickDateTime } from '../test/utils'
 import Home from './Home'
 
 const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString()
@@ -34,7 +33,7 @@ test('the dose screen defaults to now and can be set to another time', async () 
   expect(within(dialog).queryByLabelText(en.medicines.whenLabel)).not.toBeInTheDocument()
   await userEvent.click(within(dialog).getByRole('button', { name: en.medicines.whenOther }))
   const when = hoursAgo(3)
-  fireEvent.change(within(dialog).getByLabelText(en.medicines.whenLabel), { target: { value: toLocalInput(when) } })
+  await pickDateTime(en.medicines.whenLabel, when)
   slide(within(dialog))
   await waitFor(() => expect(doseCall(calls)).toBeTruthy())
   expect(near(doseCall(calls).given_at, when)).toBe(true)
@@ -49,16 +48,16 @@ test('leaving the time on now stamps the moment of giving', async () => {
   expect(near(doseCall(calls).given_at, new Date())).toBe(true)
 })
 
-test('a time in the future is refused before anything is sent', async () => {
+test('a time later than now is never sent as the future', async () => {
   const calls = mockApi({ ...base([syrup()]), 'POST /api/medicines/m1/doses': posted })
   renderApp(<Home />)
   await clickAction(en.medicines.givePartial)
   const dialog = await screen.findByRole('dialog', { name: en.medicines.giveTitle })
   await userEvent.click(within(dialog).getByRole('button', { name: en.medicines.whenOther }))
-  fireEvent.change(within(dialog).getByLabelText(en.medicines.whenLabel), { target: { value: toLocalInput(hoursFromNow(3)) } })
+  await pickDateTime(en.medicines.whenLabel, hoursFromNow(3)) // the picker takes it as yesterday (or now, near midnight)
   slide(within(dialog))
-  expect(await within(dialog).findByText(en.medicines.timeFuture)).toBeInTheDocument()
-  expect(calls.some((c) => c.key === 'POST /api/medicines/m1/doses')).toBe(false)
+  await waitFor(() => expect(doseCall(calls)).toBeDefined())
+  expect(Date.parse(String(doseCall(calls).given_at))).toBeLessThanOrEqual(Date.now())
 })
 
 test('"At another time" on a slot opens the dose screen on Full with the time picker ready', async () => {
@@ -68,7 +67,7 @@ test('"At another time" on a slot opens the dose screen on Full with the time pi
   const dialog = await screen.findByRole('dialog', { name: en.medicines.giveTitle })
   expect(within(dialog).getByRole('radio', { name: en.medicines.fullLeft.replace('{{left}}', '1 ml') })).toBeChecked()
   const when = hoursAgo(2)
-  fireEvent.change(within(dialog).getByLabelText(en.medicines.whenLabel), { target: { value: toLocalInput(when) } })
+  await pickDateTime(en.medicines.whenLabel, when)
   slide(within(dialog))
   await waitFor(() => expect(doseCall(calls)).toMatchObject({ amount: 1, status: 'given' }))
   expect(near(doseCall(calls).given_at, when)).toBe(true)
@@ -80,7 +79,7 @@ test('"At another time" on an as-needed medicine gives that dose at the chosen t
   await clickAction(en.medicines.atOtherTime)
   const dialog = await screen.findByRole('dialog', { name: en.medicines.giveTitle })
   const when = hoursAgo(5)
-  fireEvent.change(within(dialog).getByLabelText(en.medicines.whenLabel), { target: { value: toLocalInput(when) } })
+  await pickDateTime(en.medicines.whenLabel, when)
   slide(within(dialog))
   await waitFor(() => expect(doseCall(calls, 'm2')).toMatchObject({ status: 'given', amount: 1.5 }))
   expect(doseCall(calls, 'm2')).not.toHaveProperty('scheduled_for')
@@ -141,7 +140,7 @@ test('the admin can change the time of a dose', async () => {
   await userEvent.click((await within(dialog).findAllByRole('button', { name: en.medicines.history.edit }))[0]!)
   const form = await screen.findByRole('dialog', { name: en.medicines.history.editTitle })
   const when = hoursAgo(31)
-  fireEvent.change(within(form).getByLabelText(en.medicines.history.form.when), { target: { value: toLocalInput(when) } })
+  await pickDateTime(en.medicines.history.form.when, when)
   await userEvent.click(within(form).getByRole('button', { name: en.medicines.history.form.save }))
   await waitFor(() => expect(calls.some((c) => c.key === 'PATCH /api/medicines/m1/doses/d1')).toBe(true))
   expect(near(calls.find((c) => c.key === 'PATCH /api/medicines/m1/doses/d1')!.body && (calls.find((c) => c.key === 'PATCH /api/medicines/m1/doses/d1')!.body as { given_at: string }).given_at, when)).toBe(true)
@@ -160,7 +159,7 @@ test('the admin adds a past dose', async () => {
   await userEvent.click(await within(dialog).findByRole('button', { name: en.medicines.history.add }))
   const form = await screen.findByRole('dialog', { name: en.medicines.history.addTitle })
   const when = hoursAgo(24 * 9)
-  fireEvent.change(within(form).getByLabelText(en.medicines.history.form.when), { target: { value: toLocalInput(when) } })
+  await pickDateTime(en.medicines.history.form.when, when)
   const amount = within(form).getByLabelText(en.medicines.history.form.amount)
   await userEvent.clear(amount)
   await userEvent.type(amount, '0.75')
@@ -172,14 +171,15 @@ test('the admin adds a past dose', async () => {
   expect(near(body.given_at, when)).toBe(true)
 })
 
-test('a past dose cannot be in the future', async () => {
+test('a past dose is never saved in the future', async () => {
   const { calls, dialog } = await openHistory()
   await userEvent.click(await within(dialog).findByRole('button', { name: en.medicines.history.add }))
   const form = await screen.findByRole('dialog', { name: en.medicines.history.addTitle })
-  fireEvent.change(within(form).getByLabelText(en.medicines.history.form.when), { target: { value: toLocalInput(hoursFromNow(5)) } })
+  await pickDateTime(en.medicines.history.form.when, hoursFromNow(5)) // the picker takes it as yesterday (or now, near midnight)
   await userEvent.click(within(form).getByRole('button', { name: en.medicines.history.form.save }))
-  expect(await within(form).findByText(en.medicines.timeFuture)).toBeInTheDocument()
-  expect(calls.some((c) => c.key === 'POST /api/medicines/m1/doses/history')).toBe(false)
+  await waitFor(() => expect(calls.some((c) => c.key === 'POST /api/medicines/m1/doses/history')).toBe(true))
+  const body = calls.find((c) => c.key === 'POST /api/medicines/m1/doses/history')!.body as { given_at: string }
+  expect(Date.parse(body.given_at)).toBeLessThanOrEqual(Date.now())
 })
 
 test('a caregiver can read the history but not edit, delete or add', async () => {

@@ -12,6 +12,7 @@ import { Input } from '../components/ui/field'
 import PushPrompt from '../components/PushPrompt'
 import ThemeToggle from '../components/ThemeToggle'
 import { useSignOut } from '../hooks/auth'
+import { DateField } from '../components/ui/datetime'
 
 type Prefs = { feed: boolean; diaper: boolean; medicine?: boolean; vaccine?: boolean; visit?: boolean }
 
@@ -85,7 +86,11 @@ export default function Settings() {
       <label htmlFor={id} className="block text-sm text-muted">
         {label}
       </label>
-      <Input id={id} type={type} value={form[k]} onChange={set(k)} disabled={!isAdmin} />
+      {type === 'date' ? (
+        <DateField id={id} label={label} clearable value={form[k]} onChange={(v) => set(k)({ target: { value: v } })} disabled={!isAdmin} />
+      ) : (
+        <Input id={id} type={type} value={form[k]} onChange={set(k)} disabled={!isAdmin} />
+      )}
     </>
   )
 

@@ -1,9 +1,9 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import en from '../i18n/en.json'
 import { DOSE_UNITS } from '../lib/units'
 import { toLocalInput } from '../lib/time'
-import { ME_ADMIN, mockApi, renderApp } from '../test/utils'
+import { ME_ADMIN, mockApi, renderApp, pickTime, pickDateTime } from '../test/utils'
 import MedicinesPage from './Medicines'
 
 const text = (key: string, vars: Record<string, string>) => Object.entries(vars).reduce((s, [k, v]) => s.replace(`{{${k}}}`, v), key)
@@ -30,9 +30,9 @@ test('admin adds a fixed medicine with two times and the POST body matches', asy
   renderApp(<MedicinesPage />, '/medicines')
   await openForm()
   await fillBasics('Vitamin D', '0.25', 'ml')
-  fireEvent.change(screen.getByLabelText(text(en.medicines.form.timeN, { n: '1' })), { target: { value: '08:00' } })
+  await pickTime(text(en.medicines.form.timeN, { n: '1' }), 8, 0)
   await userEvent.click(screen.getByRole('button', { name: en.medicines.form.addTime }))
-  fireEvent.change(screen.getByLabelText(text(en.medicines.form.timeN, { n: '2' })), { target: { value: '20:00' } })
+  await pickTime(text(en.medicines.form.timeN, { n: '2' }), 20, 0)
   await save()
   await waitFor(() => expect(calls.some((c) => c.key === 'POST /api/medicines')).toBe(true))
   expect(calls.find((c) => c.key === 'POST /api/medicines')!.body).toMatchObject({
@@ -45,9 +45,9 @@ test('duplicate or missing times are refused before anything is sent', async () 
   renderApp(<MedicinesPage />, '/medicines')
   await openForm()
   await fillBasics()
-  fireEvent.change(screen.getByLabelText(text(en.medicines.form.timeN, { n: '1' })), { target: { value: '08:00' } })
+  await pickTime(text(en.medicines.form.timeN, { n: '1' }), 8, 0)
   await userEvent.click(screen.getByRole('button', { name: en.medicines.form.addTime }))
-  fireEvent.change(screen.getByLabelText(text(en.medicines.form.timeN, { n: '2' })), { target: { value: '08:00' } })
+  await pickTime(text(en.medicines.form.timeN, { n: '2' }), 8, 0)
   await save()
   expect(await screen.findByText(en.medicines.form.invalid)).toBeInTheDocument()
   expect(calls.some((c) => c.key === 'POST /api/medicines')).toBe(false)
@@ -65,7 +65,7 @@ test('interval form requires hours and a first dose, then posts both', async () 
   expect(await screen.findByText(en.medicines.form.invalid)).toBeInTheDocument()
   expect(calls.some((c) => c.key === 'POST /api/medicines')).toBe(false)
   await userEvent.type(hours, '6')
-  fireEvent.change(screen.getByLabelText(en.medicines.form.firstDose), { target: { value: '2026-11-08T08:00' } })
+  await pickDateTime(en.medicines.form.firstDose, new Date(2026, 10, 8, 8, 0))
   await save()
   await waitFor(() => expect(calls.some((c) => c.key === 'POST /api/medicines')).toBe(true))
   expect(calls.find((c) => c.key === 'POST /api/medicines')!.body).toMatchObject({
@@ -131,7 +131,7 @@ test('editing prefills the form and PATCHes the change', async () => {
   await userEvent.click(await screen.findByTestId('medicine-m1'))
   await userEvent.click(await screen.findByRole('button', { name: en.medicines.page.edit }))
   expect(screen.getByLabelText(en.medicines.form.name)).toHaveValue('Vitamin D')
-  expect(screen.getByLabelText(text(en.medicines.form.timeN, { n: '2' }))).toHaveValue('21:00')
+  expect(screen.getByLabelText(text(en.medicines.form.timeN, { n: '2' }))).toHaveTextContent('9:00 PM')
   expect(screen.getByLabelText(en.medicines.form.doseAmount)).toHaveValue(5)
   expect(screen.getByLabelText(en.medicines.form.doseUnit)).toHaveValue('drops')
   const amount = screen.getByLabelText(en.medicines.form.doseAmount)

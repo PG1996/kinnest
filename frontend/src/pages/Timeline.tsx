@@ -9,12 +9,12 @@ import PageHeader from '../components/PageHeader'
 import { Button } from '../components/ui/button'
 import { Chip } from '../components/ui/chip'
 import { EmptyState } from '../components/ui/empty'
-import { Input } from '../components/ui/field'
 import { cn } from '../lib/cn'
 import { formatTime, toLocalDate } from '../lib/time'
 import { dayRange, describe, fromQueue, type TimelineItem, type TimelineKind } from '../lib/timeline'
 import { useQueue } from '../offline/pending'
 import { History } from 'lucide-react'
+import { DateField } from '../components/ui/datetime'
 
 const FILTERS: { id: string; kinds?: TimelineKind[] }[] = [
   { id: 'all' },
@@ -128,18 +128,18 @@ export default function Timeline() {
       <PageHeader
         title={t('timeline.title')}
         actions={
-          <Input
-            type="date"
-            aria-label={t('timeline.pickDay')}
+          <DateField
+            label={t('timeline.pickDay')}
+            labelled={false}
+            compact
             value={start}
-            max={toLocalDate(new Date())}
-            onChange={(e) => {
-              if (e.target.value) {
-                setStart(e.target.value)
+            onChange={(v) => {
+              if (v) {
+                setStart(v)
                 setCount(1)
               }
             }}
-            className="min-h-11 w-auto px-3 text-sm"
+            className="min-h-11 w-auto"
           />
         }
       />

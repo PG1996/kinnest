@@ -6,6 +6,7 @@ import { toLocalInput } from '../lib/time'
 import { DOSE_UNITS } from '../lib/units'
 import { Button } from './ui/button'
 import { Input, Select } from './ui/field'
+import { DateField, DateTimeField, TimeField } from './ui/datetime'
 
 const KINDS: ScheduleKind[] = ['fixed', 'interval', 'as_needed']
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
@@ -144,11 +145,11 @@ export default function MedicineForm({ medicine, initialKind, saving, failed, on
           <div className="space-y-2">
             {v.times.map((time, i) => (
               <div key={i} className="flex items-center gap-2">
-                <Input
-                  type="time"
-                  aria-label={t('medicines.form.timeN', { n: i + 1 })}
+                <TimeField
+                  label={t('medicines.form.timeN', { n: i + 1 })}
+                  labelled={false}
                   value={time}
-                  onChange={(e) => set('times', v.times.map((x, j) => (j === i ? e.target.value : x)))}
+                  onChange={(x) => set('times', v.times.map((y, j) => (j === i ? x : y)))}
                 />
                 {v.times.length > 1 && (
                   <Button type="button" variant="ghost" aria-label={t('medicines.form.removeTime', { n: i + 1 })} onClick={() => set('times', v.times.filter((_, j) => j !== i))}>
@@ -167,13 +168,13 @@ export default function MedicineForm({ medicine, initialKind, saving, failed, on
             {label('med-hours', t('medicines.form.intervalHours'))}
             <Input id="med-hours" type="number" inputMode="numeric" min={1} max={72} value={v.intervalHours} onChange={(e) => set('intervalHours', e.target.value)} />
             {label('med-first', t('medicines.form.firstDose'))}
-            <Input id="med-first" type="datetime-local" value={v.firstDose} onChange={(e) => set('firstDose', e.target.value)} />
+            <DateTimeField id="med-first" label={t('medicines.form.firstDose')} mode="planned" value={v.firstDose} onChange={(x) => set('firstDose', x)} />
             {label('med-max', t('medicines.form.maxPerDay'))}
             <Input id="med-max" type="number" inputMode="numeric" min={1} max={24} value={v.maxPerDay} onChange={(e) => set('maxPerDay', e.target.value)} />
             {v.maxPerDay && (
               <>
                 {label('med-usual', t('medicines.form.usualStart'))}
-                <Input id="med-usual" type="time" value={v.usualStart || v.firstDose.slice(11, 16)} onChange={(e) => set('usualStart', e.target.value)} />
+                <TimeField id="med-usual" label={t('medicines.form.usualStart')} value={v.usualStart || v.firstDose.slice(11, 16)} onChange={(x) => set('usualStart', x)} />
                 <p className="text-xs text-muted">{t('medicines.form.usualStartHint')}</p>
               </>
             )}
@@ -189,9 +190,9 @@ export default function MedicineForm({ medicine, initialKind, saving, failed, on
         )}
 
         {label('med-start', t('medicines.form.startDate'))}
-        <Input id="med-start" type="date" value={v.startDate} onChange={(e) => set('startDate', e.target.value)} />
+        <DateField id="med-start" label={t('medicines.form.startDate')} mode="planned" value={v.startDate} onChange={(x) => set('startDate', x)} />
         {label('med-end', t('medicines.form.endDate'))}
-        <Input id="med-end" type="date" value={v.endDate} onChange={(e) => set('endDate', e.target.value)} />
+        <DateField id="med-end" label={t('medicines.form.endDate')} mode="planned" clearable placeholder={t('picker.noEnd')} value={v.endDate} onChange={(x) => set('endDate', x)} />
         {label('med-notes', t('medicines.form.notes'))}
         <Input id="med-notes" value={v.notes} onChange={(e) => set('notes', e.target.value)} />
 

@@ -1,9 +1,9 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import en from '../i18n/en.json'
-import { formatClock, toLocalInput } from '../lib/time'
+import { formatClock } from '../lib/time'
 import { enqueue } from '../offline/queue'
-import { ME_ADMIN, ME_VIEWER, clickAction, mockApi, renderApp } from '../test/utils'
+import { ME_ADMIN, ME_VIEWER, clickAction, mockApi, renderApp, pickDateTime } from '../test/utils'
 import Home from './Home'
 import Settings from './Settings'
 
@@ -562,7 +562,7 @@ test('a partial dose logged for an earlier time counts the reminder from that ti
   await clickAction(en.medicines.givePartial)
   const dialog = await screen.findByRole('dialog', { name: en.medicines.giveTitle })
   await userEvent.click(within(dialog).getByRole('button', { name: en.medicines.whenOther }))
-  fireEvent.change(within(dialog).getByLabelText(en.medicines.whenLabel), { target: { value: toLocalInput(new Date(Date.now() - 30 * 60_000)) } })
+  await pickDateTime(en.medicines.whenLabel, new Date(Date.now() - 30 * 60_000))
   await userEvent.click(within(dialog).getByRole('button', { name: en.medicines.nudgeHrs.replace('{{count}}', '2') }))
   slide(within(dialog))
   await waitFor(() => expect(sent(calls, 'POST /api/medicines/m1/nudges')).toBe(true))

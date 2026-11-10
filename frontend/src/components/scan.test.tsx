@@ -1,8 +1,8 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import en from '../i18n/en.json'
 import VitalsTab from '../pages/VitalsTab'
-import { ME_ADMIN, ME_VIEWER, mockApi, renderApp } from '../test/utils'
+import { ME_ADMIN, ME_VIEWER, mockApi, renderApp, pickDate } from '../test/utils'
 
 const ON = { 'GET /api/scans/status': { body: { enabled: true, remaining_today: 19 } } }
 const UPLOAD = { 'POST /api/files': { status: 201, body: { id: 'file1', url: '/api/files/file1', thumb_url: '/api/files/file1/thumb', content_type: 'image/jpeg' } } }
@@ -84,7 +84,7 @@ test('unticked rows are not saved and save posts the rest with the chosen place'
   await screen.findByText('The third date was hard to read')
   await userEvent.click(screen.getByRole('checkbox', { name: `${en.scan.include} 2` }))
   await userEvent.click(screen.getByRole('button', { name: en.vitals.places.hospital, pressed: false }))
-  fireEvent.change(screen.getByLabelText(en.scan.defaultDate), { target: { value: '2026-10-27' } })
+  await pickDate(en.scan.defaultDate, new Date(2026, 9, 27))
   const save = screen.getByRole('button', { name: en.scan.save.replace('{{count}}', '2') })
   await userEvent.click(save)
   await waitFor(() => expect(calls.some((c) => c.key === 'POST /api/vitals/bulk')).toBe(true))

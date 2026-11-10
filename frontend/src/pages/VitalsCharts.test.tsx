@@ -4,7 +4,7 @@ import { cloneElement, type ReactElement } from 'react'
 import BulkVitals from '../components/BulkVitals'
 import { GrowthTooltipContent } from '../components/GrowthChart'
 import en from '../i18n/en.json'
-import { ME_ADMIN, mockApi, renderApp } from '../test/utils'
+import { ME_ADMIN, mockApi, renderApp, pickDate } from '../test/utils'
 import VitalsCharts from './VitalsCharts'
 
 vi.mock('recharts', async (importOriginal) => {
@@ -106,15 +106,16 @@ test('place filter hides hospital readings', async () => {
   await waitFor(() => expect(temp.querySelectorAll('[data-point]').length).toBe(1))
 })
 
+const shortDay = (d: Date) => d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })
 const cell = (row: number, col: string) => screen.getByLabelText(`${col} ${row + 1}`)
 
 test('bulk table validates rows and blocks saving on errors', async () => {
   const calls = mockApi({ 'POST /api/vitals/bulk': { status: 201, body: { created: 1, existing: 0, entries: [] } } })
   renderApp(<BulkVitals />)
-  await userEvent.type(cell(0, en.vitals.bulk.date), '2026-10-30')
+  await pickDate(`${en.vitals.bulk.date} 1`, new Date(2026, 9, 30))
   await userEvent.type(cell(0, en.vitals.measurements.temperature_c), '98.6')
   await userEvent.click(screen.getByRole('button', { name: en.vitals.bulk.addRow }))
-  await userEvent.type(cell(1, en.vitals.bulk.date), '2026-10-31')
+  await pickDate(`${en.vitals.bulk.date} 2`, new Date(2026, 9, 31))
   await userEvent.click(screen.getByRole('button', { name: en.vitals.bulk.save }))
   expect(await screen.findByText(/Fahrenheit/)).toBeInTheDocument()
   expect(screen.getByText(en.vitals.errors.none)).toBeInTheDocument()
@@ -129,10 +130,10 @@ test('bulk saves all rows with one request and shows server row errors', async (
     },
   })
   renderApp(<BulkVitals />)
-  await userEvent.type(cell(0, en.vitals.bulk.date), '2026-10-30')
+  await pickDate(`${en.vitals.bulk.date} 1`, new Date(2026, 9, 30))
   await userEvent.type(cell(0, en.vitals.measurements.weight_kg), '3.1')
   await userEvent.click(screen.getByRole('button', { name: en.vitals.bulk.addRow }))
-  await userEvent.type(cell(1, en.vitals.bulk.date), '2026-10-01')
+  await pickDate(`${en.vitals.bulk.date} 2`, new Date(2026, 9, 1))
   await userEvent.type(cell(1, en.vitals.measurements.weight_kg), '3.0')
   await userEvent.selectOptions(cell(1, en.vitals.bulk.place), 'hospital')
   await userEvent.click(screen.getByRole('button', { name: en.vitals.bulk.save }))
@@ -155,10 +156,10 @@ test('pasting tab-separated rows fills the table', async () => {
   renderApp(<BulkVitals />)
   const text = '2026-10-24\t09:00\thospital\t3.1\t49\t34\t\t\t\t\n2026-11-01\t10:30\thome\t3.3\t\t\t36.9\t\t\t98'
   fireEvent.paste(screen.getByLabelText(en.vitals.bulk.pasteHere), { clipboardData: { getData: () => text } })
-  expect(cell(0, en.vitals.bulk.date)).toHaveValue('2026-10-24')
+  expect(cell(0, en.vitals.bulk.date)).toHaveTextContent(shortDay(new Date(2026, 9, 24)))
   expect(cell(0, en.vitals.bulk.place)).toHaveValue('hospital')
   expect(cell(0, en.vitals.measurements.height_cm)).toHaveValue(49)
-  expect(cell(1, en.vitals.bulk.time)).toHaveValue('10:30')
+  expect(cell(1, en.vitals.bulk.time)).toHaveTextContent('10:30 AM')
   expect(cell(1, en.vitals.measurements.temperature_c)).toHaveValue(36.9)
   expect(cell(1, en.vitals.measurements.spo2)).toHaveValue(98)
 })
@@ -166,7 +167,7 @@ test('pasting tab-separated rows fills the table', async () => {
 test('bulk shows a message when the whole request is refused or there is no connection', async () => {
   mockApi({ 'POST /api/vitals/bulk': { status: 422, body: { detail: 'at most 200 rows at a time' } } })
   renderApp(<BulkVitals />)
-  await userEvent.type(cell(0, en.vitals.bulk.date), '2026-10-30')
+  await pickDate(`${en.vitals.bulk.date} 1`, new Date(2026, 9, 30))
   await userEvent.type(cell(0, en.vitals.measurements.weight_kg), '3.1')
   await userEvent.click(screen.getByRole('button', { name: en.vitals.bulk.save }))
   expect(await screen.findByText('at most 200 rows at a time')).toBeInTheDocument()

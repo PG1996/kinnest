@@ -8,10 +8,10 @@ import Sheet from './Sheet'
 import { Button } from './ui/button'
 import { Card, Eyebrow } from './ui/card'
 import { Chip } from './ui/chip'
-import { Input } from './ui/field'
 import { Segmented } from './ui/segmented'
 import { SlideToConfirm } from './ui/slide-confirm'
 import { Stepper } from './ui/stepper'
+import { DateTimeField } from './ui/datetime'
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 
@@ -146,7 +146,7 @@ export default function GiveDoseSheet({ medicine, slot, max, onGive, onSkip, onC
             <label htmlFor="dose-when" className="block text-[13px] font-semibold text-muted">
               {t('medicines.whenLabel')}
             </label>
-            <Input id="dose-when" type="datetime-local" value={whenValue} max={toLocalInput(new Date())} onChange={(e) => setWhenValue(e.target.value)} />
+            <DateTimeField id="dose-when" label={t('medicines.whenLabel')} value={whenValue} onChange={setWhenValue} />
             {timeError && <p className="text-sm text-danger">{timeError}</p>}
           </div>
         )}

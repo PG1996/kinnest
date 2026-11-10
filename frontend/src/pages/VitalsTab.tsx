@@ -10,11 +10,12 @@ import VitalForm from '../components/VitalForm'
 import VitalList, { type VitalRow } from '../components/VitalList'
 import { Button } from '../components/ui/button'
 import { Segmented } from '../components/ui/segmented'
-import { Input, Select } from '../components/ui/field'
+import { Select } from '../components/ui/field'
 import { useCreateVital, useDeleteVital, useUpdateVital } from '../hooks/log'
 import { PLACES } from '../lib/vitalsFormat'
 import { useQueue } from '../offline/pending'
 import type { QueueEntry } from '../offline/queue'
+import { DateField } from '../components/ui/datetime'
 
 // the charts library is large: load it only when the charts are opened
 const VitalsCharts = lazy(() => import('./VitalsCharts'))
@@ -113,13 +114,13 @@ export default function VitalsTab() {
           <label htmlFor="vitals-from" className="block text-xs text-muted">
             {t('vitals.list.from')}
           </label>
-          <Input id="vitals-from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <DateField id="vitals-from" label={t('vitals.list.from')} clearable placeholder={t('picker.anyDay')} value={from} onChange={setFrom} />
         </div>
         <div>
           <label htmlFor="vitals-to" className="block text-xs text-muted">
             {t('vitals.list.to')}
           </label>
-          <Input id="vitals-to" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          <DateField id="vitals-to" label={t('vitals.list.to')} clearable placeholder={t('picker.anyDay')} value={to} onChange={setTo} />
         </div>
         </div>
       </div>

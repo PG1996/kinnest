@@ -7,6 +7,7 @@ import { MAIN_KEYS, MEASUREMENTS, MORE_KEYS, shownRange, shownUnit, shownValue, 
 import { PLACES } from '../lib/vitalsFormat'
 import { Button } from './ui/button'
 import { Input, Select } from './ui/field'
+import { DateTimeField } from './ui/datetime'
 
 const chipClass = (on: boolean) =>
   cn('min-h-10 rounded-full border px-3 text-sm', on ? 'border-primary bg-primary text-primary-ink' : 'border-line')
@@ -122,7 +123,7 @@ export default function VitalForm({
         <label htmlFor="vital-when" className="block text-sm text-muted">
           {t('vitals.form.when')}
         </label>
-        <Input id="vital-when" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+        <DateTimeField id="vital-when" label={t('vitals.form.when')} value={when} onChange={setWhen} />
         {errors.measured_at && <p className="text-sm text-danger">{errors.measured_at}</p>}
       </div>
       <fieldset className="space-y-2">

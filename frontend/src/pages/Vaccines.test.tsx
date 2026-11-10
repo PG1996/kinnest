@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import en from '../i18n/en.json'
-import { ME_ADMIN, ME_VIEWER, mockApi, renderApp } from '../test/utils'
+import { ME_ADMIN, ME_VIEWER, mockApi, renderApp, pickDate } from '../test/utils'
 import VaccinesTab from './VaccinesTab'
 
 const today = new Date()
@@ -80,7 +80,7 @@ test('mark given posts date place and notes', async () => {
   await screen.findByText('Vaccine a 1')
   await userEvent.click(within(entry('Vaccine a 1')).getByRole('button', { name: en.vaccines.markGiven }))
   const dialog = screen.getByRole('dialog')
-  expect(within(dialog).getByLabelText(en.vaccines.form.givenOn)).toHaveValue(iso(0))
+  expect(within(dialog).getByLabelText(en.vaccines.form.givenOn)).toHaveTextContent(en.picker.today)
   await userEvent.type(within(dialog).getByLabelText(en.vaccines.form.place), 'City Hospital')
   await userEvent.type(within(dialog).getByLabelText(en.vaccines.form.notes), 'left thigh')
   await userEvent.click(within(dialog).getByRole('button', { name: en.vaccines.form.save }))
@@ -91,17 +91,19 @@ test('mark given posts date place and notes', async () => {
   )
 })
 
-test('a given date in the future is refused', async () => {
+test('a given date cannot be in the future', async () => {
   const calls = mockApi(routes())
   renderApp(<VaccinesTab />)
   await screen.findByText('Vaccine a 1')
   await userEvent.click(within(entry('Vaccine a 1')).getByRole('button', { name: en.vaccines.markGiven }))
   const dialog = screen.getByRole('dialog')
-  const date = within(dialog).getByLabelText(en.vaccines.form.givenOn)
-  await userEvent.clear(date)
-  await userEvent.type(date, iso(3))
-  await userEvent.click(within(dialog).getByRole('button', { name: en.vaccines.form.save }))
-  expect(await within(dialog).findByText(en.vaccines.form.futureGiven)).toBeInTheDocument()
+  await userEvent.click(within(dialog).getByLabelText(en.vaccines.form.givenOn))
+  // the given-on calendar stops at today: no later day, and no later month, can be chosen
+  const picker = screen.getAllByRole('dialog').at(-1)!
+  const ahead = new Date(Date.now() + 3 * 86_400_000)
+  const sameMonth = ahead.getMonth() === new Date().getMonth()
+  if (sameMonth) expect(within(picker).getByRole('button', { name: ahead.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' }) })).toBeDisabled()
+  expect(within(picker).getByRole('button', { name: en.picker.nextMonth })).toBeDisabled()
   expect(calls.some((c) => c.key === 'PATCH /api/vaccines/a')).toBe(false)
 })
 
@@ -124,7 +126,7 @@ test('add a custom vaccine', async () => {
   const dialog = screen.getByRole('dialog')
   await userEvent.type(within(dialog).getByLabelText(en.vaccines.form.name), 'Meningococcal')
   await userEvent.type(within(dialog).getByLabelText(en.vaccines.form.dose), '1')
-  await userEvent.type(within(dialog).getByLabelText(en.vaccines.form.dueDate), '2027-07-01')
+  await pickDate(en.vaccines.form.dueDate, new Date(2027, 6, 1))
   await userEvent.click(within(dialog).getByRole('button', { name: en.vaccines.form.save }))
   await waitFor(() =>
     expect(calls.find((c) => c.key === 'POST /api/vaccines')?.body).toMatchObject({
