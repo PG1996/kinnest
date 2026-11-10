@@ -181,3 +181,29 @@ test('a badge without dot or pulse draws neither', () => {
   expect(container.querySelector('[data-badge-dot]')).toBeNull()
   expect(container.querySelector('.animate-ping')).toBeNull()
 })
+
+// --- a sheet takes the colour of the card it was opened from -------------------------------------------------------------
+
+test('a sheet with a tone is tinted in that tone and marks it for its accents', () => {
+  wrap(
+    <>
+      <Sheet title="Feed sheet" tone="feed" onClose={() => {}}>x</Sheet>
+      <Sheet title="Full sheet" tone="med" variant="full" onClose={() => {}}>x</Sheet>
+      <Sheet title="Plain sheet" onClose={() => {}}>x</Sheet>
+    </>,
+  )
+  const feed = screen.getByRole('dialog', { name: 'Feed sheet' })
+  expect(feed.getAttribute('data-sheet-tone')).toBe('feed')
+  expect(feed.className).toContain('bg-feed-bg')
+  const full = screen.getByRole('dialog', { name: 'Full sheet' })
+  expect(full.getAttribute('data-sheet-tone')).toBe('med')
+  expect(full.className).toContain('bg-med-bg')
+  const plain = screen.getByRole('dialog', { name: 'Plain sheet' })
+  expect(plain.getAttribute('data-sheet-tone')).toBeNull()
+  expect(plain.className).toContain('bg-surface')
+})
+
+test('a soft badge has a border in its tone, so it reads as a badge', () => {
+  render(<Badge tone="feed">Feeding</Badge>)
+  expect(screen.getByText('Feeding').className).toContain('border-feed/30')
+})

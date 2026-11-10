@@ -8,7 +8,7 @@ import { Button } from './ui/button'
 export default function SleepConfirm({ open, now, onConfirm, onCancel }: { open: Sleep | null; now: number; onConfirm: () => void; onCancel: () => void }) {
   const { t } = useTranslation()
   return (
-    <Sheet title={t(open ? 'sleep.confirmEndTitle' : 'sleep.confirmStartTitle')} onClose={onCancel}>
+    <Sheet tone="sleep" title={t(open ? 'sleep.confirmEndTitle' : 'sleep.confirmStartTitle')} onClose={onCancel}>
       <p className="text-base">
         {open
           ? t('sleep.confirmEndBody', { ago: formatAgo(now - Date.parse(open.started_at)), time: formatTime(open.started_at) })

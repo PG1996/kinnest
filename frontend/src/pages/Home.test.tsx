@@ -301,8 +301,12 @@ test('a feed being timed shows on Home with who started it and opens the feed sh
   expect(within(banner).getByTestId('feed-timer-elapsed').textContent).toMatch(/^4:\d\d$/)
   const live = within(banner).getByText(en.home.timerBanner)
   expect(live.closest('[data-badge]')!.querySelector('.animate-ping')).not.toBeNull() // a live, pulsing badge while it runs
+  // the badge and the Open button share the first row, left-aligned with the timer below
+  const badgeRow = live.closest('[data-badge]')!.parentElement!
+  expect(within(badgeRow).getByRole('button', { name: en.home.timerOpen })).toBeInTheDocument()
   await userEvent.click(within(banner).getByRole('button', { name: en.home.timerOpen }))
-  expect(await screen.findByRole('dialog', { name: en.home.feed })).toBeInTheDocument()
+  const sheet = await screen.findByRole('dialog', { name: en.home.feed })
+  expect(sheet.getAttribute('data-sheet-tone')).toBe('feed') // the feed form wears the feed card's colour
 })
 
 test('a stopped timer is no longer a live badge: it says stopped and does not pulse', async () => {

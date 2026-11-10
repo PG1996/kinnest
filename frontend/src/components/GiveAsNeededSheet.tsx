@@ -19,7 +19,7 @@ export default function GiveAsNeededSheet({
   const { t } = useTranslation()
   const last = medicine.last_dose
   return (
-    <Sheet title={t('medicines.gapTitle')} onClose={onCancel}>
+    <Sheet tone="med" title={t('medicines.gapTitle')} onClose={onCancel}>
       <p>
         {t('medicines.gapConfirm', {
           ago: last ? formatAgo(now - Date.parse(last.given_at)) : '',

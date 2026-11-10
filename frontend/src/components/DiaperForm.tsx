@@ -47,7 +47,7 @@ export default function DiaperForm({ diaper, onClose }: { diaper?: Diaper; onClo
   }
 
   return (
-    <Sheet title={t(diaper ? 'diapers.editTitle' : 'diapers.addTitle')} onClose={onClose}>
+    <Sheet tone="diaper" title={t(diaper ? 'diapers.editTitle' : 'diapers.addTitle')} onClose={onClose}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <ChipGroup label={t('diapers.form.kind')}>
           {KINDS.map((k) => (

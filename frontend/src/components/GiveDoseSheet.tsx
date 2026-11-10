@@ -62,7 +62,7 @@ export default function GiveDoseSheet({ medicine, slot, max, onGive, onSkip, onC
   }
 
   return (
-    <Sheet
+    <Sheet tone="med"
       variant="full"
       title={t('medicines.giveTitle')}
       onClose={onCancel}

@@ -3,6 +3,7 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/cn'
 import { Button, IconButton } from './ui/button'
+import { TONE_BG, type Tone } from './ui/card'
 
 /**
  * A bottom sheet (`sheet`) or a full-screen page (`full`). Focus moves to the title on open, Escape
@@ -14,12 +15,15 @@ export default function Sheet({
   children,
   variant = 'sheet',
   footer,
+  tone = 'plain',
 }: {
   title: string
   onClose: () => void
   children: ReactNode
   variant?: 'sheet' | 'full'
   footer?: ReactNode
+  /** the colour of the card this was opened from (feed, diaper, sleep, med): the sheet is tinted and its accents follow */
+  tone?: Tone
 }) {
   const { t } = useTranslation()
   const titleRef = useRef<HTMLHeadingElement>(null)
@@ -41,7 +45,13 @@ export default function Sheet({
 
   if (variant === 'full') {
     return (
-      <div role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-30 flex flex-col bg-app">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        data-sheet-tone={tone === 'plain' ? undefined : tone}
+        className={cn('fixed inset-0 z-30 flex flex-col', tone === 'plain' ? 'bg-app' : TONE_BG[tone])}
+      >
         <div className="mx-auto flex w-full max-w-xl items-center gap-2 px-3 pt-4 pb-2">
           <IconButton label={t('home.close')} onClick={onClose} className="bg-transparent shadow-none">
             <ChevronLeft size={24} />
@@ -61,8 +71,9 @@ export default function Sheet({
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        data-sheet-tone={tone === 'plain' ? undefined : tone}
         onClick={(e) => e.stopPropagation()}
-        className={cn('max-h-[90dvh] w-full max-w-xl space-y-4 overflow-y-auto rounded-t-3xl bg-surface p-5 pb-8')}
+        className={cn('max-h-[90dvh] w-full max-w-xl space-y-4 overflow-y-auto rounded-t-3xl p-5 pb-8', TONE_BG[tone])}
       >
         <div aria-hidden="true" className="mx-auto h-1.5 w-10 rounded-full bg-line" />
         <div className="flex items-center justify-between">

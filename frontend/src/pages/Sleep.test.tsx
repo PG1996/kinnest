@@ -118,6 +118,7 @@ test('tapping Sleep asks first and logs nothing until it is confirmed', async ()
   renderApp(<Home />)
   await userEvent.click(await screen.findByRole('button', { name: en.sleep.start }))
   const dialog = await screen.findByRole('dialog', { name: en.sleep.confirmStartTitle })
+  expect(dialog.getAttribute('data-sheet-tone')).toBe('sleep')
   expect(within(dialog).getByText(/AM|PM/)).toBeInTheDocument() // says what time it will be logged at
   expect(calls.some((c) => c.key === 'POST /api/sleep')).toBe(false)
   await userEvent.click(within(dialog).getByRole('button', { name: en.sleep.confirmStart }))

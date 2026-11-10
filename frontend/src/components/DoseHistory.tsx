@@ -55,7 +55,7 @@ export function DoseForm({ medicine, dose, onClose }: { medicine: Medicine; dose
   }
 
   return (
-    <Sheet title={t(dose ? 'medicines.history.editTitle' : 'medicines.history.addTitle')} onClose={onClose}>
+    <Sheet tone="med" title={t(dose ? 'medicines.history.editTitle' : 'medicines.history.addTitle')} onClose={onClose}>
       <form onSubmit={submit} noValidate className="space-y-4">
         <div className="space-y-1">
           <label htmlFor="dose-form-when" className="block text-[13px] font-semibold text-muted">
@@ -137,7 +137,7 @@ export default function DoseHistory({ medicine, canEdit, onClose, header }: { me
     d.status === 'given' ? (d.amount != null ? formatDose(d.amount, medicine.dose_unit ?? '', t) : t('medicines.history.given')) : t('medicines.history.skipped')
 
   return (
-    <Sheet variant="full" title={t('medicines.history.title')} onClose={onClose}>
+    <Sheet tone="med" variant="full" title={t('medicines.history.title')} onClose={onClose}>
       <p className="text-base font-bold">{medicine.name}</p>
       {header}
       {canEdit && (

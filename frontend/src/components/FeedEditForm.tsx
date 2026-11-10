@@ -59,7 +59,7 @@ export default function FeedEditForm({ feed, onClose }: { feed?: Feed; onClose: 
   }
 
   return (
-    <Sheet title={t(feed ? 'timeline.feedEditTitle' : 'timeline.feedAddTitle')} onClose={onClose}>
+    <Sheet tone="feed" title={t(feed ? 'timeline.feedEditTitle' : 'timeline.feedAddTitle')} onClose={onClose}>
       <form onSubmit={submit} noValidate className="space-y-3">
         <FeedTypePicker value={type} onChange={setType} />
         {bottle ? (

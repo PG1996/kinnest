@@ -72,7 +72,7 @@ export default function FeedSheet({ last, saving, failed, onSave, onClose }: Pro
   }
 
   return (
-    <Sheet
+    <Sheet tone="feed"
       variant="full"
       title={t('home.feed')}
       onClose={onClose}

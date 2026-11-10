@@ -17,7 +17,7 @@ export default function DiaperSheet({ onPick, onClose }: { onPick: (k: DiaperKin
   const me = useMe().data
   const [by, setBy] = useState<string | null>(null)
   return (
-    <Sheet title={t('home.diaperTitle')} onClose={onClose}>
+    <Sheet tone="diaper" title={t('home.diaperTitle')} onClose={onClose}>
       <PersonPicker label={t('diapers.changedBy')} value={by} onChange={setBy} />
       <div className="grid grid-cols-3 gap-3">
         {KINDS.map(({ kind, Icon }) => (
