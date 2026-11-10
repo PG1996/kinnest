@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, Pill } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 import { ApiError } from '../api/client'
 import type { Medicine, Slot } from '../api/hooks'
 import { useCancelNudge, useCreateNudge, useGiveDose, useUndoDose, type DoseResult } from '../hooks/log'
@@ -35,6 +36,7 @@ const round2 = (n: number) => Math.round(n * 100) / 100
 export default function MedicinesToday({ medicines, pending, canLog, myName, now, onToast, focusId }: Props) {
   const { t } = useTranslation()
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const give = useGiveDose()
   const undo = useUndoDose()
   const createNudge = useCreateNudge()
@@ -354,12 +356,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
     const structured = m.dose_amount != null && !!m.dose_unit
     return (
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted">
-          {m.last_dose?.status === 'given'
-            ? t('medicines.lastGiven', { ago: formatAgo(now - Date.parse(m.last_dose.given_at)), name: m.last_dose.by_name })
-            : t('medicines.neverGiven')}
-          {waiting > 0 && <span> · {t('medicines.waiting')}</span>}
-        </p>
+        {waiting > 0 && <p className="text-sm text-muted">{t('medicines.waiting')}</p>}
         {canLog &&
           (structured ? (
             <div className="flex gap-2">
@@ -380,6 +377,37 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
           ))}
       </div>
     )
+  }
+
+  /** "4:00 PM", with "(tomorrow)" when it is not today. */
+  const clockWithDay = (iso: string) => {
+    const tomorrow = new Date(now)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const day = new Date(iso).toDateString()
+    return day === tomorrow.toDateString() ? `${formatClock(iso)} (${t('medicines.tomorrow')})` : formatClock(iso)
+  }
+  /** The last dose and the next one, in two short lines for the open card. */
+  const doseTimes = (m: Medicine) => {
+    const last = m.last_dose
+    const lastLine = !last
+      ? t('medicines.noDoseYet')
+      : last.status === 'given'
+        ? t('medicines.lastDoseLine', { time: formatClock(last.given_at), ago: formatAgo(now - Date.parse(last.given_at)), name: last.by_name })
+        : t('medicines.lastDoseSkipped', { time: formatClock(last.given_at) })
+    let nextLine: string
+    if (m.schedule_kind === 'as_needed') {
+      const wait = sosWaitAt(m)
+      nextLine = wait ? t('medicines.nextDoseFrom', { time: formatClock(wait) }) : t('medicines.nextDoseAnytime')
+    } else {
+      const { current, later } = groups(m)
+      const next = current ?? later[0]
+      nextLine = !next
+        ? t('medicines.nextDoseNone')
+        : Date.parse(next.due_at) <= now
+          ? t('medicines.nextDoseNow')
+          : t('medicines.nextDoseLine', { time: clockWithDay(next.due_at) })
+    }
+    return { lastLine, nextLine }
   }
 
   const ordered = [...medicines.filter((m) => m.schedule_kind !== 'as_needed'), ...medicines.filter((m) => m.schedule_kind === 'as_needed')]
@@ -450,7 +478,16 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
         </div>
         {selected && (
           <Card tone="med" data-testid="medicine-detail" className="space-y-3">
-            <p className="text-base font-semibold">{title(selected)}</p>
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-base font-semibold">{title(selected)}</p>
+              <Button variant="outline" onClick={() => navigate(`/health?tab=medicines&history=${selected.id}`)}>
+                {t('medicines.history.open')}
+              </Button>
+            </div>
+            <div className="space-y-0.5 text-sm">
+              <p className="text-muted">{doseTimes(selected).lastLine}</p>
+              <p className="font-semibold text-med-ink">{doseTimes(selected).nextLine}</p>
+            </div>
             {selected.max_per_day != null && (
               <p className="text-xs font-semibold text-muted">
                 {t(givenToday(selected) >= selected.max_per_day ? 'medicines.doneToday' : 'medicines.dosesToday', { count: givenToday(selected), max: selected.max_per_day })}
