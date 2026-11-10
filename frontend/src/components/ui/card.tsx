@@ -12,16 +12,6 @@ const TONES: Record<Tone, string> = {
   warn: 'border-transparent bg-warn-bg text-ink',
 }
 
-/** The flat background of each tone (no border), for surfaces such as sheets. */
-export const TONE_BG: Record<Tone, string> = {
-  plain: 'bg-surface',
-  feed: 'bg-feed-bg',
-  diaper: 'bg-diaper-bg',
-  sleep: 'bg-sleep-bg',
-  med: 'bg-med-bg',
-  warn: 'bg-warn-bg',
-}
-
 /** The ink colour for a tone's eyebrow label ("LAST FED"). */
 export const EYEBROW: Record<Tone, string> = {
   plain: 'text-muted',

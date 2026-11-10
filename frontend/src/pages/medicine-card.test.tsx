@@ -44,10 +44,11 @@ test('a partly given dose with no reminder offers one, and is not shown as overd
 })
 
 test('a dose nothing was given for says how late it is, and keeps its extra choices under More', async () => {
-  mockApi(api([med([slot()])]))
+  const due = minsAgo(82) // one moment for the fixture and the expectation, so a minute ticking over in between cannot split them
+  mockApi(api([med([slot({ due_at: due })])]))
   renderApp(<Home />)
   const d = await detail()
-  expect(d.getByText(text(en.medicines.slotOverdue, { time: formatClock(minsAgo(82)), ago: '1h 22m' }))).toBeInTheDocument()
+  expect(d.getByText(text(en.medicines.slotOverdue, { time: formatClock(due), ago: '1h 22m' }))).toBeInTheDocument()
   expect(d.getByRole('button', { name: en.medicines.giveFull })).toBeInTheDocument()
   for (const name of [en.medicines.givePartial, en.medicines.skip, en.medicines.atOtherTime]) expect(d.queryByRole('button', { name })).not.toBeInTheDocument()
   await userEvent.click(d.getByRole('button', { name: en.medicines.more }))
