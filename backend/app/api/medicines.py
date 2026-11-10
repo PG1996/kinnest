@@ -173,7 +173,7 @@ def medicine_json(
         schedule.slot_state(m, doses, due) for due in schedule.unresolved_due_slots(m, doses, now, tz) if due not in known
     ]
     slots.sort(key=lambda s: s.due_at)
-    last = doses[0] if doses else None
+    last = next((d for d in doses if d.status == "given"), None)  # the latest dose actually given, not a later skip
     today = now.astimezone(ZoneInfo(tz)).date()
     day_start, day_end = day_bounds(now, tz)
     return {

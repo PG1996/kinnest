@@ -132,14 +132,6 @@ test('a dose that is due now says so, and a medicine never given says that', asy
   expect(within(detail).getByText(en.medicines.nextDoseNow)).toBeInTheDocument()
 })
 
-test('a skipped last dose is shown as skipped', async () => {
-  const last = lastDose({ status: 'skipped', amount: null })
-  mockApi(base([med('m2', 'Domstal', [slot({ due_at: minsFromNow(180) })], { last_dose: last })]))
-  renderApp(<Home />)
-  const detail = await screen.findByTestId('medicine-detail')
-  expect(within(detail).getByText(line(en.medicines.lastDoseSkipped, { time: formatTime(last.given_at) }))).toBeInTheDocument()
-})
-
 test('an SOS medicine can be given whenever it is needed', async () => {
   mockApi(base([sos({ last_dose: lastDose() })]))
   renderApp(<Home />)

@@ -373,7 +373,6 @@
     "doneToday": "{{count}}/{{max}} done today",
     "giveAhead": "Give a dose now",
     "lastDoseLine": "Last dose: {{time}} · {{ago}} ago · by {{name}}",
-    "lastDoseSkipped": "Last dose skipped at {{time}}",
     "noDoseYet": "No doses given yet",
     "nextDoseLine": "Next dose: {{time}}",
     "nextDoseNow": "Next dose: now",
