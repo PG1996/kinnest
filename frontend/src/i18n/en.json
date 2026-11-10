@@ -828,5 +828,10 @@
     "gapTarget": "every {{every}}",
     "gapTip": "{{from}} → {{to}} · {{gap}}",
     "centreFeeds": "feeds"
+  },
+  "dayPager": {
+    "strip": "Days",
+    "logged": "has entries",
+    "pick": "Pick a date"
   }
 }

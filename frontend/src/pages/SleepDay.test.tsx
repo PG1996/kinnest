@@ -59,7 +59,9 @@ test('previous day fetches the earlier range and shows that day', async () => {
   renderApp(<App />, '/sleep')
   await screen.findByRole('img', { name: /Slept/ })
   await userEvent.click(screen.getByRole('button', { name: en.sleep.prevDay }))
-  await waitFor(() => expect(new Set(sleepCalls(calls).map((u) => u.searchParams.get('from'))).size).toBe(2))
+  // yesterday's range starts the day before it (a sleep from that evening still counts)
+  const dayBefore = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - 2).toISOString()
+  await waitFor(() => expect(sleepCalls(calls).map((u) => u.searchParams.get('from'))).toContain(dayBefore))
   expect(await screen.findByRole('img', { name: /Slept 2h 0m/ })).toBeInTheDocument() // 14:00-15:00 and 23:00-24:00
   expect(screen.getByRole('button', { name: en.sleep.nextDay })).toBeEnabled()
 })

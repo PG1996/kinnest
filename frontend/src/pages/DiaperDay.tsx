@@ -1,20 +1,21 @@
-import { ChevronLeft, ChevronRight, Droplets } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
+import { Droplets } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useDiaperRange, useMe } from '../api/hooks'
+import { diaperRangeQuery, useDiaperRange, useMe } from '../api/hooks'
+import DayPager from '../components/DayPager'
 import DiaperForm from '../components/DiaperForm'
 import DiaperStrips from '../components/DiaperStrips'
 import DiaperTiles from '../components/DiaperTiles'
 import PageHeader from '../components/PageHeader'
 import RowLink from '../components/RowLink'
-import { Button, IconButton } from '../components/ui/button'
+import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { EmptyState } from '../components/ui/empty'
+import { addDays, endOfDay, midnight, useStripRange } from '../lib/dayPager'
 import { diaperStats } from '../lib/diaperDays'
 import { formatTime, toLocalDate } from '../lib/time'
 import { useNow } from '../lib/useNow'
-
-const midnight = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
 
 /** One day of diapers: counts by kind, the list, and past diapers added. Fixing or deleting one happens in the timeline. */
 export default function DiaperDay() {
@@ -22,31 +23,40 @@ export default function DiaperDay() {
   const canEdit = (useMe().data?.role ?? 'viewer') !== 'viewer'
   const now = useNow()
   const [day, setDay] = useState(() => midnight(new Date()))
-  const isToday = day.getTime() === midnight(new Date(now)).getTime()
-  const range = useMemo(() => ({ from: day, to: new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23, 59, 59, 999) }), [day])
+  const todayMs = midnight(new Date(now)).getTime()
+  const today = useMemo(() => new Date(todayMs), [todayMs])
+  const isToday = day.getTime() === todayMs
+  const range = useMemo(() => ({ from: day, to: endOfDay(day) }), [day])
   const data = useDiaperRange(range.from, range.to).data
   // the tiles and the strips: the six days before this one, plus this one
-  const weekFrom = useMemo(() => new Date(day.getFullYear(), day.getMonth(), day.getDate() - 6), [day])
+  const weekFrom = useMemo(() => addDays(day, -6), [day])
   const week = useDiaperRange(weekFrom, range.to).data
+  const strip = useStripRange(day, todayMs)
+  const stripData = useDiaperRange(strip.from, strip.to).data
+  const marked = useMemo(() => new Set((Array.isArray(stripData) ? stripData : []).map((d) => toLocalDate(new Date(d.at)))), [stripData])
+  const qc = useQueryClient()
+  const prefetch = (d: Date) => {
+    void qc.prefetchQuery({ ...diaperRangeQuery(d, endOfDay(d)), staleTime: 60_000 })
+    void qc.prefetchQuery({ ...diaperRangeQuery(addDays(d, -6), endOfDay(d)), staleTime: 60_000 })
+  }
   const rows = (Array.isArray(data) ? data : [])
     .filter((d) => Date.parse(d.at) >= range.from.getTime() && Date.parse(d.at) <= range.to.getTime())
     .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
   const [form, setForm] = useState(false)
-  const shift = (days: number) => setDay(new Date(day.getFullYear(), day.getMonth(), day.getDate() + days))
-  const label = isToday ? t('timeline.today') : day.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })
 
   return (
     <>
       <PageHeader title={t('diapers.title')} />
-      <div className="flex items-center justify-between">
-        <IconButton label={t('diapers.prevDay')} onClick={() => shift(-1)}>
-          <ChevronLeft size={20} aria-hidden="true" />
-        </IconButton>
-        <span className="font-semibold">{label}</span>
-        <IconButton label={t('diapers.nextDay')} onClick={() => shift(1)} disabled={isToday} className="disabled:opacity-40">
-          <ChevronRight size={20} aria-hidden="true" />
-        </IconButton>
-      </div>
+      <DayPager
+        day={day}
+        today={today}
+        onDay={setDay}
+        tone="diaper"
+        prevLabel={t('diapers.prevDay')}
+        nextLabel={t('diapers.nextDay')}
+        marked={marked}
+        onPrefetch={prefetch}
+      >
       {Array.isArray(week) && (
         <>
           <DiaperTiles stats={diaperStats(week, day, now)} nowMs={now} isToday={isToday} />
@@ -77,6 +87,7 @@ export default function DiaperDay() {
           </li>
         ))}
       </ul>
+      </DayPager>
       {form && <DiaperForm onClose={() => setForm(false)} />}
     </>
   )

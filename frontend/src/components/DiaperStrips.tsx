@@ -65,7 +65,8 @@ export default function DiaperStrips({ diapers, day, nowMs }: { diapers: Diaper[
   }
 
   return (
-    <div className="space-y-2">
+    // the strips have their own zoom and panning: a swipe here is not a swipe to another day
+    <div data-no-swipe className="space-y-2">
       <Segmented
         label={t('diapers.zoomLabel')}
         value={span}

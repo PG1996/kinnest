@@ -1,19 +1,20 @@
-import { ChevronLeft, ChevronRight, Moon } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
+import { Moon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useMe, useSleepRange } from '../api/hooks'
+import { sleepRangeQuery, useMe, useSleepRange } from '../api/hooks'
+import DayPager from '../components/DayPager'
 import PageHeader from '../components/PageHeader'
 import SleepDonut from '../components/SleepDonut'
 import SleepForm from '../components/SleepForm'
 import RowLink from '../components/RowLink'
-import { Button, IconButton } from '../components/ui/button'
+import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { EmptyState } from '../components/ui/empty'
+import { addDays, endOfDay, midnight, useStripRange } from '../lib/dayPager'
 import { sleepDay } from '../lib/sleepDay'
 import { formatAgo, formatTime, toLocalDate } from '../lib/time'
 import { useNow } from '../lib/useNow'
-
-const midnight = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
 
 /** One day of sleep: a 24-hour donut of asleep and awake, the sleeps that day, and past sleeps added. Fixing or deleting one happens in the timeline. */
 export default function SleepDay() {
@@ -21,32 +22,41 @@ export default function SleepDay() {
   const canEdit = (useMe().data?.role ?? 'viewer') !== 'viewer'
   const now = useNow()
   const [day, setDay] = useState(() => midnight(new Date()))
-  const isToday = day.getTime() === midnight(new Date(now)).getTime()
+  const todayMs = midnight(new Date(now)).getTime()
+  const today = useMemo(() => new Date(todayMs), [todayMs])
   // a sleep that started the evening before still counts on this day, so fetch from a day earlier
-  const range = useMemo(() => ({ from: new Date(day.getTime() - 86_400_000), to: new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23, 59, 59, 999) }), [day])
+  const range = useMemo(() => ({ from: addDays(day, -1), to: endOfDay(day) }), [day])
   const data = useSleepRange(range.from, range.to).data
   const sessions = Array.isArray(data) ? data : []
   const summary = sleepDay(sessions, day, new Date(now))
+  const strip = useStripRange(day, todayMs)
+  const stripData = useSleepRange(strip.from, strip.to).data
+  // a sleep marks the day it started and the day it ended
+  const marked = useMemo(
+    () => new Set((Array.isArray(stripData) ? stripData : []).flatMap((s) => [s.started_at, s.ended_at].filter((x): x is string => !!x).map((x) => toLocalDate(new Date(x))))),
+    [stripData],
+  )
+  const qc = useQueryClient()
+  const prefetch = (d: Date) => void qc.prefetchQuery({ ...sleepRangeQuery(addDays(d, -1), endOfDay(d)), staleTime: 60_000 })
   const dayEnd = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1).getTime()
   const onDay = sessions
     .filter((s) => Date.parse(s.started_at) < dayEnd && (s.ended_at ? Date.parse(s.ended_at) : now) > day.getTime())
     .sort((a, b) => Date.parse(a.started_at) - Date.parse(b.started_at))
   const [form, setForm] = useState(false)
-  const shift = (days: number) => setDay(new Date(day.getFullYear(), day.getMonth(), day.getDate() + days))
-  const label = isToday ? t('timeline.today') : day.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })
 
   return (
     <>
       <PageHeader title={t('sleep.dayTitle')} />
-      <div className="flex items-center justify-between">
-        <IconButton label={t('sleep.prevDay')} onClick={() => shift(-1)}>
-          <ChevronLeft size={20} aria-hidden="true" />
-        </IconButton>
-        <span className="font-semibold">{label}</span>
-        <IconButton label={t('sleep.nextDay')} onClick={() => shift(1)} disabled={isToday} className="disabled:opacity-40">
-          <ChevronRight size={20} aria-hidden="true" />
-        </IconButton>
-      </div>
+      <DayPager
+        day={day}
+        today={today}
+        onDay={setDay}
+        tone="sleep"
+        prevLabel={t('sleep.prevDay')}
+        nextLabel={t('sleep.nextDay')}
+        marked={marked}
+        onPrefetch={prefetch}
+      >
       <Card className="py-6">{data !== undefined && <SleepDonut day={day} data={summary} />}</Card>
       {canEdit && (
         <Button variant="soft" className="w-full" onClick={() => setForm(true)}>
@@ -69,6 +79,7 @@ export default function SleepDay() {
           </li>
         ))}
       </ul>
+      </DayPager>
       {form && <SleepForm onClose={() => setForm(false)} />}
     </>
   )
