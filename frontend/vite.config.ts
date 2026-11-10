@@ -35,6 +35,7 @@ export default defineConfig({
     proxy: { '/api': process.env.API_PROXY_TARGET ?? 'http://localhost:8000' },
   },
   preview: {
+    allowedHosts: ['.ts.net'], // the Tailscale Funnel address
     proxy: { '/api': process.env.API_PROXY_TARGET ?? 'http://localhost:8000' },
   },
   test: {
