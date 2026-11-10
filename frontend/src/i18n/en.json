@@ -231,7 +231,7 @@
     "givenBy": "Given by {{name}} at {{time}}",
     "skippedBy": "Skipped by {{name}} at {{time}}",
     "waiting": "Waiting to sync",
-    "giveNow": "Give now",
+    "giveNow": "Give a dose now",
     "lastGiven": "Last given {{ago}} ago by {{name}}",
     "neverGiven": "Not given yet",
     "gapTitle": "Given recently",
@@ -288,7 +288,7 @@
       "usualStart": "Usual first dose time",
       "usualStartHint": "Each day's first reminder comes at this time. Later doses follow when the first one is actually given."
     },
-    "giveFull": "Give full dose",
+    "giveFull": "Give a dose now",
     "givePartial": "Partial dose",
     "progress": "{{given}} of {{total}} given, {{left}} left",
     "pieceBy": "{{name}} gave {{amount}} at {{time}}",

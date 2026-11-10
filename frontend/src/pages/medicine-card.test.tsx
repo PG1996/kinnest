@@ -112,6 +112,33 @@ test('the action buttons on the card are small, like the fact pills', async () =
   for (const name of [en.medicines.giveFull, en.medicines.more, en.medicines.history.open]) {
     const cls = d.getByRole('button', { name }).className
     expect(cls).toContain('min-h-8')
-    expect(cls.includes('bg-primary ') || cls.includes('border-line')).toBe(true) // solid, or outlined: never bare text on the card
+    expect(/bg-primary |bg-warn-solid|border-line/.test(cls)).toBe(true) // solid, or outlined: never bare text on the card
   }
+})
+
+// --- one theme: the main button is yellow when a dose is due, purple otherwise, and always says what it does ---------------
+
+test('the main button is yellow while a dose is due', async () => {
+  mockApi(api([med([slot()])]))
+  renderApp(<Home />)
+  expect((await detail()).getByRole('button', { name: en.medicines.giveFull }).className).toContain('bg-warn-solid')
+})
+
+test('the main button is purple when nothing is due, and still says Give a dose now', async () => {
+  mockApi(api([med([slot({ due_at: minsFromNow(5 * 60) })])]))
+  renderApp(<Home />)
+  const d = await detail()
+  expect(d.getByRole('button', { name: 'Give a dose now' }).className).toContain('bg-primary')
+  expect(d.getByRole('button', { name: en.medicines.more })).toBeInTheDocument()
+  await userEvent.click(d.getByRole('button', { name: en.medicines.more }))
+  expect(d.getByRole('button', { name: en.medicines.givePartial })).toBeInTheDocument()
+  expect(d.queryByRole('button', { name: en.medicines.skip })).not.toBeInTheDocument() // a dose that is not due cannot be skipped
+})
+
+test('only a partly given dose renames the main button to Give the rest', async () => {
+  mockApi(api([med([partial()])]))
+  renderApp(<Home />)
+  const d = await detail()
+  expect(d.getByRole('button', { name: text(en.medicines.giveRest, { amount: '0.5 ml' }) }).className).toContain('bg-primary') // reminder-less rest is not "due"
+  expect(d.queryByRole('button', { name: 'Give a dose now' })).not.toBeInTheDocument()
 })
