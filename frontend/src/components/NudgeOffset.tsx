@@ -4,23 +4,28 @@ import { Input } from './ui/field'
 
 /** The reminder times offered for the rest of a dose, in minutes: 1, 2, 4, 6 and 8 hours. Anything else is "Other". */
 export const NUDGE_PRESETS = [60, 120, 240, 360, 480]
-/** The server only takes a reminder within the next 24 hours. */
-export const MAX_NUDGE_MINUTES = 24 * 60
+/** The server only takes a reminder that is still ahead of us and within the next 24 hours. */
+const MAX_AHEAD_MS = 24 * 3_600_000
+const MIN_AHEAD_MS = 60_000
+
+/** The preset times that are still ahead when counted from `from` (the time of the last dose), in minutes. */
+export const presetsFrom = (from: number) => NUDGE_PRESETS.filter((m) => from + m * 60_000 > Date.now() + MIN_AHEAD_MS)
 
 export function useNudgeLabel() {
   const { t } = useTranslation()
   return (minutes: number) => t(minutes === 60 ? 'medicines.nudgeHr' : 'medicines.nudgeHrs', { count: minutes / 60 })
 }
 
-/** Hours and minutes typed by hand; reports the total in minutes, or null while it is empty or out of range. */
-export default function NudgeOffset({ onChange }: { onChange: (minutes: number | null) => void }) {
+/** Hours and minutes typed by hand, counted from `from`; reports the total in minutes, or null while it is empty or not a time still ahead (within 24 h). */
+export default function NudgeOffset({ from, onChange }: { from: number; onChange: (minutes: number | null) => void }) {
   const { t } = useTranslation()
   const [hours, setHours] = useState('')
   const [minutes, setMinutes] = useState('')
   const total = (h: string, m: string) => {
     if (h === '' && m === '') return null
     const n = (Number(h) || 0) * 60 + (Number(m) || 0)
-    return Number.isInteger(n) && n >= 1 && n <= MAX_NUDGE_MINUTES ? n : NaN
+    const at = from + n * 60_000
+    return Number.isInteger(n) && n >= 1 && at > Date.now() + MIN_AHEAD_MS && at <= Date.now() + MAX_AHEAD_MS ? n : NaN
   }
   const report = (h: string, m: string) => {
     const n = total(h, m)

@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import en from '../i18n/en.json'
-import { formatClock } from '../lib/time'
+import { formatClock, toLocalInput } from '../lib/time'
 import { enqueue } from '../offline/queue'
 import { ME_ADMIN, ME_VIEWER, clickAction, mockApi, renderApp } from '../test/utils'
 import Home from './Home'
@@ -506,4 +506,67 @@ test('the dose screen offers the same times and a custom one for the reminder', 
   await waitFor(() => expect(sent(calls, 'POST /api/medicines/m1/nudges')).toBe(true))
   const body = calls.find((c) => c.key === 'POST /api/medicines/m1/nudges')!.body as { remind_at: string }
   expect(Date.parse(body.remind_at) - Date.now()).toBeGreaterThan(179 * 60_000)
+})
+
+// --- the reminder for the rest counts from the last dose, not from when it was logged -----------------------------------
+
+const partlyGiven = (minutes: number, over: object = {}) =>
+  syrup({ status: 'partial', given_amount: 0.25, remaining: 0.75, doses: [piece({ given_at: minsAgo(minutes) })], ...over })
+const nudgeBody = (calls: { key: string; body: unknown }[]) => calls.find((c) => c.key === 'POST /api/medicines/m1/nudges')!.body as { remind_at: string }
+const remindMeSheet = async (minutes: number) => {
+  const calls = mockApi({ ...base([partlyGiven(minutes)]), 'POST /api/medicines/m1/nudges': { status: 201, body: { id: 'n1' } } })
+  renderApp(<Home />)
+  await userEvent.click(await screen.findByRole('button', { name: en.medicines.remindMe }))
+  return { calls, dialog: await screen.findByRole('dialog', { name: en.medicines.nudgeTitle }) }
+}
+
+test('Remind me counts the time from the last dose that was given, not from now', async () => {
+  const { calls, dialog } = await remindMeSheet(40)
+  expect(dialog).toHaveTextContent(text(en.medicines.nudgeFrom, { time: formatClock(minsAgo(40)) }))
+  await userEvent.click(within(dialog).getByRole('button', { name: en.medicines.nudgeHr.replace('{{count}}', '1') }))
+  await waitFor(() => expect(sent(calls, 'POST /api/medicines/m1/nudges')).toBe(true))
+  const left = Date.parse(nudgeBody(calls).remind_at) - Date.now()
+  expect(left).toBeGreaterThan(19 * 60_000) // 1 hour after the dose, 40 minutes ago: about 20 minutes from now
+  expect(left).toBeLessThan(21 * 60_000)
+})
+
+test('times that have already passed since the last dose are not offered', async () => {
+  const { dialog } = await remindMeSheet(3 * 60)
+  expect(within(dialog).queryByRole('button', { name: en.medicines.nudgeHr.replace('{{count}}', '1') })).not.toBeInTheDocument()
+  expect(within(dialog).queryByRole('button', { name: en.medicines.nudgeHrs.replace('{{count}}', '2') })).not.toBeInTheDocument()
+  expect(within(dialog).getByRole('button', { name: en.medicines.nudgeHrs.replace('{{count}}', '4') })).toBeInTheDocument()
+})
+
+test('a custom time that would already have passed is refused, a later one is counted from the dose', async () => {
+  const { calls, dialog } = await remindMeSheet(3 * 60)
+  await userEvent.click(within(dialog).getByRole('button', { name: en.medicines.nudgeOther }))
+  await userEvent.type(within(dialog).getByLabelText(en.medicines.nudgeHours), '2')
+  expect(within(dialog).getByRole('button', { name: en.medicines.nudgeSet })).toBeDisabled()
+  expect(within(dialog).getByText(en.medicines.nudgeInvalid)).toBeInTheDocument()
+  await userEvent.clear(within(dialog).getByLabelText(en.medicines.nudgeHours))
+  await userEvent.type(within(dialog).getByLabelText(en.medicines.nudgeHours), '5')
+  await userEvent.click(within(dialog).getByRole('button', { name: en.medicines.nudgeSet }))
+  await waitFor(() => expect(sent(calls, 'POST /api/medicines/m1/nudges')).toBe(true))
+  const left = Date.parse(nudgeBody(calls).remind_at) - Date.now()
+  expect(left).toBeGreaterThan(119 * 60_000) // 5 hours after a dose given 3 hours ago
+  expect(left).toBeLessThan(121 * 60_000)
+})
+
+test('a partial dose logged for an earlier time counts the reminder from that time', async () => {
+  const calls = mockApi({
+    ...base([syrup()]),
+    'POST /api/medicines/m1/doses': posted({ slot: { status: 'partial', given_amount: 0.5, remaining: 0.5 } }),
+    'POST /api/medicines/m1/nudges': { status: 201, body: { id: 'n1' } },
+  })
+  renderApp(<Home />)
+  await clickAction(en.medicines.givePartial)
+  const dialog = await screen.findByRole('dialog', { name: en.medicines.giveTitle })
+  await userEvent.click(within(dialog).getByRole('button', { name: en.medicines.whenOther }))
+  fireEvent.change(within(dialog).getByLabelText(en.medicines.whenLabel), { target: { value: toLocalInput(new Date(Date.now() - 30 * 60_000)) } })
+  await userEvent.click(within(dialog).getByRole('button', { name: en.medicines.nudgeHrs.replace('{{count}}', '2') }))
+  slide(within(dialog))
+  await waitFor(() => expect(sent(calls, 'POST /api/medicines/m1/nudges')).toBe(true))
+  const left = Date.parse(nudgeBody(calls).remind_at) - Date.now()
+  expect(left).toBeGreaterThan(88 * 60_000) // 2 hours after the dose, which was 30 minutes ago
+  expect(left).toBeLessThan(92 * 60_000)
 })
