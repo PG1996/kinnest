@@ -97,7 +97,8 @@
     "timerFailed": "Couldn't start the timer. Check your connection.",
     "timerOpen": "Open",
     "timerBanner": "Feeding now",
-    "timerStopped": "Stopped at {{time}}"
+    "timerStopped": "Stopped at {{time}}",
+    "timerHalted": "Timer stopped"
   },
   "roles": {
     "admin": "Admin",

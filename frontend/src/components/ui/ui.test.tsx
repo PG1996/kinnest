@@ -1,3 +1,4 @@
+import { Badge } from './badge'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
@@ -141,4 +142,42 @@ test('gauge label is exposed as img name', () => {
     </HalfGauge>,
   )
   expect(screen.getByRole('img', { name: '50% of the feed interval passed' })).toBeInTheDocument()
+})
+
+// --- badge: soft, solid and outline, with a status dot that can pulse ------------------------------------------------------
+
+test('a badge is a soft pill in its tone by default', () => {
+  render(<Badge tone="feed">Feeding</Badge>)
+  const b = screen.getByText('Feeding')
+  expect(b.className).toContain('bg-feed-bg')
+  expect(b.className).toContain('rounded-full')
+})
+
+test('solid and outline badges use the tone strongly or only as a border', () => {
+  render(
+    <>
+      <Badge tone="feed" variant="solid">Solid</Badge>
+      <Badge tone="feed" variant="outline">Outline</Badge>
+    </>,
+  )
+  expect(screen.getByText('Solid').className).toContain('bg-feed ')
+  expect(screen.getByText('Outline').className).toContain('border-feed')
+  expect(screen.getByText('Outline').className).not.toContain('bg-feed')
+})
+
+test('a dot badge has a status dot, and pulse adds a ping ring that respects reduced motion', () => {
+  const { container, rerender } = render(<Badge tone="feed" dot>Live</Badge>)
+  expect(container.querySelector('[data-badge-dot]')).not.toBeNull()
+  expect(container.querySelector('.animate-ping')).toBeNull()
+  rerender(<Badge tone="feed" dot pulse>Live</Badge>)
+  const ping = container.querySelector('.animate-ping')!
+  expect(ping).not.toBeNull()
+  expect(ping.className).toContain('motion-reduce:animate-none')
+  expect(container.querySelector('[data-badge-dot]')!.getAttribute('aria-hidden')).toBe('true')
+})
+
+test('a badge without dot or pulse draws neither', () => {
+  const { container } = render(<Badge>Plain</Badge>)
+  expect(container.querySelector('[data-badge-dot]')).toBeNull()
+  expect(container.querySelector('.animate-ping')).toBeNull()
 })

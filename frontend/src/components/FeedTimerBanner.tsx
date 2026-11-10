@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next'
 import type { FeedTimerInfo } from '../api/hooks'
 import { useNow } from '../lib/useNow'
 import { Button } from './ui/button'
-import { Card, Eyebrow } from './ui/card'
+import { Badge } from './ui/badge'
+import { Card } from './ui/card'
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 
@@ -18,10 +19,15 @@ export default function FeedTimerBanner({ timer, onOpen }: { timer: FeedTimerInf
       <div className="flex min-w-0 items-center gap-3">
         <Timer size={26} aria-hidden="true" className="shrink-0 text-feed" />
         <div className="min-w-0 space-y-0.5">
-          <Eyebrow tone="feed">{t('home.timerBanner')}</Eyebrow>
+          {/* live while it runs: a pulsing dot; once stopped it is a plain, calm badge */}
+          <Badge tone={timer.ended_at ? 'plain' : 'feed'} dot pulse={!timer.ended_at}>
+            {t(timer.ended_at ? 'home.timerHalted' : 'home.timerBanner')}
+          </Badge>
           <p data-testid="feed-timer-elapsed" className="text-xl font-bold tabular-nums">{mmss(seconds)}</p>
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="rounded-full bg-surface px-2.5 py-0.5 text-xs font-bold text-feed-ink">{t(`feedTypes.${timer.type}`)}</span>
+            <Badge tone="feed" variant="outline" className="bg-surface">
+              {t(`feedTypes.${timer.type}`)}
+            </Badge>
             <span className="text-xs text-muted">{t('home.by', { name: timer.started_by_name })}</span>
           </div>
         </div>
