@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useKid, useMe, useMedicines, useSummary, useTimeline, useVaccines, useVisits, type DiaperKind } from '../api/hooks'
+import { useKid, useMe, useMedicines, useSummary, useTimeline, useVaccines, useVisits, type DiaperKind, type FeedType } from '../api/hooks'
 import DiaperSheet from '../components/DiaperSheet'
 import FeedSheet from '../components/FeedSheet'
+import FeedSidePicker from '../components/FeedSidePicker'
 import FeedTimerBanner from '../components/FeedTimerBanner'
 import HomeHeader from '../components/HomeHeader'
 import PushPrompt from '../components/PushPrompt'
@@ -80,12 +81,15 @@ export default function Home() {
   const closeToast = useCallback(() => setToast(null), [])
   const logFeed = useLogFeed()
   const timerActions = useFeedTimerActions()
-  /** The play icon on the feed card: a timer with the type of the last feed (it can be changed in the form). */
-  const startTimer = () =>
+  /** The play icon on the feed card asks which side first, then starts the timer with it. */
+  const [sideAsk, setSideAsk] = useState(false)
+  const startTimer = (type: FeedType) => {
+    setSideAsk(false)
     timerActions.start.mutate(
-      { id: crypto.randomUUID(), type: summary?.last_feed?.type ?? 'breast_both', started_at: new Date().toISOString() },
+      { id: crypto.randomUUID(), type, started_at: new Date().toISOString() },
       { onError: () => setToast({ message: t('home.timerFailed'), tone: 'error' }) },
     )
+  }
   // a tapped "Stop" on the notification: stop the timer once the summary is here, then the form asks about breaks
   const [stopWanted, setStopWanted] = useState(false)
   useEffect(() => {
@@ -158,7 +162,7 @@ export default function Home() {
       {summary && (
         <>
           {summary.feed_timer && canLog && <FeedTimerBanner timer={summary.feed_timer} onOpen={() => setSheet('feed')} />}
-          <LastFeedCard summary={summary} now={now} canLog={canLog} feeding={!!summary.feed_timer} onLogFeed={() => setSheet('feed')} onStartTimer={startTimer} />
+          <LastFeedCard summary={summary} now={now} canLog={canLog} feeding={!!summary.feed_timer} onLogFeed={() => setSheet('feed')} onStartTimer={() => setSideAsk(true)} />
           <LastDiaperCard summary={summary} now={now} wetPerDay={wetSeries} />
           <SleepCard sleep={summary.sleep} now={now} />
         </>
@@ -215,6 +219,7 @@ export default function Home() {
           }}
         />
       )}
+      {sideAsk && <FeedSidePicker last={summary?.last_feed?.type ?? null} onPick={startTimer} onClose={() => setSideAsk(false)} />}
       {sheet === 'diaper' && <DiaperSheet onPick={pickDiaper} onClose={() => setSheet(null)} />}
       {toast && <Toast toast={toast} onClose={closeToast} />}
     </>
