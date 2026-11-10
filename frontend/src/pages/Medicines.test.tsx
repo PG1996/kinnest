@@ -433,7 +433,8 @@ test('with nothing due the next dose is one calm line and there are no buttons',
   mockApi(base([multi([slot({ due_at: minsFromNow(180) })])]))
   renderApp(<Home />)
   expect(await within(await screen.findByTestId('medicine-detail')).findByText(new RegExp(en.medicines.nextDoseLine.replace('{{time}}', '.+')))).toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: en.medicines.giveFull })).not.toBeInTheDocument()
+  const give = within(screen.getByTestId('medicine-detail')).getByRole('button', { name: en.medicines.giveFull }) // ahead of time, still one calm purple button
+  expect(give.className).toContain('bg-primary')
 })
 
 test('given and skipped doses are collapsed under Done', async () => {

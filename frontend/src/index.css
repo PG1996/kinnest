@@ -28,6 +28,8 @@
   --color-med: var(--med);
   --color-warn-bg: var(--warn-bg);
   --color-warn-ink: var(--warn-ink);
+  --color-warn-solid: var(--warn-solid);
+  --color-warn-solid-ink: var(--warn-solid-ink);
   --color-heat-0: var(--heat-0);
   --color-heat-1: var(--heat-1);
   --color-heat-2: var(--heat-2);

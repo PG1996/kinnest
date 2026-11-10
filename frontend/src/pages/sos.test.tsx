@@ -74,7 +74,10 @@ test('tapping the SOS tile opens its dose buttons', async () => {
   const detail = screen.getByTestId('medicine-detail')
   expect(within(detail).getByText(/Paracetamol/)).toBeInTheDocument()
   expect(within(detail).getByRole('button', { name: en.medicines.giveFull })).toBeInTheDocument()
+  expect(within(detail).queryByRole('button', { name: en.medicines.atOtherTime })).not.toBeInTheDocument() // under More
+  await userEvent.click(within(detail).getByRole('button', { name: en.medicines.more }))
   expect(within(detail).getByRole('button', { name: en.medicines.atOtherTime })).toBeInTheDocument()
+  expect(within(detail).getByRole('button', { name: en.medicines.givePartial })).toBeInTheDocument()
 })
 
 test('with only SOS medicines the one SOS medicine is opened by itself', async () => {

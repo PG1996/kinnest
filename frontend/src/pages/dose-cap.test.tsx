@@ -167,8 +167,7 @@ test('a dose that is not due yet can be given now from Home, and counts for the 
   const calls = mockApi({ ...api([base({ given_today: 1, slots: [slot({ due_at: due })] })]), 'POST /api/medicines/m1/doses': posted })
   renderApp(<Home />)
   const detail = await screen.findByTestId('medicine-detail')
-  expect(within(detail).queryByRole('button', { name: en.medicines.giveFull })).not.toBeInTheDocument() // nothing is due yet
-  await userEvent.click(within(detail).getByRole('button', { name: en.medicines.giveAhead }))
+  await userEvent.click(within(detail).getByRole('button', { name: en.medicines.giveAhead })) // the same "Give a dose now" button
   await waitFor(() => expect(doseCalls(calls, 'm1')).toHaveLength(1))
   expect(doseCalls(calls, 'm1')[0].body).toMatchObject({ status: 'given', scheduled_for: due, amount: 2.5 })
 })
