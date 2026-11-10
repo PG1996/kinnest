@@ -13,7 +13,7 @@ const button = cva(
         ghost: 'text-muted hover:bg-line/50',
         danger: 'bg-danger text-primary-ink',
       },
-      size: { md: 'min-h-11 px-4 text-[15px]', lg: 'min-h-12 px-5 text-base' },
+      size: { sm: 'min-h-8 gap-1 px-3 text-[13px]', md: 'min-h-11 px-4 text-[15px]', lg: 'min-h-12 px-5 text-base' },
     },
     defaultVariants: { variant: 'primary', size: 'md' },
   },
