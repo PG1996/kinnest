@@ -42,6 +42,9 @@ test('the picker opens on the current time, with the day and the time wheels', a
   expect(option(en.picker.hour, '12')).toHaveAttribute('aria-selected', 'true')
   expect(option(en.picker.minute, '45')).toHaveAttribute('aria-selected', 'true')
   expect(option(en.picker.ampm, 'AM')).toHaveAttribute('aria-selected', 'true')
+  // a screen reader hears the chosen item of each wheel
+  const minutes = within(picker()).getByRole('listbox', { name: en.picker.minute })
+  expect(minutes.getAttribute('aria-activedescendant')).toBe(option(en.picker.minute, '45').id)
 })
 
 test('choosing a time and Done saves it', async () => {
