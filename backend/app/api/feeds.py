@@ -23,6 +23,7 @@ class FeedIn(BaseModel):
     type: FeedType
     started_at: AwareDatetime
     duration_min: int | None = Field(default=None, ge=0, le=600)
+    break_min: int = Field(default=0, ge=0, le=600)
     quantity_ml: int | None = Field(default=None, ge=0, le=2000)
     note: str = ""
     fed_by_user_id: uuid.UUID | None = None
@@ -34,6 +35,7 @@ class FeedPatch(BaseModel):
     type: FeedType | None = None
     started_at: AwareDatetime | None = None
     duration_min: int | None = Field(default=None, ge=0, le=600)
+    break_min: int | None = Field(default=None, ge=0, le=600)
     quantity_ml: int | None = Field(default=None, ge=0, le=2000)
     note: str | None = None
     fed_by_user_id: uuid.UUID | None = None
@@ -45,6 +47,7 @@ def feed_json(f: Feed, names: dict[uuid.UUID, str]) -> dict:
         "type": f.type,
         "started_at": f.started_at.isoformat(),
         "duration_min": f.duration_min,
+        "break_min": f.break_min or 0,
         "quantity_ml": f.quantity_ml,
         "note": f.note,
         "fed_by_user_id": str(f.fed_by_user_id),
@@ -78,7 +81,7 @@ def create_feed(
     fed_by = (moms_user_id(db, member.family_id) if body.type.startswith("breast") else None) or body.fed_by_user_id or me
     feed = Feed(
         id=body.id, family_id=member.family_id, kid_id=member.kid_id, type=body.type,
-        started_at=body.started_at, duration_min=body.duration_min, quantity_ml=body.quantity_ml,
+        started_at=body.started_at, duration_min=body.duration_min, break_min=body.break_min, quantity_ml=body.quantity_ml,
         note=body.note, fed_by_user_id=fed_by, created_by=me, updated_by=me,
     )
     warning = recent_other(db, Feed, member.kid_id, me, body.id)

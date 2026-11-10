@@ -14,17 +14,17 @@ Status = Literal["ok", "gone", "error"]
 PUSH_TIMEOUT_SECONDS = 10
 
 
-def send(sub: PushSubscription, title_key: str, body_params: dict, urgency: str = "normal", url: str = "/") -> Status:
-    """Send one web push. "gone" means the browser dropped the subscription and it should be deleted."""
+def send_payload(sub, payload: dict, urgency: str = "normal") -> Status:
+    """Send one web push with a ready-made payload (title, body, url, tag and any notification options).
+    "gone" means the browser dropped the subscription and it should be deleted."""
     settings = get_settings()
     if not settings.vapid_private_key:
         log.error("VAPID keys not configured; cannot send push")
         return "error"
-    title, body = render(title_key, body_params)
     try:
         webpush(
             subscription_info={"endpoint": sub.endpoint, "keys": {"p256dh": sub.p256dh, "auth": sub.auth}},
-            data=json.dumps({"title": title, "body": body, "url": url, "tag": title_key}),
+            data=json.dumps(payload),
             vapid_private_key=settings.vapid_private_key,
             vapid_claims={"sub": settings.vapid_subject},
             headers={"Urgency": urgency},
@@ -41,3 +41,9 @@ def send(sub: PushSubscription, title_key: str, body_params: dict, urgency: str 
     except Exception:
         log.exception("push failed")
         return "error"
+
+
+def send(sub: PushSubscription, title_key: str, body_params: dict, urgency: str = "normal", url: str = "/") -> Status:
+    """Send one reminder: the text comes from the server's message table."""
+    title, body = render(title_key, body_params)
+    return send_payload(sub, {"title": title, "body": body, "url": url, "tag": title_key}, urgency)

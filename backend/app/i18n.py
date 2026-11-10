@@ -46,6 +46,10 @@ MESSAGES: dict[str, dict[str, dict[str, str]]] = {
             "title": "{kid}: doctor visit at {time}",
             "body": "{what}",
         },
+        "feed_timer": {
+            "title": "Feeding since {time}",
+            "body": "{what} · {name}",
+        },
         "diaper_alert": {
             "title": "{kid}: diaper check",
             "body": "No diaper logged since {time}.",
@@ -57,3 +61,14 @@ MESSAGES: dict[str, dict[str, dict[str, str]]] = {
 def render(key: str, params: dict, lang: str = "en") -> tuple[str, str]:
     msg = MESSAGES[lang][key]
     return msg["title"].format(**params), msg["body"].format(**params)
+
+
+FEED_TYPE_LABEL = {
+    "en": {
+        "breast_left": "Mom's feed · L",
+        "breast_right": "Mom's feed · R",
+        "breast_both": "Mom's feed · Both",
+        "expressed": "Expressed milk",
+        "formula": "Formula",
+    }
+}

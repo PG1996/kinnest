@@ -9,8 +9,9 @@ from app.models import Diaper, Feed, Kid, SleepSession, VitalEntry
 
 
 def feed_due_at(feed: Feed, interval_minutes: int) -> datetime:
-    """The next feed is due one interval after the last one ended (a feed without a duration ends when it starts)."""
-    return feed.started_at + timedelta(minutes=(feed.duration_min or 0) + interval_minutes)
+    """The next feed is due one interval after the last one really ended: its feeding time plus any breaks in it (a feed
+    without a duration ends when it starts)."""
+    return feed.started_at + timedelta(minutes=(feed.duration_min or 0) + (feed.break_min or 0) + interval_minutes)
 
 
 @dataclass
