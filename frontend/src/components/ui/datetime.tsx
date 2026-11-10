@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../lib/cn'
@@ -43,6 +43,7 @@ const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
 /** One wheel: a list that scrolls and snaps; the item in the middle band is the value. Tapping an item picks it too. */
 function Wheel({ label, items, selected, onSelect }: { label: string; items: string[]; selected: number; onSelect: (i: number) => void }) {
   const ref = useRef<HTMLDivElement>(null)
+  const idPrefix = useId()
   const quiet = useRef(false) // scrolling we did ourselves is not the person choosing
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const current = useRef({ selected, onSelect })
@@ -80,6 +81,7 @@ function Wheel({ label, items, selected, onSelect }: { label: string; items: str
       ref={ref}
       role="listbox"
       aria-label={label}
+      aria-activedescendant={`${idPrefix}-${selected}`}
       tabIndex={0}
       onKeyDown={onKeyDown}
       onScroll={() => {
@@ -91,12 +93,14 @@ function Wheel({ label, items, selected, onSelect }: { label: string; items: str
       style={{
         height: VISIBLE * ITEM_PX,
         maskImage: 'linear-gradient(transparent, #000 30%, #000 70%, transparent)',
+        WebkitMaskImage: 'linear-gradient(transparent, #000 30%, #000 70%, transparent)',
       }}
     >
       <div aria-hidden="true" style={{ height: pad }} />
       {items.map((item, i) => (
         <div
           key={item}
+          id={`${idPrefix}-${i}`}
           role="option"
           aria-selected={i === selected}
           onClick={() => onSelect(i)}
@@ -138,11 +142,13 @@ export function MonthCalendar({ value, onPick, max }: { value: Date | null; onPi
     const d = value ?? new Date()
     return new Date(d.getFullYear(), d.getMonth(), 1)
   })
-  const shownKey = value ? value.getFullYear() * 12 + value.getMonth() : null
-  useEffect(() => {
-    // a day chosen elsewhere (Today, Yesterday) brings its month into view
-    if (shownKey !== null) setMonth(new Date(Math.floor(shownKey / 12), shownKey % 12, 1))
-  }, [shownKey])
+  // a day chosen elsewhere (Today, Yesterday) brings its month into view; adjusted while rendering, not in an effect
+  const valueMonth = value ? value.getFullYear() * 12 + value.getMonth() : null
+  const [followed, setFollowed] = useState(valueMonth)
+  if (valueMonth !== followed) {
+    setFollowed(valueMonth)
+    if (valueMonth !== null) setMonth(new Date(Math.floor(valueMonth / 12), valueMonth % 12, 1))
+  }
   const today = startOfDay(new Date())
   const limit = max ? startOfDay(max) : null
   const next = new Date(month.getFullYear(), month.getMonth() + 1, 1)
