@@ -112,9 +112,9 @@ test('once the timer is gone an overdue feed is flagged again', async () => {
 
 // --- the timer on the Home card: start, pause, stop, as icons ----------------------------------------------------------------
 
-const timerRoutes = (state: { timer: object | null }, me = ME_ADMIN) => ({
-  ...base(me, SUMMARY()),
-  'GET /api/summary': () => ({ body: SUMMARY({ feed_timer: state.timer }) }),
+const timerRoutes = (state: { timer: object | null }, me = ME_ADMIN, summary = SUMMARY()) => ({
+  ...base(me, summary),
+  'GET /api/summary': () => ({ body: { ...summary, feed_timer: state.timer } }),
   'POST /api/feed-timer': (b: unknown) => { state.timer = { ...(b as object), ended_at: null, paused_at: null, paused_total_s: 0, started_by_name: 'Owner' }; return { status: 201, body: state.timer } },
   'PATCH /api/feed-timer': (b: unknown) => {
     const { paused, ...rest } = b as { paused?: boolean }
@@ -124,17 +124,57 @@ const timerRoutes = (state: { timer: object | null }, me = ME_ADMIN) => ({
 })
 const RUN = (over: object = {}) => ({ id: 'tm1', type: 'breast_left', started_at: minsAgo(10), ended_at: null, paused_at: null, paused_total_s: 0, started_by_name: 'Pankhuri', ...over })
 
-test('the feed card has a start icon that starts a timer with the type of the last feed', async () => {
+const pickSide = async (type: keyof typeof en.feedTypes) => {
+  await userEvent.click(await screen.findByRole('button', { name: en.home.timerStart }))
+  const dialog = await screen.findByRole('dialog', { name: en.home.sideTitle })
+  await userEvent.click(within(dialog).getByRole('button', { name: new RegExp(en.feedTypes[type]) }))
+}
+
+test('the start icon asks which side, and starts the timer with that choice', async () => {
   const state = { timer: null as object | null }
   const calls = mockApi(timerRoutes(state))
   renderApp(<Home />)
   await userEvent.click(await screen.findByRole('button', { name: en.home.timerStart }))
+  const dialog = await screen.findByRole('dialog', { name: en.home.sideTitle })
+  for (const k of ['breast_left', 'breast_right', 'breast_both'] as const) expect(within(dialog).getByRole('button', { name: new RegExp(en.feedTypes[k]) })).toBeInTheDocument()
+  expect(calls.some((c) => c.key === 'POST /api/feed-timer')).toBe(false) // nothing starts until a side is chosen
+  await userEvent.click(within(dialog).getByRole('button', { name: new RegExp(en.feedTypes.breast_left) }))
   await waitFor(() => expect(calls.some((c) => c.key === 'POST /api/feed-timer')).toBe(true))
   const body = calls.find((c) => c.key === 'POST /api/feed-timer')!.body as { type: string; started_at: string; id: string }
-  expect(body.type).toBe('formula') // the type of the last feed
+  expect(body.type).toBe('breast_left')
   expect(Math.abs(Date.parse(body.started_at) - Date.now())).toBeLessThan(5_000)
+  expect(screen.queryByRole('dialog', { name: en.home.sideTitle })).not.toBeInTheDocument()
   expect(await screen.findByTestId('feed-timer-banner')).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: en.home.timerStart })).not.toBeInTheDocument() // one at a time
+})
+
+test.each([['breast_right', 'breast_right'], ['breast_both', 'breast_both']] as const)('choosing %s starts that', async (_n, type) => {
+  const calls = mockApi(timerRoutes({ timer: null }))
+  renderApp(<Home />)
+  await pickSide(type)
+  await waitFor(() => expect(calls.find((c) => c.key === 'POST /api/feed-timer')?.body).toMatchObject({ type }))
+})
+
+test('the side after the last breast feed is suggested, so a switch is one tap', async () => {
+  const last = { ...SUMMARY().last_feed, type: 'breast_right', quantity_ml: null, duration_min: 20 }
+  mockApi(timerRoutes({ timer: null }, ME_ADMIN, SUMMARY({ last_feed: last })))
+  renderApp(<Home />)
+  await userEvent.click(await screen.findByRole('button', { name: en.home.timerStart }))
+  const dialog = await screen.findByRole('dialog', { name: en.home.sideTitle })
+  const left = within(dialog).getByRole('button', { name: new RegExp(en.feedTypes.breast_left) })
+  expect(within(left).getByText(en.home.sideSuggested)).toBeInTheDocument()
+  expect(within(within(dialog).getByRole('button', { name: new RegExp(en.feedTypes.breast_right) })).queryByText(en.home.sideSuggested)).not.toBeInTheDocument()
+})
+
+test('with no breast feed before there is no suggestion, and cancelling starts nothing', async () => {
+  const calls = mockApi(timerRoutes({ timer: null })) // the last feed was a bottle
+  renderApp(<Home />)
+  await userEvent.click(await screen.findByRole('button', { name: en.home.timerStart }))
+  const dialog = await screen.findByRole('dialog', { name: en.home.sideTitle })
+  expect(within(dialog).queryByText(en.home.sideSuggested)).not.toBeInTheDocument()
+  await userEvent.keyboard('{Escape}')
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(calls.some((c) => c.key === 'POST /api/feed-timer')).toBe(false)
 })
 
 test('a viewer has no start icon, and a failed start says so', async () => {
@@ -147,7 +187,7 @@ test('a viewer has no start icon, and a failed start says so', async () => {
 test('if the timer cannot be started the card says so', async () => {
   mockApi({ ...timerRoutes({ timer: null }), 'POST /api/feed-timer': { status: 500, body: {} } })
   renderApp(<Home />)
-  await userEvent.click(await screen.findByRole('button', { name: en.home.timerStart }))
+  await pickSide('breast_left')
   expect(await screen.findByText(en.home.timerFailed)).toBeInTheDocument()
 })
 

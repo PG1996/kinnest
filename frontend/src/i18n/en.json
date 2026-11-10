@@ -100,7 +100,9 @@
     "timerStopped": "Stopped at {{time}}",
     "timerHalted": "Timer stopped",
     "timerPause": "Pause",
-    "timerPaused": "Paused"
+    "timerPaused": "Paused",
+    "sideTitle": "Which side?",
+    "sideSuggested": "Suggested"
   },
   "roles": {
     "admin": "Admin",
