@@ -139,7 +139,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
 
   const undoButton = (m: Medicine, doseId: string | null) =>
     canLog && doseId ? (
-      <Button size="sm" variant="ghost" onClick={() => undo.mutate({ medicineId: m.id, doseId })}>
+      <Button size="sm" variant="chip" onClick={() => undo.mutate({ medicineId: m.id, doseId })}>
         {t('medicines.undo')}
       </Button>
     ) : null
@@ -207,7 +207,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
                 <Button size="sm" disabled={give.isPending} onClick={() => submit(m, 'given', s)}>
                   {t('medicines.given')}
                 </Button>
-                <Button size="sm" variant="ghost" disabled={give.isPending} onClick={() => submit(m, 'skipped', s)}>
+                <Button size="sm" variant="chip" disabled={give.isPending} onClick={() => submit(m, 'skipped', s)}>
                   {t('medicines.skip')}
                 </Button>
               </div>
@@ -235,7 +235,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
           <div className="flex items-center justify-between gap-2 text-sm text-muted">
             <span>{t('medicines.reminderAt', { time: formatClock(s.nudge.remind_at) })}</span>
             {canLog && (
-              <Button size="sm" variant="ghost" onClick={() => cancelNudge.mutate({ medicineId: m.id, nudgeId: s.nudge!.id })}>
+              <Button size="sm" variant="chip" onClick={() => cancelNudge.mutate({ medicineId: m.id, nudgeId: s.nudge!.id })}>
                 {t('medicines.cancelReminder')}
               </Button>
             )}
@@ -246,13 +246,13 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
             <Button size="sm" disabled={give.isPending} onClick={() => submit(m, 'given', s, left)}>
               {t('medicines.giveFull')}
             </Button>
-            <Button size="sm" variant="soft" disabled={give.isPending} onClick={() => setPartial({ medicine: m, slot: s, max: left })}>
+            <Button size="sm" variant="chip" disabled={give.isPending} onClick={() => setPartial({ medicine: m, slot: s, max: left })}>
               {t('medicines.givePartial')}
             </Button>
-            <Button size="sm" variant="ghost" disabled={give.isPending} onClick={() => submit(m, 'skipped', s)}>
+            <Button size="sm" variant="chip" disabled={give.isPending} onClick={() => submit(m, 'skipped', s)}>
               {t('medicines.skip')}
             </Button>
-            <Button size="sm" variant="ghost" disabled={give.isPending} onClick={() => setPartial({ medicine: m, slot: s, max: left, mode: 'full', askTime: true })}>
+            <Button size="sm" variant="chip" disabled={give.isPending} onClick={() => setPartial({ medicine: m, slot: s, max: left, mode: 'full', askTime: true })}>
               {t('medicines.atOtherTime')}
             </Button>
           </div>
@@ -325,7 +325,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
         <div className="flex items-center justify-between gap-2">
           <p className={overdue ? 'text-sm font-semibold text-danger' : 'text-sm font-semibold'}>{line}</p>
           {partly && !s.nudge && canLog && (
-            <Button size="sm" variant="ghost" onClick={() => setNudgeFor({ medicine: m, slot: s, left })}>
+            <Button size="sm" variant="chip" onClick={() => setNudgeFor({ medicine: m, slot: s, left })}>
               {t('medicines.remindMe')}
             </Button>
           )}
@@ -348,20 +348,20 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
               <Button size="sm" disabled={give.isPending} onClick={() => submit(m, 'given', s, left)}>
                 {partly ? t('medicines.giveRest', { amount: fmt(m, left) }) : t('medicines.giveFull')}
               </Button>
-              <Button size="sm" variant="ghost" aria-expanded={!!open[more]} onClick={() => flip(more)}>
+              <Button size="sm" variant="chip" aria-expanded={!!open[more]} onClick={() => flip(more)}>
                 {t('medicines.more')}
                 <ChevronDown size={16} aria-hidden="true" className={open[more] ? 'rotate-180 transition' : 'transition'} />
               </Button>
             </div>
             {open[more] && (
               <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="soft" disabled={give.isPending} onClick={() => setPartial({ medicine: m, slot: s, max: left })}>
+                <Button size="sm" variant="chip" disabled={give.isPending} onClick={() => setPartial({ medicine: m, slot: s, max: left })}>
                   {t('medicines.givePartial')}
                 </Button>
-                <Button size="sm" variant="ghost" disabled={give.isPending} onClick={() => submit(m, 'skipped', s)}>
+                <Button size="sm" variant="chip" disabled={give.isPending} onClick={() => submit(m, 'skipped', s)}>
                   {t('medicines.skip')}
                 </Button>
-                <Button size="sm" variant="ghost" disabled={give.isPending} onClick={() => setPartial({ medicine: m, slot: s, max: left, mode: 'full', askTime: true })}>
+                <Button size="sm" variant="chip" disabled={give.isPending} onClick={() => setPartial({ medicine: m, slot: s, max: left, mode: 'full', askTime: true })}>
                   {t('medicines.atOtherTime')}
                 </Button>
               </div>
@@ -380,7 +380,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
         {current && (structuredDose(m) ? currentAction(m, current) : slotRow(m, current))}
         {!current && later[0] && canLog && (
           <div className="flex justify-end">
-            <Button size="sm" variant="ghost" disabled={give.isPending} onClick={() => submit(m, 'given', later[0], structuredDose(m) ? effectiveRemaining(m, later[0]) : undefined)}>
+            <Button size="sm" variant="chip" disabled={give.isPending} onClick={() => submit(m, 'given', later[0], structuredDose(m) ? effectiveRemaining(m, later[0]) : undefined)}>
               {t('medicines.giveAhead')}
             </Button>
           </div>
@@ -400,10 +400,10 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
             </p>
             {canLog && (
               <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="outline" disabled={give.isPending} onClick={() => void skipAll(m, missed)}>
+                <Button size="sm" variant="chip" disabled={give.isPending} onClick={() => void skipAll(m, missed)}>
                   {t('medicines.skipAllMissed')}
                 </Button>
-                <Button size="sm" variant="ghost" aria-expanded={!!open[`${m.id}:missed`]} onClick={() => flip(`${m.id}:missed`)}>
+                <Button size="sm" variant="chip" aria-expanded={!!open[`${m.id}:missed`]} onClick={() => flip(`${m.id}:missed`)}>
                   {t('medicines.reviewMissed')}
                 </Button>
               </div>
@@ -425,18 +425,18 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
         {canLog &&
           (structured ? (
             <div className="flex gap-2">
-              <Button size="sm" variant="soft" disabled={give.isPending} onClick={() => giveAsNeeded(m, m.dose_amount!)}>
+              <Button size="sm" variant="chip" disabled={give.isPending} onClick={() => giveAsNeeded(m, m.dose_amount!)}>
                 {t('medicines.giveFull')}
               </Button>
-              <Button size="sm" variant="ghost" disabled={give.isPending} onClick={() => setPartial({ medicine: m, max: m.dose_amount! })}>
+              <Button size="sm" variant="chip" disabled={give.isPending} onClick={() => setPartial({ medicine: m, max: m.dose_amount! })}>
                 {t('medicines.givePartial')}
               </Button>
-              <Button size="sm" variant="ghost" disabled={give.isPending} onClick={() => setPartial({ medicine: m, max: m.dose_amount!, mode: 'full', askTime: true })}>
+              <Button size="sm" variant="chip" disabled={give.isPending} onClick={() => setPartial({ medicine: m, max: m.dose_amount!, mode: 'full', askTime: true })}>
                 {t('medicines.atOtherTime')}
               </Button>
             </div>
           ) : (
-            <Button size="sm" variant="soft" disabled={give.isPending} onClick={() => giveAsNeeded(m, undefined)}>
+            <Button size="sm" variant="chip" disabled={give.isPending} onClick={() => giveAsNeeded(m, undefined)}>
               {t('medicines.giveNow')}
             </Button>
           ))}
@@ -572,7 +572,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
           <Card tone="med" data-testid="medicine-detail" className="space-y-3">
             <div className="flex items-start justify-between gap-2">
               <p className="text-base font-semibold">{title(selected)}</p>
-              <Button size="sm" variant="ghost" className="-mr-2 shrink-0" onClick={() => navigate(`/health?tab=medicines&history=${selected.id}`)}>
+              <Button size="sm" variant="chip" className="-mr-2 shrink-0" onClick={() => navigate(`/health?tab=medicines&history=${selected.id}`)}>
                 {t('medicines.history.open')}
                 <ChevronRight size={16} aria-hidden="true" />
               </Button>
