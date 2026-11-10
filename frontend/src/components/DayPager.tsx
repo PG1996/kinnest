@@ -3,9 +3,9 @@ import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from '
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { addDays, dragOffset, lockAxis, swipeResult, useStripRange, type Turn } from '../lib/dayPager'
-import { cn } from '../lib/cn'
 import { prefersReducedMotion } from '../lib/motion'
 import { toLocalDate } from '../lib/time'
+import DayStrip, { type StripTone } from './DayStrip'
 import { IconButton } from './ui/button'
 import { DateSheet } from './ui/datetime'
 import type { Tone } from './ui/card'
@@ -13,11 +13,7 @@ import type { Tone } from './ui/card'
 const EDGE_PX = 20 // swipes starting this close to the screen edge are the browser's (back and forward)
 const OUT_MS = 160
 const IN_MS = 220
-const CHIP_PX = 44
-const GAP_PX = 4
 
-const PILL: Partial<Record<Tone, string>> = { feed: 'bg-feed', diaper: 'bg-diaper', sleep: 'bg-sleep' }
-const DOT: Partial<Record<Tone, string>> = { feed: 'bg-feed', diaper: 'bg-diaper', sleep: 'bg-sleep' }
 
 const dayName = (d: Date) => d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })
 
@@ -54,7 +50,6 @@ export default function DayPager({
   const [pos, setPos] = useState({ x: 0, ms: 0 })
   const [picking, setPicking] = useState(false)
   const area = useRef<HTMLDivElement>(null)
-  const stripEl = useRef<HTMLDivElement>(null)
   const drag = useRef<{ x: number; y: number; t: number; id: number; axis: 'x' | 'y' | null } | null>(null)
   const dragged = useRef(false)
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -62,7 +57,6 @@ export default function DayPager({
   useEffect(() => {
     prefetch.current = onPrefetch
   })
-  const selected = days.findIndex((d) => d.getTime() === day.getTime())
 
   useEffect(() => () => clearTimeout(timer.current), [])
 
@@ -72,15 +66,6 @@ export default function DayPager({
     if (day.getTime() < today.getTime()) prefetch.current?.(addDays(day, 1))
   }, [day, today])
 
-  // keep the chosen day in the middle of the strip
-  const firstScroll = useRef(true)
-  useEffect(() => {
-    const el = stripEl.current
-    if (!el || selected < 0 || typeof el.scrollTo !== 'function') return
-    const left = selected * (CHIP_PX + GAP_PX) - el.clientWidth / 2 + CHIP_PX / 2
-    el.scrollTo({ left, behavior: firstScroll.current || prefersReducedMotion() ? 'auto' : 'smooth' })
-    firstScroll.current = false
-  }, [selected])
 
   const width = () => area.current?.clientWidth || window.innerWidth
 
@@ -159,39 +144,14 @@ export default function DayPager({
             <ChevronRight size={20} aria-hidden="true" />
           </IconButton>
         </div>
-        <div ref={stripEl} role="group" aria-label={t('dayPager.strip')} className="-mx-4 snap-x overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <div className="relative flex w-max gap-1">
-            {selected >= 0 && (
-              <span
-                aria-hidden="true"
-                className={cn('absolute top-0 left-0 h-full rounded-2xl transition-transform duration-300 ease-out motion-reduce:transition-none', PILL[tone])}
-                style={{ width: CHIP_PX, transform: `translateX(${selected * (CHIP_PX + GAP_PX)}px)` }}
-              />
-            )}
-            {days.map((d, i) => {
-              const on = i === selected
-              const hasEntries = marked.has(toLocalDate(d))
-              return (
-                <button
-                  key={d.getTime()}
-                  type="button"
-                  aria-pressed={on}
-                  aria-label={hasEntries ? `${dayName(d)}, ${t('dayPager.logged')}` : dayName(d)}
-                  onClick={() => show(d)}
-                  className={cn(
-                    'relative flex h-14 shrink-0 snap-center flex-col items-center justify-center gap-0.5 rounded-2xl text-xs font-semibold',
-                    on ? 'text-primary-ink' : 'text-ink',
-                  )}
-                  style={{ width: CHIP_PX }}
-                >
-                  <span className={on ? '' : 'text-muted'}>{d.toLocaleDateString([], { weekday: 'narrow' })}</span>
-                  <span className="text-base leading-none font-bold tabular-nums">{d.getDate()}</span>
-                  <span className={cn('size-1.5 rounded-full', hasEntries ? (on ? 'bg-current' : DOT[tone]) : 'bg-transparent')} />
-                </button>
-              )
-            })}
-          </div>
-        </div>
+        <DayStrip
+          days={days}
+          selected={day}
+          onPick={show}
+          tone={tone as StripTone}
+          marks={(d) => (marked.has(toLocalDate(d)) ? [tone as StripTone] : [])}
+          describe={(d) => (marked.has(toLocalDate(d)) ? t('dayPager.logged') : '')}
+        />
       </div>
       {picking &&
         createPortal(
