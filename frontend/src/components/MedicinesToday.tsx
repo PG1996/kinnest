@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, Pill } from 'lucide-react'
+import { ChevronDown, ChevronRight, Pill, X } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
@@ -62,11 +62,13 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
   /** What can still be given for a slot, counting pieces that are waiting to sync. */
   const effectiveRemaining = (m: Medicine, s: Slot) => round2(Math.max(0, (s.remaining ?? 0) - queuedAmount(pending, m.id, s.due_at)))
 
-  const saved = (r: DoseResult) => {
+  /** The toast after a dose is logged: Undo takes that very dose back (not while it only waits to sync). */
+  const saved = (r: DoseResult, m: Medicine, doseId: string) => {
+    const undoAction = r.queued ? undefined : { label: t('medicines.undo'), run: () => undo.mutate({ medicineId: m.id, doseId }) }
     if (r.queued) onToast({ message: t('home.queued') })
-    else if (r.by_name && r.by_name !== myName) onToast({ message: t('medicines.alreadyGave', { name: r.by_name }) })
-    else if (r.gap_warning) onToast({ message: t('medicines.gapWarned', { time: formatClock(r.gap_warning.last_given_at) }) })
-    else onToast({ message: t('home.logged') })
+    else if (r.by_name && r.by_name !== myName) onToast({ message: t('medicines.alreadyGave', { name: r.by_name }), action: undoAction })
+    else if (r.gap_warning) onToast({ message: t('medicines.gapWarned', { time: formatClock(r.gap_warning.last_given_at) }), action: undoAction })
+    else onToast({ message: t('home.logged'), action: undoAction })
   }
   const failed = (m: Medicine) => (e: unknown) => {
     if (e instanceof ApiError && e.status === 409) {
@@ -89,11 +91,12 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
       setMaxAsk({ medicine: m, run: () => submit(m, status, slot, amount, nudgeMinutes, givenAt, true) })
       return
     }
+    const doseId = crypto.randomUUID()
     give.mutate(
-      { id: crypto.randomUUID(), medicine_id: m.id, status, scheduled_for: slot?.due_at, amount, ...(givenAt ? { given_at: givenAt } : {}) },
+      { id: doseId, medicine_id: m.id, status, scheduled_for: slot?.due_at, amount, ...(givenAt ? { given_at: givenAt } : {}) },
       {
         onSuccess: (r) => {
-          saved(r)
+          saved(r, m, doseId)
           // a piece that leaves something to give: offer a one-off reminder for the rest
           if (slot && amount !== undefined && status === 'given') {
             const left = r.slot ? r.slot.remaining : round2(effectiveRemaining(m, slot) - amount)
@@ -299,20 +302,87 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
 
   const structuredDose = (m: Medicine) => m.dose_amount != null && !!m.dose_unit
 
+  /** The dose that is due: what it is, how far it is, one main button, and the rest under More. */
+  const currentAction = (m: Medicine, s: Slot) => {
+    const left = effectiveRemaining(m, s)
+    const waiting = queuedAmount(pending, m.id, s.due_at)
+    const partly = s.status === 'partial'
+    const due = Date.parse(s.due_at)
+    const when = formatClock(s.due_at) + (new Date(due).toDateString() !== new Date(now).toDateString() ? ` (${t('medicines.yesterday')})` : '')
+    const reminderAhead = !!s.nudge && Date.parse(s.nudge.remind_at) > now
+    const overdue = !partly && due <= now
+    const line = partly
+      ? reminderAhead
+        ? t('medicines.restAt', { amount: fmt(m, left), time: formatClock(s.nudge!.remind_at) })
+        : t('medicines.rest', { amount: fmt(m, left) })
+      : overdue
+        ? t('medicines.slotOverdue', { time: when, ago: formatAgo(now - due) })
+        : t('medicines.slotDueAt', { time: when })
+    const total = round2(s.given_amount + (s.remaining ?? 0))
+    const more = `${m.id}:more`
+    return (
+      <div key={s.due_at} className="space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className={overdue ? 'text-sm font-semibold text-danger' : 'text-sm font-semibold'}>{line}</p>
+          {partly && !s.nudge && canLog && (
+            <Button variant="ghost" onClick={() => setNudgeFor({ medicine: m, slot: s, left })}>
+              {t('medicines.remindMe')}
+            </Button>
+          )}
+        </div>
+        {partly && total > 0 && (
+          <div className="space-y-1">
+            <div role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={s.given_amount} className="h-2 overflow-hidden rounded-full bg-surface">
+              <div className="h-full rounded-full bg-med" style={{ width: `${Math.min(100, (s.given_amount / total) * 100)}%` }} />
+            </div>
+            <p className="flex justify-between text-xs text-muted">
+              <span>{t('medicines.barLabel', { given: fmt(m, s.given_amount), total: fmt(m, total) })}</span>
+              <span>{t('medicines.doseOf', { time: when })}</span>
+            </p>
+          </div>
+        )}
+        {waiting > 0 && <p className="text-sm text-muted">{t('medicines.waitingAmount', { amount: fmt(m, waiting) })}</p>}
+        {canLog && left > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Button disabled={give.isPending} onClick={() => submit(m, 'given', s, left)}>
+                {partly ? t('medicines.giveRest', { amount: fmt(m, left) }) : t('medicines.giveFull')}
+              </Button>
+              <Button variant="ghost" aria-expanded={!!open[more]} onClick={() => flip(more)}>
+                {t('medicines.more')}
+                <ChevronDown size={16} aria-hidden="true" className={open[more] ? 'rotate-180 transition' : 'transition'} />
+              </Button>
+            </div>
+            {open[more] && (
+              <div className="flex flex-wrap gap-2">
+                <Button variant="soft" disabled={give.isPending} onClick={() => setPartial({ medicine: m, slot: s, max: left })}>
+                  {t('medicines.givePartial')}
+                </Button>
+                <Button variant="ghost" disabled={give.isPending} onClick={() => submit(m, 'skipped', s)}>
+                  {t('medicines.skip')}
+                </Button>
+                <Button variant="ghost" disabled={give.isPending} onClick={() => setPartial({ medicine: m, slot: s, max: left, mode: 'full', askTime: true })}>
+                  {t('medicines.atOtherTime')}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   /** One dose at a time: the one due now has the buttons; earlier missed, later and done doses stay out of the way. */
   const scheduledView = (m: Medicine) => {
     const { done, later, current, missed } = groups(m)
     return (
       <div className="space-y-3">
-        {current && slotRow(m, current)}
-        {!current && later[0] && (
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-bold text-med-ink">{t('medicines.nextDose', { time: formatClock(later[0].due_at) })}</p>
-            {canLog && (
-              <Button variant="soft" disabled={give.isPending} onClick={() => submit(m, 'given', later[0], structuredDose(m) ? effectiveRemaining(m, later[0]) : undefined)}>
-                {t('medicines.giveAhead')}
-              </Button>
-            )}
+        {current && (structuredDose(m) ? currentAction(m, current) : slotRow(m, current))}
+        {!current && later[0] && canLog && (
+          <div className="flex justify-end">
+            <Button variant="ghost" disabled={give.isPending} onClick={() => submit(m, 'given', later[0], structuredDose(m) ? effectiveRemaining(m, later[0]) : undefined)}>
+              {t('medicines.giveAhead')}
+            </Button>
           </div>
         )}
         {current && later.length > 0 && (
@@ -341,12 +411,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
             {open[`${m.id}:missed`] && <div className="space-y-3 border-l-2 border-warn-ink/30 pl-3 text-ink">{missed.map((s) => slotRow(m, s))}</div>}
           </div>
         )}
-        {/* nothing left to do: show the last thing recorded (with Undo); otherwise all done doses wait under "Done" */}
-        {!current && done.length > 0 && slotRow(m, done.at(-1)!)}
-        {(() => {
-          const rest = current ? done : done.slice(0, -1)
-          return rest.length > 0 ? disclosure(`${m.id}:done`, t('medicines.doneCount', { count: rest.length }), rest.map((s) => slotRow(m, s))) : null
-        })()}
+        {done.length > 0 && disclosure(`${m.id}:done`, t('medicines.doneCount', { count: done.length }), done.map((s) => slotRow(m, s)))}
       </div>
     )
   }
@@ -386,26 +451,48 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
     const day = new Date(iso).toDateString()
     return day === tomorrow.toDateString() ? `${formatClock(iso)} (${t('medicines.tomorrow')})` : formatClock(iso)
   }
-  /** The last dose and the next one, in two short lines for the open card. */
-  const doseTimes = (m: Medicine) => {
+  /** What comes next, as a small fact: only when nothing is due right now. */
+  const nextFact = (m: Medicine): string | null => {
+    if (m.schedule_kind === 'as_needed') return sosWaitAt(m) ? null : t('medicines.nextDoseAnytime')
+    const { current, later } = groups(m)
+    if (current) return null
+    return later[0] ? t('medicines.nextDoseLine', { time: clockWithDay(later[0].due_at) }) : t('medicines.nextDoseNone')
+  }
+  const pill = (key: string, children: React.ReactNode) => (
+    <span key={key} className="inline-flex items-center gap-1 rounded-full bg-surface px-2.5 py-1 text-xs font-semibold text-ink">
+      {children}
+    </span>
+  )
+  /** One row of small facts: today's count, the last dose, what is next, a reminder that is set. */
+  const facts = (m: Medicine) => {
     const last = m.last_dose
-    const lastLine = !last
-      ? t('medicines.noDoseYet')
-      : t('medicines.lastDoseLine', { time: formatClock(last.given_at), ago: formatAgo(now - Date.parse(last.given_at)), name: last.by_name })
-    let nextLine: string
-    if (m.schedule_kind === 'as_needed') {
-      const wait = sosWaitAt(m)
-      nextLine = wait ? t('medicines.nextDoseFrom', { time: formatClock(wait) }) : t('medicines.nextDoseAnytime')
-    } else {
-      const { current, later } = groups(m)
-      const next = current ?? later[0]
-      nextLine = !next
-        ? t('medicines.nextDoseNone')
-        : Date.parse(next.due_at) <= now
-          ? t('medicines.nextDoseNow')
-          : t('medicines.nextDoseLine', { time: clockWithDay(next.due_at) })
-    }
-    return { lastLine, nextLine }
+    const next = nextFact(m)
+    const nudge = m.schedule_kind === 'as_needed' ? null : groups(m).current?.nudge
+    return (
+      <div className="flex flex-wrap items-center gap-1.5">
+        {m.max_per_day != null &&
+          pill('count', t(givenToday(m) >= m.max_per_day ? 'medicines.doneToday' : 'medicines.dosesToday', { count: givenToday(m), max: m.max_per_day }))}
+        {pill('last', last ? t('medicines.lastDoseLine', { time: formatClock(last.given_at), name: last.by_name.split(' ')[0] }) : t('medicines.noDoseYet'))}
+        {next && pill('next', next)}
+        {nudge &&
+          pill(
+            'reminder',
+            <>
+              <span>{t('medicines.reminderAt', { time: formatClock(nudge.remind_at) })}</span>
+              {canLog && (
+                <button
+                  type="button"
+                  aria-label={t('medicines.cancelReminder')}
+                  className="-mr-1 grid size-5 place-items-center rounded-full text-muted hover:bg-line"
+                  onClick={() => cancelNudge.mutate({ medicineId: m.id, nudgeId: nudge.id })}
+                >
+                  <X size={12} aria-hidden="true" />
+                </button>
+              )}
+            </>,
+          )}
+      </div>
+    )
   }
 
   const ordered = [...medicines.filter((m) => m.schedule_kind !== 'as_needed'), ...medicines.filter((m) => m.schedule_kind === 'as_needed')]
@@ -429,6 +516,13 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
     const { current, missed, later, done } = groups(m)
     const atMax = m.max_per_day != null && givenToday(m) >= m.max_per_day
     const extra = missed.length > 0 ? t('medicines.tileMissed', { count: missed.length }) : atMax && !current ? t('medicines.tileMax') : undefined
+    if (current?.status === 'partial') {
+      // part of the dose is given: the tile is about the rest, and is only highlighted once its reminder is due
+      const at = current.nudge ? Date.parse(current.nudge.remind_at) : null
+      if (at && at > now) return { text: t('medicines.tileRest', { time: formatClock(current.nudge!.remind_at) }), urgent: false, extra }
+      if (at) return { text: t('medicines.tileDue'), urgent: true, extra }
+      return { text: t('medicines.tileRestLeft', { amount: fmt(m, round2(current.remaining ?? 0)) }), urgent: false, extra }
+    }
     if (current) return { text: t('medicines.tileDue'), urgent: true, extra }
     if (later[0]) return { text: t('medicines.tileNext', { time: formatClock(later[0].due_at) }), urgent: false, extra }
     return { text: done.length > 0 ? t('medicines.tileDone') : t('medicines.tileNever'), urgent: false, extra }
@@ -478,19 +572,12 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
           <Card tone="med" data-testid="medicine-detail" className="space-y-3">
             <div className="flex items-start justify-between gap-2">
               <p className="text-base font-semibold">{title(selected)}</p>
-              <Button variant="outline" onClick={() => navigate(`/health?tab=medicines&history=${selected.id}`)}>
+              <Button variant="ghost" className="-mr-2 shrink-0" onClick={() => navigate(`/health?tab=medicines&history=${selected.id}`)}>
                 {t('medicines.history.open')}
+                <ChevronRight size={16} aria-hidden="true" />
               </Button>
             </div>
-            <div className="space-y-0.5 text-sm">
-              <p className="text-muted">{doseTimes(selected).lastLine}</p>
-              <p className="font-semibold text-med-ink">{doseTimes(selected).nextLine}</p>
-            </div>
-            {selected.max_per_day != null && (
-              <p className="text-xs font-semibold text-muted">
-                {t(givenToday(selected) >= selected.max_per_day ? 'medicines.doneToday' : 'medicines.dosesToday', { count: givenToday(selected), max: selected.max_per_day })}
-              </p>
-            )}
+            {facts(selected)}
             {selected.schedule_kind === 'as_needed' ? (
               <>
                 {asNeededRow(selected)}

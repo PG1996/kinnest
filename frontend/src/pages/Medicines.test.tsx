@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import en from '../i18n/en.json'
 import { formatClock } from '../lib/time'
 import { enqueue } from '../offline/queue'
-import { ME_ADMIN, ME_VIEWER, mockApi, renderApp } from '../test/utils'
+import { ME_ADMIN, ME_VIEWER, clickAction, mockApi, renderApp } from '../test/utils'
 import Home from './Home'
 import Settings from './Settings'
 
@@ -46,6 +46,8 @@ test('a pending slot offers Give full dose, Partial dose and Skip; full posts th
   const calls = mockApi({ ...base([med({ slots: [s] })]), 'POST /api/medicines/m1/doses': posted() })
   renderApp(<Home />)
   expect(await screen.findByText('Vitamin D · 5 drops')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: en.medicines.givePartial })).not.toBeInTheDocument() // under More
+  await userEvent.click(screen.getByRole('button', { name: en.medicines.more }))
   expect(screen.getByRole('button', { name: en.medicines.givePartial })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: en.medicines.skip })).toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: en.medicines.giveFull }))
@@ -58,16 +60,15 @@ test('a partly given slot shows its progress and full dose posts only what is le
   const s = slot({ status: 'partial', given_amount: 0.25, remaining: 0.75, doses: [piece()] })
   const calls = mockApi({ ...base([syrup({ ...s, remaining: 0.75 })]), 'POST /api/medicines/m1/doses': posted() })
   renderApp(<Home />)
-  expect(await screen.findByText(text(en.medicines.progress, { given: '0.25 ml', total: '1 ml', left: '0.75 ml' }))).toBeInTheDocument()
-  expect(screen.getByText(text(en.medicines.pieceBy, { name: 'Mom', amount: '0.25 ml', time: formatClock(piece().given_at) }))).toBeInTheDocument()
-  await userEvent.click(screen.getByRole('button', { name: en.medicines.giveFull }))
+  expect(await screen.findByText(text(en.medicines.barLabel, { given: '0.25 ml', total: '1 ml' }))).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: text(en.medicines.giveRest, { amount: '0.75 ml' }) }))
   await waitFor(() => expect(doseCall(calls)).toMatchObject({ amount: 0.75, scheduled_for: s.due_at }))
 })
 
 test('the partial screen starts at half, steps up to what is left, and slides to give', async () => {
   const calls = mockApi({ ...base([syrup()]), 'POST /api/medicines/m1/doses': posted({ slot: { status: 'partial', given_amount: 0.25, remaining: 0.75 } }) })
   renderApp(<Home />)
-  await userEvent.click(await screen.findByRole('button', { name: en.medicines.givePartial }))
+  await clickAction(en.medicines.givePartial)
   const dialog = await screen.findByRole('dialog', { name: en.medicines.giveTitle })
   const amount = within(dialog).getByLabelText(en.medicines.amountLabel)
   expect(amount).toHaveTextContent('0.5') // half of what is left to start with
@@ -88,7 +89,7 @@ test('the partial screen starts at half, steps up to what is left, and slides to
 test('a plain tap on the slide thumb does not give the dose', async () => {
   const calls = mockApi({ ...base([syrup()]), 'POST /api/medicines/m1/doses': posted() })
   renderApp(<Home />)
-  await userEvent.click(await screen.findByRole('button', { name: en.medicines.givePartial }))
+  await clickAction(en.medicines.givePartial)
   const dialog = await screen.findByRole('dialog', { name: en.medicines.giveTitle })
   await userEvent.click(within(dialog).getByRole('button', { name: /Slide to give/ }))
   expect(sent(calls, 'POST /api/medicines/m1/doses')).toBe(false)
@@ -98,7 +99,7 @@ test('choosing Full on the dose screen gives what is left', async () => {
   const s = slot({ status: 'partial', given_amount: 0.25, remaining: 0.75, doses: [piece()] })
   const calls = mockApi({ ...base([syrup({ ...s, remaining: 0.75 })]), 'POST /api/medicines/m1/doses': posted() })
   renderApp(<Home />)
-  await userEvent.click(await screen.findByRole('button', { name: en.medicines.givePartial }))
+  await clickAction(en.medicines.givePartial)
   const dialog = await screen.findByRole('dialog', { name: en.medicines.giveTitle })
   expect(dialog).toHaveTextContent(text(en.medicines.progress, { given: '0.25 ml', total: '1 ml', left: '0.75 ml' }))
   await userEvent.click(within(dialog).getByRole('radio', { name: text(en.medicines.fullLeft, { left: '0.75 ml' }) }))
@@ -110,7 +111,7 @@ test('skip from the dose screen posts a skip', async () => {
   const s = slot({ remaining: 1 })
   const calls = mockApi({ ...base([syrup(s)]), 'POST /api/medicines/m1/doses': posted({ slot: { status: 'skipped', given_amount: 0, remaining: 1 } }) })
   renderApp(<Home />)
-  await userEvent.click(await screen.findByRole('button', { name: en.medicines.givePartial }))
+  await clickAction(en.medicines.givePartial)
   const dialog = await screen.findByRole('dialog', { name: en.medicines.giveTitle })
   await userEvent.click(within(dialog).getByRole('button', { name: en.medicines.skip }))
   await waitFor(() => expect(doseCall(calls)).toMatchObject({ status: 'skipped', scheduled_for: s.due_at }))
@@ -124,7 +125,7 @@ test('a reminder chosen on the dose screen is created at once and the reminder s
     'POST /api/medicines/m1/nudges': { status: 201, body: { id: 'n1' } },
   })
   renderApp(<Home />)
-  await userEvent.click(await screen.findByRole('button', { name: en.medicines.givePartial }))
+  await clickAction(en.medicines.givePartial)
   const dialog = await screen.findByRole('dialog', { name: en.medicines.giveTitle })
   await userEvent.click(within(dialog).getByRole('button', { name: text(en.medicines.nudgeIn, { minutes: '30' }) }))
   slide(within(dialog))
@@ -143,7 +144,7 @@ test('after a partial dose the reminder sheet offers five times and posts the ch
     'POST /api/medicines/m1/nudges': { status: 201, body: { id: 'n1' } },
   })
   renderApp(<Home />)
-  await userEvent.click(await screen.findByRole('button', { name: en.medicines.givePartial }))
+  await clickAction(en.medicines.givePartial)
   slide(within(await screen.findByRole('dialog')))
   const dialog = await screen.findByRole('dialog', { name: en.medicines.nudgeTitle })
   expect(dialog).toHaveTextContent('0.75 ml')
@@ -166,7 +167,7 @@ test('declining the reminder posts nothing, and a complete dose offers none', as
     'POST /api/medicines/m1/nudges': { status: 201, body: { id: 'n1' } },
   })
   renderApp(<Home />)
-  await userEvent.click(await screen.findByRole('button', { name: en.medicines.givePartial }))
+  await clickAction(en.medicines.givePartial)
   slide(within(await screen.findByRole('dialog')))
   await userEvent.click(await screen.findByRole('button', { name: en.medicines.nudgeNo }))
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -246,7 +247,7 @@ test('as-needed offers full or partial; full posts the whole dose with no slot',
 test('as-needed partial steps within one dose and posts the chosen amount', async () => {
   const calls = mockApi({ ...base([asNeeded(8 * 60)]), 'POST /api/medicines/m2/doses': posted() })
   renderApp(<Home />)
-  await userEvent.click(await screen.findByRole('button', { name: en.medicines.givePartial }))
+  await clickAction(en.medicines.givePartial)
   const dialog = await screen.findByRole('dialog', { name: en.medicines.giveTitle })
   const amount = within(dialog).getByLabelText(en.medicines.amountLabel)
   const more = within(dialog).getByRole('button', { name: /\+0\.25 ml/ })
@@ -298,7 +299,7 @@ test('Skip posts a skipped dose for the slot', async () => {
   const s = slot()
   const calls = mockApi({ ...base([med({ slots: [s] })]), 'POST /api/medicines/m1/doses': posted() })
   renderApp(<Home />)
-  await userEvent.click(await screen.findByRole('button', { name: en.medicines.skip }))
+  await clickAction(en.medicines.skip)
   await waitFor(() => expect(doseCall(calls)).toMatchObject({ status: 'skipped', scheduled_for: s.due_at }))
   expect(doseCall(calls)).not.toHaveProperty('amount')
 })
@@ -306,8 +307,8 @@ test('Skip posts a skipped dose for the slot', async () => {
 test('a late slot is flagged overdue and a future one is not', async () => {
   mockApi(base([med({ slots: [slot({ due_at: minsAgo(20) }), slot({ due_at: minsFromNow(180) })] })]))
   renderApp(<Home />)
-  expect(await screen.findByText(text(en.medicines.overdue, { ago: '20m' }))).toBeInTheDocument()
-  expect(screen.getAllByText(en.medicines.overdue.split('{{')[0], { exact: false })).toHaveLength(1)
+  expect(await screen.findByText(text(en.medicines.slotOverdue, { time: formatClock(minsAgo(20)), ago: '20m' }))).toBeInTheDocument()
+  expect(screen.getAllByText(/overdue/)).toHaveLength(1)
 })
 
 test('a complete slot lists who gave each piece and offers undo per piece', async () => {
@@ -318,6 +319,7 @@ test('a complete slot lists who gave each piece and offers undo per piece', asyn
     'DELETE /api/medicines/m1/doses/p2': { body: { ok: true } },
   })
   renderApp(<Home />)
+  await userEvent.click(await screen.findByRole('button', { name: text(en.medicines.doneCount, { count: '1' }) }))
   expect(await screen.findByText(text(en.medicines.pieceBy, { name: 'Mom', amount: '0.5 ml', time: formatClock(p1.given_at) }))).toBeInTheDocument()
   expect(screen.getByText(text(en.medicines.pieceBy, { name: 'Nanny', amount: '0.5 ml', time: formatClock(p2.given_at) }))).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: en.medicines.giveFull })).not.toBeInTheDocument()
@@ -331,6 +333,7 @@ test('a legacy resolved slot still says who gave it', async () => {
   const at = minsAgo(30)
   mockApi(base([legacy({ slots: [slot({ status: 'given', remaining: null, dose_id: 'd1', given_at: at, by_name: 'Mom', doses: [] })] })]))
   renderApp(<Home />)
+  await userEvent.click(await screen.findByRole('button', { name: text(en.medicines.doneCount, { count: '1' }) }))
   expect(await screen.findByText(text(en.medicines.givenBy, { name: 'Mom', time: formatClock(at) }))).toBeInTheDocument()
 })
 
@@ -339,6 +342,7 @@ test('a skipped slot says so, and keeps what was given before', async () => {
   const skip = piece({ id: 's1', status: 'skipped', amount: null, by_name: 'Nanny', given_at: at })
   mockApi(base([syrup({ status: 'skipped', given_amount: 0.5, remaining: 0.5, doses: [piece({ amount: 0.5 }), skip] })]))
   renderApp(<Home />)
+  await userEvent.click(await screen.findByRole('button', { name: text(en.medicines.doneCount, { count: '1' }) }))
   expect(await screen.findByText(text(en.medicines.skippedBy, { name: 'Nanny', time: formatClock(at) }))).toBeInTheDocument()
   expect(screen.getByText(text(en.medicines.pieceBy, { name: 'Mom', amount: '0.5 ml', time: formatClock(piece().given_at) }))).toBeInTheDocument()
 })
@@ -346,8 +350,8 @@ test('a skipped slot says so, and keeps what was given before', async () => {
 test('viewer sees medicines and progress but no buttons', async () => {
   mockApi(base([syrup({ status: 'partial', given_amount: 0.25, remaining: 0.75, doses: [piece()] }), asNeeded(120)], ME_VIEWER))
   renderApp(<Home />)
-  await screen.findByText(text(en.medicines.progress, { given: '0.25 ml', total: '1 ml', left: '0.75 ml' }))
-  for (const name of [en.medicines.giveFull, en.medicines.givePartial, en.medicines.skip, en.medicines.undo, en.medicines.given]) {
+  await screen.findByText(text(en.medicines.barLabel, { given: '0.25 ml', total: '1 ml' }))
+  for (const name of [en.medicines.giveFull, en.medicines.more, en.medicines.givePartial, en.medicines.skip, en.medicines.undo, en.medicines.given]) {
     expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
   }
 })
@@ -428,7 +432,7 @@ test('later doses are one line of times, not rows with buttons', async () => {
 test('with nothing due the next dose is one calm line and there are no buttons', async () => {
   mockApi(base([multi([slot({ due_at: minsFromNow(180) })])]))
   renderApp(<Home />)
-  expect(await screen.findByText(new RegExp(en.medicines.nextDose.replace('{{time}}', '.+')))).toBeInTheDocument()
+  expect(await within(await screen.findByTestId('medicine-detail')).findByText(new RegExp(en.medicines.nextDoseLine.replace('{{time}}', '.+')))).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: en.medicines.giveFull })).not.toBeInTheDocument()
 })
 
