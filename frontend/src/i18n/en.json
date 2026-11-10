@@ -768,7 +768,13 @@
     "usual": "usual {{n}}",
     "ago": "{{ago}} ago",
     "stripsTitle": "Day by day",
-    "stripLabel": "{{day}}: {{wet}} wet, {{dirty}} dirty"
+    "stripLabel": "{{day}}: {{wet}} wet, {{dirty}} dirty",
+    "zoomLabel": "Zoom",
+    "zoom24": "24 h",
+    "zoom12": "12 h",
+    "zoom6": "6 h",
+    "zoomEarlier": "Earlier",
+    "zoomLater": "Later"
   },
   "relations": {
     "mom": "Mom",

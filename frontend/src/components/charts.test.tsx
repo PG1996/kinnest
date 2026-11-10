@@ -103,10 +103,13 @@ test('with no data the tiles show dashes and no usual', () => {
   expect(screen.queryByText(/usual/)).not.toBeInTheDocument()
 })
 
-test('the strips are seven days, one dot per diaper by kind, the chosen day marked, with a now marker for today', () => {
+const strips = (day = midnight, diapers: unknown[] = DIAPERS) => renderApp(<DiaperStrips diapers={diapers as never} day={day} nowMs={NOW} />)
+const rowsOf = (c: HTMLElement) => c.querySelectorAll('[data-strip]')
+
+test('the strips are seven days, one mark per diaper by kind, the chosen day marked, with a now marker for today', () => {
   mockApi({ 'GET /api/me': { body: ME_ADMIN } })
-  const { container } = renderApp(<DiaperStrips diapers={DIAPERS} day={midnight} nowMs={NOW} />)
-  const rows = container.querySelectorAll('[data-strip]')
+  const { container } = strips()
+  const rows = rowsOf(container)
   expect(rows).toHaveLength(7)
   expect(rows[6]!.getAttribute('aria-current')).toBe('date')
   expect(rows[6]!.querySelectorAll('[data-kind]')).toHaveLength(4)
@@ -117,11 +120,49 @@ test('the strips are seven days, one dot per diaper by kind, the chosen day mark
   for (const k of ['wet', 'dirty', 'both'] as const) expect(screen.getByText(en.diaperKinds[k])).toBeInTheDocument()
 })
 
-test('a dot sits at its time of day, and there is no now marker on a past day', () => {
+test('the strips are drawn as vector shapes, so they stay sharp at any size', () => {
   mockApi({ 'GET /api/me': { body: ME_ADMIN } })
-  const { container } = renderApp(<DiaperStrips diapers={[diaper('n', 'wet', at(6, 0))]} day={midnight} nowMs={NOW} />)
-  const dot = container.querySelector('[data-strip]:last-of-type [data-kind]') as HTMLElement
-  expect(parseFloat(dot.style.left)).toBeCloseTo(25, 0) // 6 AM is a quarter of the way along
-  const past = renderApp(<DiaperStrips diapers={[]} day={at(0, 0, 1)} nowMs={NOW} />)
+  const { container } = strips()
+  expect(container.querySelector('svg')).not.toBeNull()
+  expect(container.querySelector('[data-strip] [data-kind="wet"]')!.tagName.toLowerCase()).toBe('circle')
+  expect(container.querySelector('[data-strip] [data-kind="dirty"]')!.tagName.toLowerCase()).toBe('rect')
+  expect(container.querySelector('[data-strip] [data-kind="both"]')!.tagName.toLowerCase()).toBe('polygon')
+})
+
+test('a mark sits at its time of day, and there is no now marker on a past day', () => {
+  mockApi({ 'GET /api/me': { body: ME_ADMIN } })
+  const { container } = strips(midnight, [diaper('n', 'wet', at(6, 0))])
+  expect(parseFloat(rowsOf(container)[6]!.querySelector('[data-kind]')!.getAttribute('data-pos')!)).toBeCloseTo(0.25, 2) // 6 AM is a quarter of the way along
+  const past = strips(at(0, 0, 1), [])
   expect(past.container.querySelector('[data-testid="strip-now"]')).toBeNull()
+})
+
+test('zooming to 6 hours shows a window around now, and the arrows move it', () => {
+  mockApi({ 'GET /api/me': { body: ME_ADMIN } })
+  const { container } = strips()
+  fireEvent.click(screen.getByRole('radio', { name: en.diapers.zoom6 }))
+  expect(rowsOf(container)[6]!.querySelectorAll('[data-kind]')).toHaveLength(1) // 4:00 to 10:00 around the 7:00 now: only the 4:00 diaper
+  expect(screen.getByText(`${formatTime(at(4))} – ${formatTime(at(10))}`)).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: en.diapers.zoomLater }))
+  expect(rowsOf(container)[6]!.querySelectorAll('[data-kind]')).toHaveLength(0) // 10:00 to 16:00
+  fireEvent.click(screen.getByRole('button', { name: en.diapers.zoomEarlier }))
+  fireEvent.click(screen.getByRole('button', { name: en.diapers.zoomEarlier }))
+  expect(rowsOf(container)[6]!.querySelectorAll('[data-kind]')).toHaveLength(4) // the window stops at midnight: 0:00 to 6:00
+  expect(screen.getByRole('button', { name: en.diapers.zoomEarlier })).toBeDisabled()
+})
+
+test('zooming back to 24 hours shows the whole day again, and the arrows only matter when zoomed', () => {
+  mockApi({ 'GET /api/me': { body: ME_ADMIN } })
+  const { container } = strips()
+  expect(screen.queryByRole('button', { name: en.diapers.zoomLater })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('radio', { name: en.diapers.zoom12 }))
+  fireEvent.click(screen.getByRole('radio', { name: en.diapers.zoom24 }))
+  expect(rowsOf(container)[6]!.querySelectorAll('[data-kind]')).toHaveLength(4)
+})
+
+test('tapping a mark says when it was, what kind and who changed it', () => {
+  mockApi({ 'GET /api/me': { body: ME_ADMIN } })
+  const { container } = strips()
+  fireEvent.click(rowsOf(container)[6]!.querySelector('[data-kind="dirty"]')!.closest('[data-mark]')!)
+  expect(screen.getByRole('status')).toHaveTextContent(`${formatTime(at(3))} · ${en.diaperKinds.dirty} · ${en.home.by.replace('{{name}}', 'Mom')}`)
 })
