@@ -131,7 +131,8 @@ class Feed(Base):
     kid_id: Mapped[uuid.UUID] = _fk("kids")
     type: Mapped[str] = mapped_column(String(20))
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
-    duration_min: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    duration_min: Mapped[int | None] = mapped_column(Integer, nullable=True)  # the feeding itself, breaks taken off
+    break_min: Mapped[int] = mapped_column(Integer, default=0, server_default="0")  # breaks inside the feed (burping, changing)
     quantity_ml: Mapped[int | None] = mapped_column(Integer, nullable=True)
     fed_by_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     note: Mapped[str] = mapped_column(Text, default="")
@@ -308,6 +309,9 @@ class FeedTimer(Base):
     type: Mapped[str] = mapped_column(String(20))
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # a break in the feed (a burp, a change): when the current one began, and the seconds of the finished ones
+    paused_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    paused_total_s: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     started_by_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = _created()
 
