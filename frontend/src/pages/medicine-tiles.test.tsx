@@ -120,7 +120,7 @@ test('the open card shows when the last dose was given and by whom, and when the
   mockApi(base([med('m2', 'Domstal', [slot({ due_at: next })], { last_dose: last })]))
   renderApp(<Home />)
   const detail = await screen.findByTestId('medicine-detail')
-  expect(within(detail).getByText(line(en.medicines.lastDoseLine, { time: formatTime(last.given_at), ago: '2h 5m', name: 'Mom' }))).toBeInTheDocument()
+  expect(within(detail).getByText(line(en.medicines.lastDoseLine, { time: formatTime(last.given_at), name: 'Mom' }))).toBeInTheDocument()
   expect(within(detail).getByText(line(en.medicines.nextDoseLine, { time: formatTime(next) }))).toBeInTheDocument()
 })
 
@@ -129,7 +129,7 @@ test('a dose that is due now says so, and a medicine never given says that', asy
   renderApp(<Home />)
   const detail = await screen.findByTestId('medicine-detail')
   expect(within(detail).getByText(en.medicines.noDoseYet)).toBeInTheDocument()
-  expect(within(detail).getByText(en.medicines.nextDoseNow)).toBeInTheDocument()
+  expect(within(detail).getByText(/overdue/)).toBeInTheDocument()
 })
 
 test('an SOS medicine can be given whenever it is needed', async () => {

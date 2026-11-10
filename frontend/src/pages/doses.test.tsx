@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import App from '../App'
 import en from '../i18n/en.json'
 import { toLocalInput } from '../lib/time'
-import { ME_ADMIN, ME_VIEWER, mockApi, renderApp } from '../test/utils'
+import { ME_ADMIN, ME_VIEWER, clickAction, mockApi, renderApp } from '../test/utils'
 import Home from './Home'
 
 const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString()
@@ -28,7 +28,7 @@ const near = (iso: unknown, when: Date, ms = 90_000) => Math.abs(Date.parse(Stri
 test('the dose screen defaults to now and can be set to another time', async () => {
   const calls = mockApi({ ...base([syrup()]), 'POST /api/medicines/m1/doses': posted })
   renderApp(<Home />)
-  await userEvent.click(await screen.findByRole('button', { name: en.medicines.givePartial }))
+  await clickAction(en.medicines.givePartial)
   const dialog = await screen.findByRole('dialog', { name: en.medicines.giveTitle })
   expect(within(dialog).getByRole('button', { name: en.medicines.whenNow, pressed: true })).toBeInTheDocument()
   expect(within(dialog).queryByLabelText(en.medicines.whenLabel)).not.toBeInTheDocument()
@@ -43,7 +43,7 @@ test('the dose screen defaults to now and can be set to another time', async () 
 test('leaving the time on now stamps the moment of giving', async () => {
   const calls = mockApi({ ...base([syrup()]), 'POST /api/medicines/m1/doses': posted })
   renderApp(<Home />)
-  await userEvent.click(await screen.findByRole('button', { name: en.medicines.givePartial }))
+  await clickAction(en.medicines.givePartial)
   slide(within(await screen.findByRole('dialog', { name: en.medicines.giveTitle })))
   await waitFor(() => expect(doseCall(calls)).toBeTruthy())
   expect(near(doseCall(calls).given_at, new Date())).toBe(true)
@@ -52,7 +52,7 @@ test('leaving the time on now stamps the moment of giving', async () => {
 test('a time in the future is refused before anything is sent', async () => {
   const calls = mockApi({ ...base([syrup()]), 'POST /api/medicines/m1/doses': posted })
   renderApp(<Home />)
-  await userEvent.click(await screen.findByRole('button', { name: en.medicines.givePartial }))
+  await clickAction(en.medicines.givePartial)
   const dialog = await screen.findByRole('dialog', { name: en.medicines.giveTitle })
   await userEvent.click(within(dialog).getByRole('button', { name: en.medicines.whenOther }))
   fireEvent.change(within(dialog).getByLabelText(en.medicines.whenLabel), { target: { value: toLocalInput(hoursFromNow(3)) } })
@@ -64,7 +64,7 @@ test('a time in the future is refused before anything is sent', async () => {
 test('"At another time" on a slot opens the dose screen on Full with the time picker ready', async () => {
   const calls = mockApi({ ...base([syrup()]), 'POST /api/medicines/m1/doses': posted })
   renderApp(<Home />)
-  await userEvent.click(await screen.findByRole('button', { name: en.medicines.atOtherTime }))
+  await clickAction(en.medicines.atOtherTime)
   const dialog = await screen.findByRole('dialog', { name: en.medicines.giveTitle })
   expect(within(dialog).getByRole('radio', { name: en.medicines.fullLeft.replace('{{left}}', '1 ml') })).toBeChecked()
   const when = hoursAgo(2)
@@ -77,7 +77,7 @@ test('"At another time" on a slot opens the dose screen on Full with the time pi
 test('"At another time" on an as-needed medicine gives that dose at the chosen time', async () => {
   const calls = mockApi({ ...base([asNeeded()]), 'POST /api/medicines/m2/doses': posted })
   renderApp(<Home />)
-  await userEvent.click(await screen.findByRole('button', { name: en.medicines.atOtherTime }))
+  await clickAction(en.medicines.atOtherTime)
   const dialog = await screen.findByRole('dialog', { name: en.medicines.giveTitle })
   const when = hoursAgo(5)
   fireEvent.change(within(dialog).getByLabelText(en.medicines.whenLabel), { target: { value: toLocalInput(when) } })
@@ -260,7 +260,7 @@ test('the dose screen says when a slot is from yesterday', async () => {
   renderApp(<Home />)
   await userEvent.click(await screen.findByRole('button', { name: en.medicines.reviewMissed }))
   const partials = await screen.findAllByRole('button', { name: en.medicines.givePartial })
-  await userEvent.click(partials[1]!) // the current dose comes first on the page, the expanded missed one after it
+  await userEvent.click(partials[0]!) // the current dose keeps Partial dose under More, so this is the expanded missed one
   const dialog = await screen.findByRole('dialog', { name: en.medicines.giveTitle })
   expect(dialog).toHaveTextContent(`(${en.medicines.yesterday})`)
 })

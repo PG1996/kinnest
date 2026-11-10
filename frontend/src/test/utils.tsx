@@ -1,5 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import en from '../i18n/en.json'
 import type { ReactElement } from 'react'
 import { I18nextProvider } from 'react-i18next'
 import { MemoryRouter } from 'react-router-dom'
@@ -48,3 +50,14 @@ export const ME_ADMIN = {
   role: 'admin',
 }
 export const ME_VIEWER = { ...ME_ADMIN, role: 'viewer' }
+
+/** Click a button of the open medicine card; the less common ones (Partial dose, Skip, At another time) wait under More. */
+export async function clickAction(name: string) {
+  await waitFor(() => expect(screen.queryAllByRole('button', { name }).length + screen.queryAllByRole('button', { name: en.medicines.more }).length).toBeGreaterThan(0))
+  let found = screen.queryAllByRole('button', { name })
+  if (found.length === 0) {
+    await userEvent.click(await screen.findByRole('button', { name: en.medicines.more }))
+    found = await screen.findAllByRole('button', { name })
+  }
+  await userEvent.click(found[0]!)
+}
