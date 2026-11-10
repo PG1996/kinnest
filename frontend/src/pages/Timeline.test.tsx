@@ -131,7 +131,7 @@ test('editing a sleep opens its form with the stored times', async () => {
   const d = await open(/Slept/)
   await userEvent.click(within(d).getByRole('button', { name: en.timeline.edit }))
   expect(await screen.findByLabelText(en.sleep.form.start)).toBeInTheDocument()
-  expect((screen.getByLabelText(en.sleep.form.end) as HTMLInputElement).value).toMatch(/T12:20$/)
+  expect(screen.getByRole('button', { name: en.sleep.form.end })).toHaveTextContent('12:20 PM')
 })
 
 test('editing a diaper opens its form', async () => {

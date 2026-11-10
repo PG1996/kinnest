@@ -7,6 +7,7 @@ import PersonPicker from './PersonPicker'
 import Sheet from './Sheet'
 import { Button } from './ui/button'
 import { Chip, ChipGroup } from './ui/chip'
+import { DateTimeField } from './ui/datetime'
 import { Input } from './ui/field'
 
 const KINDS: DiaperKind[] = ['wet', 'dirty', 'both']
@@ -61,7 +62,7 @@ export default function DiaperForm({ diaper, onClose }: { diaper?: Diaper; onClo
           <label htmlFor="diaper-when" className="block text-[13px] font-semibold text-muted">
             {t('diapers.form.when')}
           </label>
-          <Input id="diaper-when" type="datetime-local" value={when} max={toLocalInput(new Date())} onChange={(e) => setWhen(e.target.value)} />
+          <DateTimeField id="diaper-when" label={t('diapers.form.when')} value={when} onChange={setWhen} />
         </div>
         <div className="space-y-1">
           <label htmlFor="diaper-note" className="block text-[13px] font-semibold text-muted">

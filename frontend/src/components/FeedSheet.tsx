@@ -11,6 +11,7 @@ import { Button } from './ui/button'
 import FedBy from './FedBy'
 import FeedTypePicker from './FeedTypePicker'
 import { Chip, ChipGroup } from './ui/chip'
+import { DateTimeField } from './ui/datetime'
 import { Input } from './ui/field'
 import { Stepper } from './ui/stepper'
 
@@ -205,7 +206,7 @@ export default function FeedSheet({ last, saving, failed, onSave, onClose }: Pro
           <label htmlFor="feed-time" className="block text-[13px] font-semibold text-muted">
             {t('home.time')}
           </label>
-          <Input id="feed-time" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+          <DateTimeField id="feed-time" label={t('home.time')} value={when} onChange={setWhen} />
         </div>
         <div className="space-y-2">
           <label htmlFor="feed-note" className="block text-[13px] font-semibold text-muted">
