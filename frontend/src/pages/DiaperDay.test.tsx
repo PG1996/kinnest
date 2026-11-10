@@ -47,9 +47,9 @@ test('the day lists its diapers newest first with 12-hour times and counts by ki
   expect(rows[0]).toHaveTextContent(en.diaperKinds.wet)
   expect(rows[2]).toHaveTextContent(en.diaperKinds.both)
   expect(within(list).getAllByText(/AM|PM/).length).toBeGreaterThanOrEqual(3)
-  const counts = screen.getByTestId('diaper-counts')
-  expect(counts).toHaveTextContent('3') // total
-  expect(within(counts).getByText(en.diaperKinds.dirty).parentElement).toHaveTextContent('1')
+  expect(within(screen.getByTestId('tile-wet')).getByText('2')).toBeInTheDocument() // wet and both
+  expect(within(screen.getByTestId('tile-dirty')).getByText('2')).toBeInTheDocument() // dirty and both
+  expect(within(screen.getByTestId('tile-gap')).getByText('11h 40m')).toBeInTheDocument() // 00:20 until noon: the longest wait of the day
 })
 
 test('an empty day says so', async () => {
@@ -143,10 +143,13 @@ test('the diaper card on Home opens the diaper day screen', async () => {
   expect(await screen.findByRole('link', { name: new RegExp(en.home.lastDiaperLabel) })).toHaveAttribute('href', '/diapers')
 })
 
-test('the diapers screen shows the week and asks for seven days of diapers', async () => {
+test('the diapers screen shows the day tiles and seven day strips, and asks for seven days of diapers', async () => {
   const calls = mockApi(api())
   renderApp(<App />, '/diapers')
-  expect(await screen.findByRole('img', { name: en.diapers.weekLabel })).toBeInTheDocument()
+  const strips = await screen.findAllByRole('img', { name: / wet, \d+ dirty$/ })
+  expect(strips).toHaveLength(7)
+  expect(strips[6]).toHaveAttribute('aria-current', 'date')
+  expect(screen.getByTestId('tile-last-wet')).toBeInTheDocument()
   const froms = rangeCalls(calls).map((u) => new Date(u.searchParams.get('from')!).getTime())
   const sixDaysAgo = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - 6).getTime()
   expect(froms).toContain(sixDaysAgo)

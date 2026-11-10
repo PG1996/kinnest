@@ -745,7 +745,6 @@
     "nextDay": "Next day",
     "listLabel": "Diapers this day",
     "none": "No diapers logged this day.",
-    "total": "total",
     "addPast": "Add a past diaper",
     "addTitle": "Add a past diaper",
     "edit": "Edit",
@@ -761,11 +760,15 @@
       "save": "Save",
       "future": "That time is in the future."
     },
-    "weekTitle": "Last 7 days",
-    "weekLabel": "Diapers per day for the last 7 days, by kind",
-    "wetTarget": "6 wet",
-    "weekTip": "{{day}}: {{wet}} wet, {{both}} both, {{dirty}} dirty",
-    "changedBy": "Changed by"
+    "changedBy": "Changed by",
+    "tileWet": "Wet",
+    "tileDirty": "Dirty",
+    "tileLastWet": "Last wet",
+    "tileGap": "Longest gap",
+    "usual": "usual {{n}}",
+    "ago": "{{ago}} ago",
+    "stripsTitle": "Day by day",
+    "stripLabel": "{{day}}: {{wet}} wet, {{dirty}} dirty"
   },
   "relations": {
     "mom": "Mom",

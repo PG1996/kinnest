@@ -1,19 +1,20 @@
 import { ChevronLeft, ChevronRight, Droplets } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useDiaperRange, useMe, type DiaperKind } from '../api/hooks'
+import { useDiaperRange, useMe } from '../api/hooks'
 import DiaperForm from '../components/DiaperForm'
-import DiaperWeek from '../components/DiaperWeek'
+import DiaperStrips from '../components/DiaperStrips'
+import DiaperTiles from '../components/DiaperTiles'
 import PageHeader from '../components/PageHeader'
 import RowLink from '../components/RowLink'
 import { Button, IconButton } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { EmptyState } from '../components/ui/empty'
+import { diaperStats } from '../lib/diaperDays'
 import { formatTime, toLocalDate } from '../lib/time'
 import { useNow } from '../lib/useNow'
 
 const midnight = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
-const KINDS: DiaperKind[] = ['wet', 'dirty', 'both']
 
 /** One day of diapers: counts by kind, the list, and past diapers added. Fixing or deleting one happens in the timeline. */
 export default function DiaperDay() {
@@ -24,7 +25,7 @@ export default function DiaperDay() {
   const isToday = day.getTime() === midnight(new Date(now)).getTime()
   const range = useMemo(() => ({ from: day, to: new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23, 59, 59, 999) }), [day])
   const data = useDiaperRange(range.from, range.to).data
-  // the week chart: the six days before this one, plus this one
+  // the tiles and the strips: the six days before this one, plus this one
   const weekFrom = useMemo(() => new Date(day.getFullYear(), day.getMonth(), day.getDate() - 6), [day])
   const week = useDiaperRange(weekFrom, range.to).data
   const rows = (Array.isArray(data) ? data : [])
@@ -33,7 +34,6 @@ export default function DiaperDay() {
   const [form, setForm] = useState(false)
   const shift = (days: number) => setDay(new Date(day.getFullYear(), day.getMonth(), day.getDate() + days))
   const label = isToday ? t('timeline.today') : day.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })
-  const count = (k: DiaperKind) => rows.filter((r) => r.kind === k).length
 
   return (
     <>
@@ -47,25 +47,14 @@ export default function DiaperDay() {
           <ChevronRight size={20} aria-hidden="true" />
         </IconButton>
       </div>
-      <Card tone="diaper" className="p-3">
-        <div data-testid="diaper-counts" className="grid grid-cols-4 gap-2 text-center">
-          <div>
-            <span className="block text-xl font-bold tabular-nums">{rows.length}</span>
-            <span className="block text-[11px] font-semibold text-diaper-ink">{t('diapers.total')}</span>
-          </div>
-          {KINDS.map((k) => (
-            <div key={k}>
-              <span className="block text-xl font-bold tabular-nums">{count(k)}</span>
-              <span className="block text-[11px] font-semibold text-muted">{t(`diaperKinds.${k}`)}</span>
-            </div>
-          ))}
-        </div>
-      </Card>
       {Array.isArray(week) && (
-        <Card className="space-y-2 p-4">
-          <h2 className="text-sm font-semibold text-muted">{t('diapers.weekTitle')}</h2>
-          <DiaperWeek diapers={week} day={day} />
-        </Card>
+        <>
+          <DiaperTiles stats={diaperStats(week, day, now)} nowMs={now} isToday={isToday} />
+          <Card className="space-y-2 p-4">
+            <h2 className="text-sm font-semibold text-muted">{t('diapers.stripsTitle')}</h2>
+            <DiaperStrips diapers={week} day={day} nowMs={now} />
+          </Card>
+        </>
       )}
       {canEdit && (
         <Button variant="soft" className="w-full" onClick={() => setForm(true)}>
