@@ -104,3 +104,10 @@ test('Remind me opens the choice of when to be reminded about the rest', async (
   await userEvent.click((await detail()).getByRole('button', { name: en.medicines.remindMe }))
   expect(await screen.findByRole('dialog', { name: en.medicines.nudgeTitle })).toBeInTheDocument()
 })
+
+test('the action buttons on the card are small, like the fact pills', async () => {
+  mockApi(api([med([slot()])]))
+  renderApp(<Home />)
+  const d = await detail()
+  for (const name of [en.medicines.giveFull, en.medicines.more, en.medicines.history.open]) expect(d.getByRole('button', { name }).className).toContain('min-h-8')
+})
