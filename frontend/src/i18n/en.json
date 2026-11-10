@@ -295,7 +295,6 @@
     "amountLabel": "Amount to give now",
     "nudgeTitle": "Remind me about the rest",
     "nudgeText": "{{left}} left to give. Remind everyone in:",
-    "nudgeIn": "{{minutes}} min",
     "nudgeNo": "No thanks",
     "reminderAt": "Reminder at {{time}}",
     "cancelReminder": "Cancel reminder",
@@ -389,7 +388,14 @@
     "doseOf": "{{time}} dose",
     "tileRest": "Rest {{time}}",
     "tileRestLeft": "Rest {{amount}}",
-    "restDue": "Rest · {{amount}} · due now"
+    "restDue": "Rest · {{amount}} · due now",
+    "nudgeHr": "{{count}} hr",
+    "nudgeHrs": "{{count}} hrs",
+    "nudgeOther": "Other",
+    "nudgeHours": "Hours",
+    "nudgeMinutes": "Minutes",
+    "nudgeSet": "Set reminder",
+    "nudgeInvalid": "Pick between 1 minute and 24 hours."
   },
   "units": {
     "ml": "ml",

@@ -1,22 +1,36 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import NudgeOffset, { NUDGE_PRESETS, useNudgeLabel } from './NudgeOffset'
 import Sheet from './Sheet'
 import { Button } from './ui/button'
 
-const MINUTES = [5, 10, 15, 30, 60]
-
-/** After a partial dose: offer a one-off reminder for the rest. */
+/** After a partial dose: offer a one-off reminder for the rest. One tap on a time sets it; Other takes any hours and minutes. */
 export default function NudgeSheet({ left, onPick, onSkip }: { left: string; onPick: (minutes: number) => void; onSkip: () => void }) {
   const { t } = useTranslation()
+  const label = useNudgeLabel()
+  const [other, setOther] = useState(false)
+  const [custom, setCustom] = useState<number | null>(null)
   return (
     <Sheet title={t('medicines.nudgeTitle')} onClose={onSkip}>
       <p>{t('medicines.nudgeText', { left })}</p>
       <div className="grid grid-cols-3 gap-3">
-        {MINUTES.map((m) => (
+        {NUDGE_PRESETS.map((m) => (
           <Button key={m} variant="soft" onClick={() => onPick(m)}>
-            {t('medicines.nudgeIn', { minutes: m })}
+            {label(m)}
           </Button>
         ))}
+        <Button variant="outline" aria-expanded={other} onClick={() => setOther((o) => !o)}>
+          {t('medicines.nudgeOther')}
+        </Button>
       </div>
+      {other && (
+        <div className="space-y-3">
+          <NudgeOffset onChange={setCustom} />
+          <Button className="w-full" disabled={custom === null} onClick={() => custom !== null && onPick(custom)}>
+            {t('medicines.nudgeSet')}
+          </Button>
+        </div>
+      )}
       <Button variant="ghost" className="w-full" onClick={onSkip}>
         {t('medicines.nudgeNo')}
       </Button>
