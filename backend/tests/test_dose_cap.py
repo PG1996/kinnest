@@ -109,6 +109,27 @@ def test_without_a_maximum_nothing_changes():
     assert schedule.next_interval_due(m, doses, TZ) == at(1, 23)  # keeps going every 4 hours
 
 
+def test_a_new_calendar_day_starts_again_at_the_usual_time_even_if_yesterday_was_not_full():
+    m = med(max_per_day=5)
+    doses = [dose(m, at(1, 11)), dose(m, at(1, 15)), dose(m, at(1, 19)), dose(m, at(1, 23))]  # 4 of 5 given on day 1
+    assert schedule.next_interval_due(m, doses, TZ) == at(2, 11)  # 23:00 + 4h = 03:00 is a new day: no night dose
+
+
+def test_the_usual_time_is_only_a_floor_for_a_new_day():
+    m = med(max_per_day=5, day_start="06:00", interval_hours=8, first=at(1, 6))
+    doses = [dose(m, at(1, 15)), dose(m, at(1, 23))]
+    assert schedule.next_interval_due(m, doses, TZ) == at(2, 7)  # 23:00 + 8h is already after 06:00
+    early = [dose(m, at(1, 14)), dose(m, at(1, 22))]
+    assert schedule.next_interval_due(m, early, TZ) == at(2, 6)  # 22:00 + 8h = 06:00, exactly the usual time
+
+
+def test_doses_given_before_midnight_do_not_count_towards_the_next_day():
+    m = med(max_per_day=3)
+    late = [dose(m, at(1, 20)), dose(m, at(1, 23, 30))]  # two of three on day 1
+    day2 = late + [dose(m, at(2, 11, 15))]  # the first of day 2
+    assert schedule.next_interval_due(m, day2, TZ) == at(2, 15, 15)  # not capped: only one dose today
+
+
 # --- the API -----------------------------------------------------------------------------------------------------------
 
 def capped(clock, **kw):
@@ -157,29 +178,50 @@ def test_the_chain_runs_up_to_the_maximum_then_waits_for_tomorrow(family, clock)
     assert clock.at(9, days=1) in dues and second + timedelta(hours=8) not in dues
 
 
-# --- the 24-hour count and its warning -------------------------------------------------------------------------------
+# --- the calendar-day count and its warning ---------------------------------------------------------------------------
 
 def dose_body(**kw):
     return {"id": str(uuid.uuid4()), "status": "given", "amount": 1.5, **kw}
 
 
-def test_the_count_of_doses_in_the_last_24_hours_is_listed(family, clock):
+def test_the_count_is_of_doses_given_on_the_calendar_day_and_it_says_when_the_day_ends(family, clock):
     m = make(family.owner, as_needed(clock, max_per_day=2))
-    assert listing(family.owner)[0]["given_last_24h"] == 0
-    give(family.mom, m, dose_body(given_at=(clock.now - timedelta(hours=3)).isoformat()))
-    give(family.mom, m, dose_body(given_at=(clock.now - timedelta(hours=30)).isoformat()))  # too old to count
+    assert listing(family.owner)[0]["given_today"] == 0
+    give(family.mom, m, dose_body(given_at=clock.at(0, 30).isoformat()))  # just after midnight today
+    give(family.mom, m, dose_body(given_at=clock.at(9).isoformat()))
+    give(family.mom, m, dose_body(given_at=clock.at(23, 30, days=-1).isoformat()))  # within 24 h, but yesterday
     give(family.mom, m, dose_body(status="skipped"))
-    assert listing(family.owner)[0]["given_last_24h"] == 1
+    row = listing(family.owner)[0]
+    assert row["given_today"] == 2
+    assert when(row["day_ends_at"]) == clock.at(0, days=1)
+    assert "given_last_24h" not in row
+
+
+def test_the_count_starts_again_at_midnight(family, clock):
+    m = make(family.owner, as_needed(clock, max_per_day=2))
+    give(family.mom, m, dose_body(given_at=clock.at(8).isoformat()))
+    give(family.mom, m, dose_body(given_at=clock.at(9).isoformat()))
+    assert listing(family.owner)[0]["given_today"] == 2
+    clock.now = clock.at(0, 1, days=1)  # the next calendar day
+    assert listing(family.owner)[0]["given_today"] == 0
 
 
 def test_sos_warns_once_the_maximum_is_reached_but_never_refuses(family, clock):
     m = make(family.owner, {**as_needed(clock), "max_per_day": 2, "min_gap_hours": None})
-    first = give(family.mom, m, dose_body(given_at=(clock.now - timedelta(hours=9)).isoformat()))
-    second = give(family.mom, m, dose_body(given_at=(clock.now - timedelta(hours=4)).isoformat()))
+    first = give(family.mom, m, dose_body(given_at=clock.at(1).isoformat()))
+    second = give(family.mom, m, dose_body(given_at=clock.at(5).isoformat()))
     assert first.json().get("max_warning") is None and second.json().get("max_warning") is None
     third = give(family.mom, m, dose_body(given_at=clock.now.isoformat()))
     assert third.status_code == 201
     assert third.json()["max_warning"] == {"count": 2, "max": 2}
+
+
+def test_yesterdays_doses_do_not_trigger_the_warning_today(family, clock):
+    m = make(family.owner, {**as_needed(clock), "max_per_day": 2, "min_gap_hours": None})
+    give(family.mom, m, dose_body(given_at=clock.at(22, days=-1).isoformat()))
+    give(family.mom, m, dose_body(given_at=clock.at(23, days=-1).isoformat()))
+    today = give(family.mom, m, dose_body(given_at=clock.now.isoformat()))  # two doses in the last 24 h, none today
+    assert today.status_code == 201 and today.json().get("max_warning") is None
 
 
 def test_no_warning_without_a_maximum(family, clock):
@@ -197,5 +239,5 @@ def test_a_dose_given_in_pieces_counts_once_towards_the_maximum(family, clock):
     a = give(family.mom, m, {"id": str(uuid.uuid4()), "status": "given", "amount": 0.25, "scheduled_for": slot, "given_at": clock.at(9, 5).isoformat()})
     b = give(family.mom, m, {"id": str(uuid.uuid4()), "status": "given", "amount": 0.25, "scheduled_for": slot, "given_at": clock.at(9, 20).isoformat()})
     assert a.status_code == 201 and b.status_code == 201
-    assert listing(family.owner)[0]["given_last_24h"] == 1
+    assert listing(family.owner)[0]["given_today"] == 1
     assert b.json().get("max_warning") is None  # the second piece of the same dose is not a second dose

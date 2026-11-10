@@ -54,6 +54,8 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
   if (medicines.length === 0) return null
   const queued = queuedDoseSlots(pending)
 
+  /** Doses given on today's calendar date; a list fetched before midnight counts as zero once the day has ended. */
+  const givenToday = (m: Medicine) => (m.day_ends_at && now >= Date.parse(m.day_ends_at) ? 0 : (m.given_today ?? 0))
   const fmt = (m: Medicine, n: number) => formatDose(n, m.dose_unit ?? '', t)
   /** What can still be given for a slot, counting pieces that are waiting to sync. */
   const effectiveRemaining = (m: Medicine, s: Slot) => round2(Math.max(0, (s.remaining ?? 0) - queuedAmount(pending, m.id, s.due_at)))
@@ -77,8 +79,8 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
     }
   }
 
-  /** True when one more dose would pass the medicine's maximum for the last 24 hours (another piece of a started dose does not). */
-  const overMax = (m: Medicine, slot?: Slot) => m.max_per_day != null && (m.given_last_24h ?? 0) >= m.max_per_day && !(slot && slot.given_amount > 0)
+  /** True when one more dose would pass the medicine's maximum for today (another piece of a started dose does not). */
+  const overMax = (m: Medicine, slot?: Slot) => m.max_per_day != null && givenToday(m) >= m.max_per_day && !(slot && slot.given_amount > 0)
 
   const submit = (m: Medicine, status: 'given' | 'skipped', slot?: Slot, amount?: number, nudgeMinutes: number | null = null, givenAt: string | null = null, skipMax = false) => {
     if (status === 'given' && !skipMax && overMax(m, slot)) {
@@ -293,13 +295,24 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
     return { done, soon, later, current: soon.at(-1), missed: soon.slice(0, -1) }
   }
 
+  const structuredDose = (m: Medicine) => m.dose_amount != null && !!m.dose_unit
+
   /** One dose at a time: the one due now has the buttons; earlier missed, later and done doses stay out of the way. */
   const scheduledView = (m: Medicine) => {
     const { done, later, current, missed } = groups(m)
     return (
       <div className="space-y-3">
         {current && slotRow(m, current)}
-        {!current && later[0] && <p className="text-sm font-bold text-med-ink">{t('medicines.nextDose', { time: formatClock(later[0].due_at) })}</p>}
+        {!current && later[0] && (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-bold text-med-ink">{t('medicines.nextDose', { time: formatClock(later[0].due_at) })}</p>
+            {canLog && (
+              <Button variant="soft" disabled={give.isPending} onClick={() => submit(m, 'given', later[0], structuredDose(m) ? effectiveRemaining(m, later[0]) : undefined)}>
+                {t('medicines.giveAhead')}
+              </Button>
+            )}
+          </div>
+        )}
         {current && later.length > 0 && (
           <p className="text-sm text-muted">{t('medicines.laterToday', { times: later.map((s) => formatClock(s.due_at)).join(', ') })}</p>
         )}
@@ -388,7 +401,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
       return { text: m.last_dose?.status === 'given' ? t('medicines.tileLast', { ago: formatAgo(now - Date.parse(m.last_dose.given_at)) }) : t('medicines.tileNever'), urgent: false }
     }
     const { current, missed, later, done } = groups(m)
-    const atMax = m.max_per_day != null && (m.given_last_24h ?? 0) >= m.max_per_day
+    const atMax = m.max_per_day != null && givenToday(m) >= m.max_per_day
     const extra = missed.length > 0 ? t('medicines.tileMissed', { count: missed.length }) : atMax && !current ? t('medicines.tileMax') : undefined
     if (current) return { text: t('medicines.tileDue'), urgent: true, extra }
     if (later[0]) return { text: t('medicines.tileNext', { time: formatClock(later[0].due_at) }), urgent: false, extra }
@@ -439,7 +452,9 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
           <Card tone="med" data-testid="medicine-detail" className="space-y-3">
             <p className="text-base font-semibold">{title(selected)}</p>
             {selected.max_per_day != null && (
-              <p className="text-xs font-semibold text-muted">{t('medicines.dosesToday', { count: selected.given_last_24h ?? 0, max: selected.max_per_day })}</p>
+              <p className="text-xs font-semibold text-muted">
+                {t(givenToday(selected) >= selected.max_per_day ? 'medicines.doneToday' : 'medicines.dosesToday', { count: givenToday(selected), max: selected.max_per_day })}
+              </p>
             )}
             {selected.schedule_kind === 'as_needed' ? (
               <>
@@ -479,7 +494,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
       )}
       {maxAsk && (
         <Sheet title={t('medicines.maxTitle')} onClose={() => setMaxAsk(null)}>
-          <p>{t('medicines.maxBody', { count: maxAsk.medicine.given_last_24h ?? 0, max: maxAsk.medicine.max_per_day ?? 0 })}</p>
+          <p>{t('medicines.maxBody', { count: givenToday(maxAsk.medicine), max: maxAsk.medicine.max_per_day ?? 0 })}</p>
           <div className="grid grid-cols-2 gap-3">
             <Button
               onClick={() => {

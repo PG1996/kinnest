@@ -127,10 +127,10 @@ def next_interval_due(m: Medicine, doses: list[MedicineDose], tz: str = "UTC") -
 
     A slot only counts once it is resolved (given in full, or skipped), so a half-given dose does not move the schedule.
 
-    With a daily maximum, a day is that many slots: the last slot of a day (given or skipped) is followed by the next usual
-    first dose time instead of by another interval. Slots of one day follow each other by exactly the interval, so a slot
-    that does not is the start of a day; counting back from the last slot to that start gives how many of today's doses
-    have been dealt with.
+    With a daily maximum, a day is a calendar day in the family timezone (midnight to midnight). Once the day's slots
+    (given or skipped) reach the maximum, the next dose is the usual first dose time of the next day. A day that is not
+    full does not carry on through the night either: a dose due after midnight waits for the usual first dose time of
+    that new day (or its own time, if that is later). The count starts again at zero every midnight.
     """
     resolved: list[SlotState] = []
     for due, group in _by_slot(doses).items():
@@ -145,16 +145,24 @@ def next_interval_due(m: Medicine, doses: list[MedicineDose], tz: str = "UTC") -
     def base(s: SlotState) -> datetime:
         return s.doses[-1].given_at if s.status == "given" else s.due_at
 
-    due = base(resolved[-1]) + step
+    last = base(resolved[-1])
+    due = last + step
     cap = m.max_per_day if m.schedule_kind == "interval" else None
     if cap:
-        position, i = 1, len(resolved) - 1
-        while i > 0 and resolved[i].due_at == base(resolved[i - 1]) + step:
-            position += 1
-            i -= 1
-        if position >= cap:
-            return _next_usual_start(m, due, tz)
+        day = _local_date(last, tz)
+        if sum(1 for s in resolved if _local_date(base(s), tz) == day) >= cap:
+            return _next_usual_start(m, _midnight_after(day, tz), tz)
+        if _local_date(due, tz) != day:  # a new day starts at its usual first dose time
+            return max(due, _next_usual_start(m, _midnight_of(_local_date(due, tz), tz), tz))
     return due
+
+
+def _midnight_of(day: date, tz: str) -> datetime:
+    return datetime.combine(day, time(0, 0), tzinfo=ZoneInfo(tz)).astimezone(UTC)
+
+
+def _midnight_after(day: date, tz: str) -> datetime:
+    return _midnight_of(day + timedelta(days=1), tz)
 
 
 def _interval_slot(m: Medicine, doses: list[MedicineDose], now: datetime, tz: str) -> datetime | None:

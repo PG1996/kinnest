@@ -175,6 +175,7 @@ def medicine_json(
     slots.sort(key=lambda s: s.due_at)
     last = doses[0] if doses else None
     today = now.astimezone(ZoneInfo(tz)).date()
+    day_start, day_end = day_bounds(now, tz)
     return {
         "id": str(m.id),
         "name": m.name,
@@ -187,7 +188,8 @@ def medicine_json(
         "min_gap_hours": m.min_gap_hours,
         "max_per_day": m.max_per_day,
         "day_start": m.day_start,
-        "given_last_24h": _distinct_doses([d for d in doses if d.status == "given" and now - timedelta(hours=24) <= d.given_at <= now]),
+        "given_today": _distinct_doses([d for d in doses if d.status == "given" and day_start <= d.given_at < day_end]),
+        "day_ends_at": _iso(day_end),  # the count above starts again from zero at this moment
         "start_date": m.start_date.isoformat(),
         "end_date": m.end_date.isoformat() if m.end_date else None,
         "notes": m.notes,
@@ -308,14 +310,23 @@ def _distinct_doses(doses: list[MedicineDose]) -> int:
     return len({d.scheduled_for if d.scheduled_for is not None else d.id for d in doses})
 
 
-def _max_warning(db: Session, med: Medicine, dose: MedicineDose) -> dict | None:
-    """Set when this dose is more than the medicine's daily maximum allows (the 24 hours up to it). Only ever a warning."""
+def day_bounds(at: datetime, tz: str) -> tuple[datetime, datetime]:
+    """Midnight to midnight, in the family timezone, around `at` (as UTC)."""
+    zone = ZoneInfo(tz)
+    start = at.astimezone(zone).replace(hour=0, minute=0, second=0, microsecond=0)
+    end = (start + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    return start.astimezone(UTC), end.astimezone(UTC)
+
+
+def _max_warning(db: Session, med: Medicine, dose: MedicineDose, tz: str) -> dict | None:
+    """Set when this dose is more than the medicine's daily maximum allows (the calendar day it was given on). Only ever a warning."""
     if med.max_per_day is None or dose.status != "given":
         return None
+    day_start, day_end = day_bounds(dose.given_at, tz)
     others = db.scalars(
         select(MedicineDose).where(
             MedicineDose.medicine_id == med.id, MedicineDose.deleted_at.is_(None), MedicineDose.status == "given",
-            MedicineDose.id != dose.id, MedicineDose.given_at > dose.given_at - timedelta(hours=24), MedicineDose.given_at <= dose.given_at,
+            MedicineDose.id != dose.id, MedicineDose.given_at >= day_start, MedicineDose.given_at <= dose.given_at,
         )
     ).all()
     if dose.scheduled_for is not None and any(o.scheduled_for == dose.scheduled_for for o in others):
@@ -401,7 +412,7 @@ def give_dose(
         if winner is None:
             raise
         return _existing_response(db, winner, response)
-    result = {**dose_json(dose, user_names(db, {me})), "gap_warning": gap_warning, "max_warning": _max_warning(db, med, dose)}
+    result = {**dose_json(dose, user_names(db, {me})), "gap_warning": gap_warning, "max_warning": _max_warning(db, med, dose, settings.app_timezone)}
     if body.scheduled_for is not None:
         state = schedule.slot_state(med, recent_doses(db, med.id), body.scheduled_for)
         result["slot"] = {"status": state.status, "given_amount": _num(state.given_amount), "remaining": _num(state.remaining)}
