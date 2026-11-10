@@ -109,5 +109,9 @@ test('the action buttons on the card are small, like the fact pills', async () =
   mockApi(api([med([slot()])]))
   renderApp(<Home />)
   const d = await detail()
-  for (const name of [en.medicines.giveFull, en.medicines.more, en.medicines.history.open]) expect(d.getByRole('button', { name }).className).toContain('min-h-8')
+  for (const name of [en.medicines.giveFull, en.medicines.more, en.medicines.history.open]) {
+    const cls = d.getByRole('button', { name }).className
+    expect(cls).toContain('min-h-8')
+    expect(cls.includes('bg-primary ') || cls.includes('border-line')).toBe(true) // solid, or outlined: never bare text on the card
+  }
 })

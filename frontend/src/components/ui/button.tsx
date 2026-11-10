@@ -11,6 +11,7 @@ const button = cva(
         soft: 'bg-primary-soft text-ink',
         outline: 'border-2 border-line bg-surface text-ink',
         ghost: 'text-muted hover:bg-line/50',
+        chip: 'border border-line bg-surface text-ink shadow-sm hover:bg-line/30',
         danger: 'bg-danger text-primary-ink',
       },
       size: { sm: 'min-h-8 gap-1 px-3 text-[13px]', md: 'min-h-11 px-4 text-[15px]', lg: 'min-h-12 px-5 text-base' },
