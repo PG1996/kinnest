@@ -35,7 +35,7 @@ export default defineConfig({
     proxy: { '/api': process.env.API_PROXY_TARGET ?? 'http://localhost:8000' },
   },
   preview: {
-    allowedHosts: ['.ts.net'], // the Tailscale Funnel address
+    allowedHosts: ['.ts.net', '.ngrok-free.app', '.ngrok-free.dev'], // Tailscale Funnel and ngrok addresses
     proxy: { '/api': process.env.API_PROXY_TARGET ?? 'http://localhost:8000' },
   },
   test: {
