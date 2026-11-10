@@ -146,7 +146,7 @@ test('the diaper card on Home opens the diaper day screen', async () => {
 test('the diapers screen shows the day tiles and seven day strips, and asks for seven days of diapers', async () => {
   const calls = mockApi(api())
   renderApp(<App />, '/diapers')
-  const strips = await screen.findAllByRole('img', { name: / wet, \d+ dirty$/ })
+  const strips = await screen.findAllByRole('group', { name: / wet, \d+ dirty$/ })
   expect(strips).toHaveLength(7)
   expect(strips[6]).toHaveAttribute('aria-current', 'date')
   expect(screen.getByTestId('tile-last-wet')).toBeInTheDocument()
