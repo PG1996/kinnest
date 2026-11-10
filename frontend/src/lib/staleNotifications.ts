@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import type { KidInfo, Medicine, Summary } from '../api/hooks'
 
-type Shown = { data?: { url?: string }; close: () => void }
+type Shown = { tag?: string; data?: { url?: string }; close: () => void }
 
 /** What the app knows right now: a reminder is stale when the thing it asks for has been done. */
 type Facts = { summary: Summary | undefined; kid: KidInfo | undefined; medicines: Medicine[]; now: number }
@@ -14,7 +14,8 @@ type Facts = { summary: Summary | undefined; kid: KidInfo | undefined; medicines
 export function isStale(url: string, { summary, kid, medicines, now }: Facts): boolean {
   const params = new URLSearchParams(url.split('?')[1] ?? '')
   const kind = params.get('log')
-  if (kind === 'feed') return !!summary?.next_feed_due_at && Date.parse(summary.next_feed_due_at) > now
+  // a feed being timed is the feed that was asked for
+  if (kind === 'feed') return !!summary?.feed_timer || (!!summary?.next_feed_due_at && Date.parse(summary.next_feed_due_at) > now)
   if (kind === 'diaper') return !!summary?.last_diaper && !!kid && Date.parse(summary.last_diaper.at) + kid.diaper_alert_minutes * 60_000 > now
   if (kind === 'medicine') {
     const med = medicines.find((m) => m.id === params.get('med'))
@@ -34,7 +35,12 @@ export function useDismissStaleNotifications(facts: Facts) {
       .then((reg) => reg.getNotifications())
       .then((shown: Shown[]) => {
         if (cancelled) return
-        for (const n of shown) if (n.data?.url && isStale(n.data.url, { summary, kid, medicines, now })) n.close()
+        for (const n of shown) {
+          // the "feeding since" notification is about the timer itself: it is stale once there is none
+          if (n.tag === 'feed_timer') {
+            if (!summary.feed_timer) n.close()
+          } else if (n.data?.url && isStale(n.data.url, { summary, kid, medicines, now })) n.close()
+        }
       })
       .catch(() => {})
     return () => {

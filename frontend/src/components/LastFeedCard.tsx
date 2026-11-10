@@ -1,10 +1,11 @@
+import { Play } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import type { Summary } from '../api/hooks'
 import { useCountUp } from '../lib/motion'
 import { formatAgo, formatClock } from '../lib/time'
 import { Badge } from './ui/badge'
-import { Button } from './ui/button'
+import { Button, IconButton } from './ui/button'
 import { Card, Eyebrow } from './ui/card'
 import { HalfGauge } from './ui/gauge'
 
@@ -16,6 +17,7 @@ export default function LastFeedCard({
   canLog = false,
   feeding = false,
   onLogFeed,
+  onStartTimer,
 }: {
   summary: Summary
   now: number
@@ -23,6 +25,8 @@ export default function LastFeedCard({
   /** a feed is being timed right now: the next feed is not late, it has begun */
   feeding?: boolean
   onLogFeed?: () => void
+  /** starts a feed timer straight from the card (an icon, top right) */
+  onStartTimer?: () => void
 }) {
   const { t } = useTranslation()
   const f = summary.last_feed
@@ -30,18 +34,24 @@ export default function LastFeedCard({
   const shown = useCountUp(startedMin)
   if (!f) return <Card tone="feed" className="text-lg font-bold">{t('home.neverFed')}</Card>
   // what was given, as small pills; who gave it goes underneath
-  const given = [t(`feedTypes.${f.type}`), f.quantity_ml != null ? `${f.quantity_ml} ml` : null, f.duration_min != null ? `${f.duration_min} min` : null].filter(Boolean) as string[]
+  const given = [t(`feedTypes.${f.type}`), f.quantity_ml != null ? `${f.quantity_ml} ml` : null, f.duration_min != null ? `${f.duration_min} min` : null, f.break_min ? t('feed.breakTotal', { n: f.break_min }) : null].filter(Boolean) as string[]
   const due = summary.next_feed_due_at ? Date.parse(summary.next_feed_due_at) : null
   const overdue = !feeding && due !== null && due <= now
   const showNext = !feeding && due !== null && !overdue
+  const startable = canLog && !feeding && !!onStartTimer
   // the gauge runs from when the feed ended to when the next one is due
-  const start = Date.parse(f.started_at) + (f.duration_min ?? 0) * 60_000
+  const start = Date.parse(f.started_at) + ((f.duration_min ?? 0) + (f.break_min ?? 0)) * 60_000
   const fraction = due !== null && due > start ? (now - start) / (due - start) : 0
   const leftMin = due !== null ? Math.max(0, Math.ceil((due - now) / MIN)) : null
   return (
-    <Card tone="feed" className="space-y-3 shadow-[0_8px_24px_-12px_rgba(180,88,46,0.35)]">
+    <Card tone="feed" className="relative space-y-3 shadow-[0_8px_24px_-12px_rgba(180,88,46,0.35)]">
+      {startable && (
+        <IconButton label={t('home.timerStart')} onClick={onStartTimer} className="absolute top-2.5 right-3 z-10 size-9 border border-line">
+          <Play size={16} aria-hidden="true" />
+        </IconButton>
+      )}
       <Link to="/feeds" aria-label={t('feeds.title')} className="block space-y-3">
-      <div className="flex items-center justify-between gap-2">
+      <div className={`flex items-center justify-between gap-2 ${startable ? 'pr-11' : ''}`}>
         <Eyebrow tone="feed">{overdue ? t('home.overdue') : t('home.lastFedLabel')}</Eyebrow>
         {feeding && !canLog && (
           <Badge tone="feed" dot pulse>

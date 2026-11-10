@@ -88,7 +88,7 @@ export default function FeedDay() {
                   </span>
                   <span className="text-sm font-semibold text-feed-ink">{formatTime(f.started_at)}</span>
                 </div>
-                <p className="text-sm text-muted">{[t('home.by', { name: f.fed_by_name }), f.note].filter(Boolean).join(' · ')}</p>
+                <p className="text-sm text-muted">{[t('home.by', { name: f.fed_by_name }), f.break_min ? t('feed.breakTotal', { n: f.break_min }) : '', f.note].filter(Boolean).join(' · ')}</p>
               </Card>
             </RowLink>
           </li>

@@ -8,6 +8,7 @@ export type FeedInput = {
   type: FeedType
   started_at: string
   duration_min?: number
+  break_min?: number
   quantity_ml?: number
   note?: string
   /** only when someone else gave the feed; the server records the logger otherwise */
@@ -62,7 +63,7 @@ export function useFeedTimerActions() {
     onSettled: refresh, // a 409 (someone else started one first) refreshes to theirs
   })
   const change = useMutation({
-    mutationFn: (b: { type?: FeedType; ended_at?: string | null }) => api('/api/feed-timer', { method: 'PATCH', json: b }),
+    mutationFn: (b: { type?: FeedType; ended_at?: string | null; paused?: boolean }) => api('/api/feed-timer', { method: 'PATCH', json: b }),
     onSettled: refresh,
   })
   const discard = useMutation({

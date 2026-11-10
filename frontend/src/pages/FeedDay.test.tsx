@@ -42,6 +42,14 @@ test('the day lists its feeds newest first with 12-hour times, what and who', as
   expect(rows[1]).toHaveTextContent('Pankhuri')
 })
 
+test('a feed with breaks says how long they were', async () => {
+  const withBreaks = [feed('b1', today(1, 0), { type: 'breast_left', quantity_ml: null, duration_min: 35, break_min: 15 })]
+  mockApi(api(ME_ADMIN, { 'GET /api/feeds': { body: withBreaks } }))
+  renderApp(<App />, '/feeds')
+  const list = await screen.findByRole('list', { name: en.feeds.listLabel })
+  expect(await within(list).findByText(new RegExp(en.feed.breakTotal.replace('{{n}}', '15')))).toBeInTheDocument()
+})
+
 test('the totals sit above the list', async () => {
   mockApi(api())
   renderApp(<App />, '/feeds')

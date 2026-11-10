@@ -1,19 +1,22 @@
-import { Timer } from 'lucide-react'
+import { Pause, Play, Timer } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useKid, useMe, useSummary, type Feed, type FeedType } from '../api/hooks'
 import { useFeedTimerActions, type FeedInput } from '../hooks/log'
+import { feedingSeconds, isPaused, recordedBreakMinutes, wallMinutes } from '../lib/feedTimer'
 import { formatAgo, formatTime, toLocalInput } from '../lib/time'
 import { useNow } from '../lib/useNow'
 import Sheet from './Sheet'
 import { Button } from './ui/button'
 import FedBy from './FedBy'
 import FeedTypePicker from './FeedTypePicker'
+import { Chip, ChipGroup } from './ui/chip'
 import { Input } from './ui/field'
 import { Stepper } from './ui/stepper'
 
 const BOTTLE: FeedType[] = ['expressed', 'formula']
 const clock = formatTime
+const BREAKS = [5, 10, 15, 20]
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 
 type Props = { last: Feed | null; saving: boolean; failed: boolean; onSave: (f: FeedInput) => void; onClose: () => void }
@@ -34,9 +37,20 @@ export default function FeedSheet({ last, saving, failed, onSave, onClose }: Pro
   const timer = useSummary().data?.feed_timer ?? null
   const actions = useFeedTimerActions()
   const now = useNow(1000)
-  const timerEnd = timer ? (timer.ended_at ? Date.parse(timer.ended_at) : now) : null
-  const elapsedS = timer && timerEnd !== null ? Math.max(0, Math.floor((timerEnd - Date.parse(timer.started_at)) / 1000)) : 0
-  const timerMinutes = Math.max(1, Math.round(elapsedS / 60))
+  const paused = !!timer && isPaused(timer)
+  const stopped = !!timer?.ended_at
+  const elapsedS = timer ? feedingSeconds(timer, now) : 0
+  // breaks: asked once the feed is stopped (None, 5, 10, 15, 20 minutes or any other); breaks recorded with Pause are already chosen
+  const recorded = timer ? recordedBreakMinutes(timer) : 0
+  const wall = timer ? wallMinutes(timer) : 0
+  const [breakChoice, setBreakChoice] = useState<number | 'other' | null>(null)
+  const [otherBreak, setOtherBreak] = useState('')
+  const selected: number | 'other' = breakChoice ?? (recorded === 0 ? 0 : BREAKS.includes(recorded) ? recorded : 'other')
+  const otherValue = otherBreak !== '' ? otherBreak : breakChoice === null && selected === 'other' ? String(recorded) : ''
+  const askedBreak = Math.min(wall, selected === 'other' ? Math.max(0, Number(otherValue) || 0) : selected)
+  const breakMin = stopped ? askedBreak : recorded
+  // the feeding itself: the whole time on the clock less the breaks, or the running clock (which already leaves breaks out)
+  const timerMinutes = stopped ? Math.max(0, wall - askedBreak) : Math.max(1, Math.round(elapsedS / 60))
   // a timer sets the type it was started with, once; after that the chips drive it
   const [syncedTimer, setSyncedTimer] = useState<string | null>(null)
   if (timer && syncedTimer !== timer.id) {
@@ -52,7 +66,7 @@ export default function FeedSheet({ last, saving, failed, onSave, onClose }: Pro
 
   const startMs = timer ? Date.parse(timer.started_at) : when === initialWhen ? Date.now() : new Date(when).getTime()
   // the next feed is due one interval after this one ends (bottles have no duration)
-  const feedMs = timer && !isBottle ? timerMinutes * 60_000 : !isBottle && duration && Number(duration) > 0 ? Number(duration) * 60_000 : 0
+  const feedMs = timer && !isBottle ? (timerMinutes + breakMin) * 60_000 : !isBottle && duration && Number(duration) > 0 ? Number(duration) * 60_000 : 0
   const everyText = interval ? (interval % 60 === 0 ? `${interval / 60}h` : formatAgo(interval * 60_000)) : null
 
   const submit = (e: FormEvent) => {
@@ -64,6 +78,7 @@ export default function FeedSheet({ last, saving, failed, onSave, onClose }: Pro
       // untouched time means "now", taken at the moment of saving
       started_at: timer ? timer.started_at : when === initialWhen ? new Date().toISOString() : new Date(when).toISOString(),
       duration_min: isBottle ? undefined : timer ? timerMinutes : duration ? Number(duration) : undefined,
+      ...(timer && !isBottle ? { break_min: breakMin } : {}),
       ...(timer ? { timer_id: timer.id } : {}),
       quantity_ml: isBottle ? ml : undefined,
       note: note || undefined,
@@ -120,15 +135,60 @@ export default function FeedSheet({ last, saving, failed, onSave, onClose }: Pro
                 {t('home.timerStart')}
               </Button>
             ) : (
-              <div className="grid grid-cols-2 gap-2">
-                {timer.ended_at ? (
-                  <Button type="button" variant="primary" onClick={() => actions.change.mutate({ ended_at: null })}>
-                    {t('home.timerResume')} · {mmss(elapsedS)}
-                  </Button>
-                ) : (
-                  <Button type="button" variant="primary" onClick={() => actions.change.mutate({ ended_at: new Date().toISOString() })}>
-                    {t('home.timerStop')} · {mmss(elapsedS)}
-                  </Button>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  {stopped ? (
+                    <Button type="button" variant="soft" className="col-span-2" onClick={() => actions.change.mutate({ ended_at: null })}>
+                      {t('home.timerResume')} · {mmss(elapsedS)}
+                    </Button>
+                  ) : paused ? (
+                    <>
+                      <Button type="button" variant="primary" onClick={() => actions.change.mutate({ paused: false })}>
+                        <Play size={18} aria-hidden="true" />
+                        {t('home.timerResume')} · {mmss(elapsedS)}
+                      </Button>
+                      <Button type="button" variant="soft" onClick={() => actions.change.mutate({ ended_at: new Date().toISOString() })}>
+                        {t('home.timerStop')}
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button type="button" variant="primary" onClick={() => actions.change.mutate({ ended_at: new Date().toISOString() })}>
+                        {t('home.timerStop')} · {mmss(elapsedS)}
+                      </Button>
+                      <Button type="button" variant="soft" onClick={() => actions.change.mutate({ paused: true })}>
+                        <Pause size={18} aria-hidden="true" />
+                        {t('home.timerPause')}
+                      </Button>
+                    </>
+                  )}
+                </div>
+                {stopped && (
+                  <div className="space-y-3 border-t border-line pt-3">
+                    <p className="text-sm font-semibold">{t('feed.onClock', { n: wall })}</p>
+                    <ChipGroup label={t('feed.breaksTitle')}>
+                      <Chip pressed={selected === 0} onClick={() => setBreakChoice(0)}>
+                        {t('feed.breaksNone')}
+                      </Chip>
+                      {BREAKS.map((n) => (
+                        <Chip key={n} pressed={selected === n} disabled={n >= wall} className="disabled:opacity-40" onClick={() => setBreakChoice(n)}>
+                          {t('feed.breaksMin', { n })}
+                        </Chip>
+                      ))}
+                      <Chip pressed={selected === 'other'} onClick={() => setBreakChoice('other')}>
+                        {t('feed.breaksOther')}
+                      </Chip>
+                    </ChipGroup>
+                    {selected === 'other' && (
+                      <div className="space-y-1">
+                        <label htmlFor="feed-break-other" className="block text-[13px] font-semibold text-muted">
+                          {t('feed.breaksOtherLabel')}
+                        </label>
+                        <Input id="feed-break-other" type="number" inputMode="numeric" min={0} max={wall} value={otherValue} onChange={(e) => setOtherBreak(e.target.value)} />
+                      </div>
+                    )}
+                    {askedBreak > 0 && <p className="text-sm font-semibold text-muted">{t('feed.feedingTime', { n: timerMinutes })}</p>}
+                  </div>
                 )}
                 <Button type="button" variant="ghost" onClick={() => actions.discard.mutate()}>
                   {t('home.timerDiscard')}
