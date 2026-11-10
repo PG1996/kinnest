@@ -244,8 +244,8 @@
     "page": {
       "title": "Medicines",
       "add": "Add medicine",
-      "edit": "Edit",
-      "delete": "Delete",
+      "edit": "Edit medicine",
+      "delete": "Delete medicine",
       "confirmDelete": "Yes, delete",
       "past": "Past medicines",
       "empty": "No medicines yet",
@@ -328,7 +328,6 @@
     "timeFuture": "That time is in the future.",
     "atOtherTime": "At another time",
     "history": {
-      "open": "Dose history",
       "title": "Dose history",
       "empty": "No doses in the last 30 days.",
       "add": "Add a past dose",
@@ -350,7 +349,10 @@
         "slot": "Counts for dose"
       },
       "saveError": "Couldn't save the dose. Check the time and amount.",
-      "noSlot": "No slot (history only)"
+      "noSlot": "No slot (history only)",
+      "dayToday": "Today",
+      "dayYesterday": "Yesterday",
+      "logged": "Logged {{time}}"
     },
     "sosTitle": "SOS medicines",
     "sosWait": "Wait until {{time}} before the next dose",

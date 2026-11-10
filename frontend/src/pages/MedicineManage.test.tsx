@@ -100,7 +100,7 @@ test('caregiver sees the list without add, edit or delete', async () => {
   renderApp(<MedicinesPage />, '/medicines')
   expect(await screen.findByText(/Vitamin D/)).toBeInTheDocument()
   await userEvent.click(screen.getByTestId('medicine-m1'))
-  expect(within(await screen.findByRole('dialog', { name: 'Vitamin D' })).getByText(text(en.medicines.page.fixed, { times: '09:00, 21:00' }))).toBeInTheDocument()
+  expect(within(await screen.findByRole('dialog', { name: en.medicines.history.title })).getByText(text(en.medicines.page.fixed, { times: '09:00, 21:00' }))).toBeInTheDocument()
   for (const name of [en.medicines.page.add, en.medicines.page.edit, en.medicines.page.delete]) {
     expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
   }
@@ -223,12 +223,13 @@ test('medicines are square tiles, two per row', async () => {
   for (const id of ['m1', 'm2']) expect(screen.getByTestId(`medicine-${id}`).className).toContain('aspect-square')
 })
 
-test('tapping a tile opens its details with history, edit and delete', async () => {
+test('tapping a tile opens its dose history, with edit and delete for the medicine', async () => {
   mockApi(base([med()]))
   renderApp(<MedicinesPage />, '/medicines')
   await userEvent.click(await screen.findByTestId('medicine-m1'))
-  const d = await screen.findByRole('dialog', { name: 'Vitamin D' })
-  for (const name of [en.medicines.history.open, en.medicines.page.edit, en.medicines.page.delete]) expect(within(d).getByRole('button', { name })).toBeInTheDocument()
+  const d = await screen.findByRole('dialog', { name: en.medicines.history.title })
+  expect(within(d).getByText('Vitamin D')).toBeInTheDocument()
+  for (const name of [en.medicines.page.edit, en.medicines.page.delete]) expect(within(d).getByRole('button', { name })).toBeInTheDocument()
 })
 
 test('Add medicine and Add SOS medicine open the form as a popup', async () => {
