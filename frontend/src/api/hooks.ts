@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { queryOptions, useQuery } from '@tanstack/react-query'
 import type { TimelineItem, TimelineKind } from '../lib/timeline'
 import { ApiError, api } from './client'
 
@@ -321,25 +321,34 @@ export function useDoseHistory(medicineId: string, days = 30) {
 }
 
 /** Sleeps that started between `from` and `to`. Keep `from`/`to` stable between renders. */
-export function useSleepRange(from: Date, to: Date) {
-  return useQuery({
+export const sleepRangeQuery = (from: Date, to: Date) =>
+  queryOptions({
     queryKey: ['sleep', from.toISOString(), to.toISOString()],
     queryFn: () => api<Sleep[]>(`/api/sleep?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`),
   })
+
+export function useSleepRange(from: Date, to: Date) {
+  return useQuery(sleepRangeQuery(from, to))
 }
 
 /** Feeds started between `from` and `to`. Keep `from`/`to` stable between renders. */
-export function useFeedRange(from: Date, to: Date) {
-  return useQuery({
+export const feedRangeQuery = (from: Date, to: Date) =>
+  queryOptions({
     queryKey: ['feeds', from.toISOString(), to.toISOString()],
     queryFn: () => api<Feed[]>(`/api/feeds?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`),
   })
+
+export function useFeedRange(from: Date, to: Date) {
+  return useQuery(feedRangeQuery(from, to))
 }
 
 /** Diapers changed between `from` and `to`. Keep `from`/`to` stable between renders. */
-export function useDiaperRange(from: Date, to: Date) {
-  return useQuery({
+export const diaperRangeQuery = (from: Date, to: Date) =>
+  queryOptions({
     queryKey: ['diapers', from.toISOString(), to.toISOString()],
     queryFn: () => api<Diaper[]>(`/api/diapers?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`),
   })
+
+export function useDiaperRange(from: Date, to: Date) {
+  return useQuery(diaperRangeQuery(from, to))
 }
