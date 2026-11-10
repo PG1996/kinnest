@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type { Medicine, Slot } from '../api/hooks'
 import { formatClock, toLocalInput } from '../lib/time'
 import { formatDose } from '../lib/units'
+import NudgeOffset, { NUDGE_PRESETS, useNudgeLabel } from './NudgeOffset'
 import Sheet from './Sheet'
 import { Button } from './ui/button'
 import { Card, Eyebrow } from './ui/card'
@@ -12,7 +13,6 @@ import { Segmented } from './ui/segmented'
 import { SlideToConfirm } from './ui/slide-confirm'
 import { Stepper } from './ui/stepper'
 
-const NUDGE_MINUTES = [5, 10, 15, 30, 60]
 const round2 = (n: number) => Math.round(n * 100) / 100
 
 /** How far one tap moves the amount: whole drops and puffs, quarters of everything else (whole units for big amounts). */
@@ -41,6 +41,8 @@ export default function GiveDoseSheet({ medicine, slot, max, onGive, onSkip, onC
   const [mode, setMode] = useState<'full' | 'partial'>(initialMode)
   const [amount, setAmount] = useState(Math.min(max, round2(max / 2)))
   const [nudge, setNudge] = useState<number | null>(null)
+  const [otherNudge, setOtherNudge] = useState(false)
+  const nudgeLabel = useNudgeLabel()
   const [other, setOther] = useState(askTime)
   const [whenValue, setWhenValue] = useState(() => toLocalInput(new Date()))
   const [timeError, setTimeError] = useState('')
@@ -163,12 +165,29 @@ export default function GiveDoseSheet({ medicine, slot, max, onGive, onSkip, onC
             <div className="space-y-2">
               <p className="text-[13px] font-semibold text-muted">{t('medicines.remindIn')}</p>
               <div className="flex flex-wrap gap-2">
-                {NUDGE_MINUTES.map((m) => (
-                  <Chip key={m} pressed={nudge === m} onClick={() => setNudge(nudge === m ? null : m)}>
-                    {t('medicines.nudgeIn', { minutes: m })}
+                {NUDGE_PRESETS.map((m) => (
+                  <Chip
+                    key={m}
+                    pressed={!otherNudge && nudge === m}
+                    onClick={() => {
+                      setOtherNudge(false)
+                      setNudge(nudge === m && !otherNudge ? null : m)
+                    }}
+                  >
+                    {nudgeLabel(m)}
                   </Chip>
                 ))}
+                <Chip
+                  pressed={otherNudge}
+                  onClick={() => {
+                    setOtherNudge(!otherNudge)
+                    setNudge(null)
+                  }}
+                >
+                  {t('medicines.nudgeOther')}
+                </Chip>
               </div>
+              {otherNudge && <NudgeOffset onChange={setNudge} />}
             </div>
           )}
         </Card>
