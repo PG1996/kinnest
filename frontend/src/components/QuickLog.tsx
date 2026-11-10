@@ -1,4 +1,4 @@
-import { Baby, Droplets, Moon, Pill, Ruler, type LucideIcon } from 'lucide-react'
+import { Baby, Droplets, Moon, Pill, Ruler, Sunrise, type LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { cn } from '../lib/cn'
@@ -44,7 +44,7 @@ export default function QuickLog({
           <Tile Icon={Droplets} tint="text-diaper">{t('home.diaper')}</Tile>
         </button>
         <button type="button" className={cn(TILE, asleep && 'bg-sleep-bg', 'disabled:opacity-50')} disabled={sleepBusy} onClick={onSleep}>
-          <Tile Icon={Moon} tint="text-sleep">{asleep ? t('sleep.end') : t('sleep.start')}</Tile>
+          <Tile Icon={asleep ? Sunrise : Moon} tint="text-sleep">{asleep ? t('sleep.end') : t('sleep.start')}</Tile>
         </button>
         <button type="button" className={TILE} onClick={onMedicine}>
           <Tile Icon={Pill} tint="text-med">{t('home.quick.medicine')}</Tile>

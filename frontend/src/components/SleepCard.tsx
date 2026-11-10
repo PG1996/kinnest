@@ -1,4 +1,4 @@
-import { Moon } from 'lucide-react'
+import { Moon, Sun } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
@@ -21,7 +21,8 @@ export default function SleepCard({ sleep, now }: { sleep: SummarySleep | undefi
   return (
     <Card tone="sleep" data-testid="sleep-card" className="py-4">
       <Link to="/sleep" className="flex items-center gap-3">
-      <Moon size={26} aria-hidden="true" className="shrink-0 text-sleep" />
+      {/* a sun once she is up after a sleep; the moon while asleep, or before any sleep is logged */}
+      {!open && last ? <Sun size={26} aria-hidden="true" className="shrink-0 text-sleep" /> : <Moon size={26} aria-hidden="true" className="shrink-0 text-sleep" />}
       <div className="min-w-0 flex-1 space-y-1">
         <Eyebrow tone="sleep">{open ? t('sleep.asleepLabel') : t('sleep.title')}</Eyebrow>
         {open ? (
