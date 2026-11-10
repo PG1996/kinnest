@@ -66,6 +66,43 @@ test('flags an overdue feed', async () => {
   expect(screen.getByText(en.home.overdue)).toBeInTheDocument()
 })
 
+// --- a feed in progress: the feed card must not call the feed overdue ---------------------------------------------------
+
+const RUNNING = { id: 'tm1', type: 'formula', started_at: minsAgo(4), ended_at: null, started_by_name: 'Pankhuri' }
+
+test('while a feed is being timed the feed card is not overdue and offers no "Log a feed" button', async () => {
+  mockApi(base(ME_ADMIN, SUMMARY({ next_feed_due_at: minsAgo(20), feed_timer: RUNNING })))
+  renderApp(<Home />)
+  await screen.findByTestId('feed-timer-banner')
+  expect(screen.queryByText(en.home.overdue)).not.toBeInTheDocument()
+  expect(screen.queryByText(en.home.dueAgo.replace('{{ago}}', '20m'))).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: en.home.logFeedNow })).not.toBeInTheDocument()
+  expect(screen.getByText(en.home.lastFedLabel)).toBeInTheDocument() // still says when the last feed was
+  expect(screen.getByText(en.home.agoShort.replace('{{ago}}', '2h 10m'))).toBeInTheDocument()
+})
+
+test('a feed that is not overdue keeps its next-due pill, but not while a feed is being timed', async () => {
+  mockApi(base(ME_ADMIN, SUMMARY({ feed_timer: RUNNING })))
+  renderApp(<Home />)
+  await screen.findByTestId('feed-timer-banner')
+  expect(screen.queryByText(new RegExp(en.home.nextDue.replace('{{time}}', '.+')))).not.toBeInTheDocument()
+  expect(screen.queryByText(en.home.toNextFeed)).not.toBeInTheDocument()
+})
+
+test('a viewer has no banner, so the feed card itself says a feed is in progress', async () => {
+  mockApi(base(ME_VIEWER, SUMMARY({ next_feed_due_at: minsAgo(20), feed_timer: RUNNING })))
+  renderApp(<Home />)
+  const live = await screen.findByText(en.home.timerBanner)
+  expect(live.closest('[data-badge]')!.querySelector('.animate-ping')).not.toBeNull()
+  expect(screen.queryByText(en.home.overdue)).not.toBeInTheDocument()
+})
+
+test('once the timer is gone an overdue feed is flagged again', async () => {
+  mockApi(base(ME_ADMIN, SUMMARY({ next_feed_due_at: minsAgo(20), feed_timer: null })))
+  renderApp(<Home />)
+  expect(await screen.findByText(en.home.overdue)).toBeInTheDocument()
+})
+
 test('shows empty states before anything is logged', async () => {
   mockApi(base(ME_ADMIN, SUMMARY({ last_feed: null, next_feed_due_at: null, last_diaper: null })))
   renderApp(<Home />)

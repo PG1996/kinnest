@@ -141,7 +141,7 @@ export default function Home() {
       {summary && (
         <>
           {summary.feed_timer && canLog && <FeedTimerBanner timer={summary.feed_timer} onOpen={() => setSheet('feed')} />}
-          <LastFeedCard summary={summary} now={now} canLog={canLog} onLogFeed={() => setSheet('feed')} />
+          <LastFeedCard summary={summary} now={now} canLog={canLog} feeding={!!summary.feed_timer} onLogFeed={() => setSheet('feed')} />
           <LastDiaperCard summary={summary} now={now} wetPerDay={wetSeries} />
           <SleepCard sleep={summary.sleep} now={now} />
         </>
