@@ -391,9 +391,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
     const last = m.last_dose
     const lastLine = !last
       ? t('medicines.noDoseYet')
-      : last.status === 'given'
-        ? t('medicines.lastDoseLine', { time: formatClock(last.given_at), ago: formatAgo(now - Date.parse(last.given_at)), name: last.by_name })
-        : t('medicines.lastDoseSkipped', { time: formatClock(last.given_at) })
+      : t('medicines.lastDoseLine', { time: formatClock(last.given_at), ago: formatAgo(now - Date.parse(last.given_at)), name: last.by_name })
     let nextLine: string
     if (m.schedule_kind === 'as_needed') {
       const wait = sosWaitAt(m)

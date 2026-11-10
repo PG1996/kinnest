@@ -130,6 +130,26 @@ def test_doses_given_before_midnight_do_not_count_towards_the_next_day():
     assert schedule.next_interval_due(m, day2, TZ) == at(2, 15, 15)  # not capped: only one dose today
 
 
+def test_a_dose_given_outside_any_slot_moves_the_schedule_too():
+    m = med(max_per_day=3, interval_hours=5)
+    skipped = dose(m, at(1, 21, 10), at(2, 13, 2), status="skipped")  # last night's missed slot, skipped this afternoon
+    extra = dose(m, None, at(2, 12, 50))  # given at 12:50 with no slot
+    assert schedule.next_interval_due(m, [skipped, extra], TZ) == at(2, 17, 50)  # 12:50 + 5h, not the skipped slot again
+
+
+def test_the_latest_event_decides_not_the_latest_slot_time():
+    m = med(max_per_day=3, interval_hours=5)
+    early_slot_late_dose = dose(m, at(2, 1, 6), at(1, 16, 10))  # the slot is after the skipped one, but was given before it
+    skipped = dose(m, at(1, 21, 10), at(2, 13, 2), status="skipped")
+    assert schedule.next_interval_due(m, [early_slot_late_dose, skipped], TZ) == at(2, 11)  # 21:10 + 5h is the next day: usual start
+
+
+def test_doses_given_outside_a_slot_count_towards_the_day():
+    m = med(max_per_day=2, interval_hours=4)
+    doses = [dose(m, None, at(1, 11, 30)), dose(m, None, at(1, 15, 40))]
+    assert schedule.next_interval_due(m, doses, TZ) == at(2, 11)  # two of two given today
+
+
 # --- the API -----------------------------------------------------------------------------------------------------------
 
 def capped(clock, **kw):
@@ -241,3 +261,13 @@ def test_a_dose_given_in_pieces_counts_once_towards_the_maximum(family, clock):
     assert a.status_code == 201 and b.status_code == 201
     assert listing(family.owner)[0]["given_today"] == 1
     assert b.json().get("max_warning") is None  # the second piece of the same dose is not a second dose
+
+
+def test_the_last_dose_is_the_latest_one_given_not_a_later_skip(family, clock):
+    m = make(family.owner, {**interval(clock), "first_dose_at": clock.at(9).isoformat()})
+    first = listing(family.owner)[0]["slots"][0]["due_at"]
+    assert give(family.mom, m, {"id": str(uuid.uuid4()), "status": "given", "amount": 2.5, "scheduled_for": first, "given_at": clock.at(9, 5).isoformat()}).status_code == 201
+    second = listing(family.owner)[0]["slots"][0]["due_at"]
+    assert give(family.mom, m, {"id": str(uuid.uuid4()), "status": "skipped", "scheduled_for": second}).status_code == 201
+    row = listing(family.owner)[0]
+    assert row["last_dose"]["status"] == "given" and when(row["last_dose"]["given_at"]) == clock.at(9, 5)

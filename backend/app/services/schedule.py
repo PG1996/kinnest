@@ -132,25 +132,27 @@ def next_interval_due(m: Medicine, doses: list[MedicineDose], tz: str = "UTC") -
     full does not carry on through the night either: a dose due after midnight waits for the usual first dose time of
     that new day (or its own time, if that is later). The count starts again at zero every midnight.
     """
-    resolved: list[SlotState] = []
+    # every event that moves the schedule, as the moment it happened: a resolved slot (given, at its last piece; or
+    # skipped, at its due time) or a dose given outside any slot
+    events: list[datetime] = []
     for due, group in _by_slot(doses).items():
         state = slot_progress(m, due, group)
-        if state.status in ("given", "skipped"):
-            resolved.append(state)
-    if not resolved:
+        if state.status == "given":
+            events.append(state.doses[-1].given_at)
+        elif state.status == "skipped":
+            events.append(state.due_at)
+    events += [d.given_at for d in _live(doses) if d.scheduled_for is None and d.status == "given"]
+    if not events:
         return m.first_dose_at
-    resolved.sort(key=lambda s: s.due_at)
+    events.sort()
     step = timedelta(hours=m.interval_hours)
 
-    def base(s: SlotState) -> datetime:
-        return s.doses[-1].given_at if s.status == "given" else s.due_at
-
-    last = base(resolved[-1])
+    last = events[-1]
     due = last + step
     cap = m.max_per_day if m.schedule_kind == "interval" else None
     if cap:
         day = _local_date(last, tz)
-        if sum(1 for s in resolved if _local_date(base(s), tz) == day) >= cap:
+        if sum(1 for e in events if _local_date(e, tz) == day) >= cap:
             return _next_usual_start(m, _midnight_after(day, tz), tz)
         if _local_date(due, tz) != day:  # a new day starts at its usual first dose time
             return max(due, _next_usual_start(m, _midnight_of(_local_date(due, tz), tz), tz))
