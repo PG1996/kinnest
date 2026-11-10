@@ -4,6 +4,9 @@ import { useTranslation } from 'react-i18next'
 import { Button, IconButton } from './ui/button'
 import type { Tone } from './ui/card'
 
+// open sheets, newest last: Escape closes only the one on top (a picker over a form)
+const openSheets: symbol[] = []
+
 /**
  * A bottom sheet (`sheet`) or a full-screen page (`full`). Focus moves to the title on open, Escape
  * closes, and focus returns to whatever opened it.
@@ -31,12 +34,15 @@ export default function Sheet({
 
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null
+    const me = Symbol('sheet')
+    openSheets.push(me)
     titleRef.current?.focus()
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeRef.current()
+      if (e.key === 'Escape' && openSheets.at(-1) === me) closeRef.current()
     }
     document.addEventListener('keydown', onKey)
     return () => {
+      openSheets.splice(openSheets.indexOf(me), 1)
       document.removeEventListener('keydown', onKey)
       opener?.focus?.()
     }

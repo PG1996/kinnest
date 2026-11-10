@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import en from '../i18n/en.json'
 import type { ReactElement } from 'react'
@@ -60,4 +60,39 @@ export async function clickAction(name: string) {
     found = await screen.findAllByRole('button', { name })
   }
   await userEvent.click(found[0]!)
+}
+
+const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString()
+
+/**
+ * Set a date-and-time field the way a person would: open it, choose the day (Today, Yesterday, or from the calendar),
+ * turn the wheels, Done. `field` is the field's label.
+ */
+export async function pickDateTime(field: string | RegExp, at: Date) {
+  await userEvent.click(screen.getByRole('button', { name: field }))
+  const sheet = () => screen.getAllByRole('dialog').at(-1)!
+  const now = new Date()
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
+  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+  if (sameDay(at, now)) await userEvent.click(within(sheet()).getByRole('button', { name: en.picker.today }))
+  else if (sameDay(at, yesterday) && within(sheet()).queryByRole('button', { name: en.picker.yesterday })) await userEvent.click(within(sheet()).getByRole('button', { name: en.picker.yesterday }))
+  else if (sameDay(at, tomorrow) && within(sheet()).queryByRole('button', { name: en.picker.tomorrow })) await userEvent.click(within(sheet()).getByRole('button', { name: en.picker.tomorrow }))
+  else {
+    // the third day chip opens the calendar, whatever it says (Other day, or the day already chosen)
+    const opener = within(within(sheet()).getByRole('group', { name: en.picker.day })).getAllByRole('button').find((b) => b.hasAttribute('aria-expanded'))!
+    if (opener.getAttribute('aria-expanded') !== 'true') await userEvent.click(opener)
+    const month = at.toLocaleDateString([], { month: 'long', year: 'numeric' })
+    for (let i = 0; i < 36 && !within(sheet()).queryByRole('group', { name: month }); i++) {
+      const shown = within(sheet()).getAllByRole('group').find((g) => /\d{4}$/.test(g.getAttribute('aria-label') ?? ''))!
+      const later = new Date(`1 ${shown.getAttribute('aria-label')}`).getTime() < new Date(at.getFullYear(), at.getMonth(), 1).getTime()
+      await userEvent.click(within(sheet()).getByRole('button', { name: later ? en.picker.nextMonth : en.picker.prevMonth }))
+    }
+    const day = at.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })
+    await userEvent.click(within(within(sheet()).getByRole('group', { name: month })).getByRole('button', { name: day }))
+  }
+  const option = (wheel: string, name: string) => within(within(sheet()).getByRole('listbox', { name: wheel })).getByRole('option', { name })
+  await userEvent.click(option(en.picker.hour, String(((at.getHours() + 11) % 12) + 1)))
+  await userEvent.click(option(en.picker.minute, String(at.getMinutes()).padStart(2, '0')))
+  await userEvent.click(option(en.picker.ampm, at.getHours() >= 12 ? 'PM' : 'AM'))
+  await userEvent.click(within(sheet()).getByRole('button', { name: en.picker.done }))
 }

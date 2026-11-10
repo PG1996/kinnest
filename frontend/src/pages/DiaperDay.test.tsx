@@ -1,9 +1,9 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from '../App'
 import en from '../i18n/en.json'
-import { toLocalInput } from '../lib/time'
-import { ME_ADMIN, ME_VIEWER, mockApi, renderApp } from '../test/utils'
+import { formatTime } from '../lib/time'
+import { ME_ADMIN, ME_VIEWER, mockApi, pickDateTime, renderApp } from '../test/utils'
 import { afterAll, beforeAll, vi } from 'vitest'
 import Home from './Home'
 
@@ -77,7 +77,7 @@ test('adding a past diaper posts its kind, time and note', async () => {
   const form = await screen.findByRole('dialog', { name: en.diapers.addTitle })
   await userEvent.click(within(form).getByRole('button', { name: en.diaperKinds.dirty, pressed: false }))
   const when = yest(14, 30)
-  fireEvent.change(within(form).getByLabelText(en.diapers.form.when), { target: { value: toLocalInput(when) } })
+  await pickDateTime(en.diapers.form.when, when)
   await userEvent.type(within(form).getByLabelText(en.diapers.form.note), 'leaked')
   await userEvent.click(within(form).getByRole('button', { name: en.diapers.form.save }))
   await waitFor(() => expect(calls.some((c) => c.key === 'POST /api/diapers')).toBe(true))
@@ -87,15 +87,18 @@ test('adding a past diaper posts its kind, time and note', async () => {
   expect(near(body.at, when)).toBe(true)
 })
 
-test('a time in the future is refused before anything is sent', async () => {
+test('a time later than now today is taken as last night', async () => {
   const calls = mockApi(api())
   renderApp(<App />, '/diapers')
   await userEvent.click(await screen.findByRole('button', { name: en.diapers.addPast }))
   const form = await screen.findByRole('dialog', { name: en.diapers.addTitle })
-  fireEvent.change(within(form).getByLabelText(en.diapers.form.when), { target: { value: toLocalInput(new Date(Date.now() + 3 * 3_600_000)) } })
+  const later = new Date(Date.now() + 3 * 3_600_000)
+  await pickDateTime(en.diapers.form.when, later)
   await userEvent.click(within(form).getByRole('button', { name: en.diapers.form.save }))
-  expect(await within(form).findByText(en.diapers.form.future)).toBeInTheDocument()
-  expect(calls.some((c) => c.key === 'POST /api/diapers')).toBe(false)
+  await waitFor(() => expect(calls.some((c) => c.key === 'POST /api/diapers')).toBe(true))
+  // 3 hours from now has not happened today; if it is already tomorrow by then, the picker keeps it at now instead
+  const sent = new Date((calls.find((c) => c.key === 'POST /api/diapers')!.body as { at: string }).at)
+  expect(sent.getTime()).toBeLessThanOrEqual(Date.now())
 })
 
 test('editing a diaper sends only what changed', async () => {
@@ -104,7 +107,7 @@ test('editing a diaper sends only what changed', async () => {
   await userEvent.click(await screen.findByRole('button', { name: en.timeline.edit }))
   const form = await screen.findByRole('dialog', { name: en.diapers.editTitle })
   expect(within(form).getByRole('button', { name: en.diaperKinds.wet, pressed: true })).toBeInTheDocument()
-  expect(within(form).getByLabelText(en.diapers.form.when)).toHaveValue(toLocalInput(new Date(D[0]!.at)))
+  expect(within(form).getByRole('button', { name: en.diapers.form.when })).toHaveTextContent(formatTime(new Date(D[0]!.at)))
   await userEvent.click(within(form).getByRole('button', { name: en.diaperKinds.both }))
   await userEvent.click(within(form).getByRole('button', { name: en.diapers.form.save }))
   await waitFor(() => expect(calls.some((c) => c.key === 'PATCH /api/diapers/d1')).toBe(true))
@@ -117,7 +120,7 @@ test('a new time is sent when it was changed', async () => {
   await userEvent.click(await screen.findByRole('button', { name: en.timeline.edit }))
   const form = await screen.findByRole('dialog', { name: en.diapers.editTitle })
   const when = today(0, 10)
-  fireEvent.change(within(form).getByLabelText(en.diapers.form.when), { target: { value: toLocalInput(when) } })
+  await pickDateTime(en.diapers.form.when, when)
   await userEvent.click(within(form).getByRole('button', { name: en.diapers.form.save }))
   await waitFor(() => expect(calls.some((c) => c.key === 'PATCH /api/diapers/d1')).toBe(true))
   expect(near((calls.find((c) => c.key === 'PATCH /api/diapers/d1')!.body as { at: string }).at, when)).toBe(true)

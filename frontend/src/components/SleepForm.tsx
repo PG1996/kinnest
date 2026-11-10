@@ -6,6 +6,7 @@ import { useAddPastSleep, useUpdateSleep } from '../hooks/log'
 import { formatTime, toLocalInput } from '../lib/time'
 import Sheet from './Sheet'
 import { Button } from './ui/button'
+import { DateTimeField } from './ui/datetime'
 import { Input } from './ui/field'
 
 const MAX_MS = 24 * 3_600_000
@@ -69,13 +70,13 @@ export default function SleepForm({ sleep, onClose }: { sleep?: Sleep; onClose: 
           <label htmlFor="sleep-start" className="block text-[13px] font-semibold text-muted">
             {t('sleep.form.start')}
           </label>
-          <Input id="sleep-start" type="datetime-local" value={start} max={toLocalInput(new Date())} onChange={(e) => setStart(e.target.value)} />
+          <DateTimeField id="sleep-start" label={t('sleep.form.start')} value={start} onChange={setStart} />
         </div>
         <div className="space-y-1">
           <label htmlFor="sleep-end" className="block text-[13px] font-semibold text-muted">
             {t('sleep.form.end')}
           </label>
-          <Input id="sleep-end" type="datetime-local" value={end} max={toLocalInput(new Date())} onChange={(e) => setEnd(e.target.value)} />
+          <DateTimeField id="sleep-end" label={t('sleep.form.end')} value={end} onChange={setEnd} clearable={!!sleep} />
           {sleep && <p className="text-xs text-muted">{t('sleep.form.endHint')}</p>}
         </div>
         <div className="space-y-1">

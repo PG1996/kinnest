@@ -7,6 +7,7 @@ import FedBy from './FedBy'
 import FeedTypePicker from './FeedTypePicker'
 import Sheet from './Sheet'
 import { Button } from './ui/button'
+import { DateTimeField } from './ui/datetime'
 import { Input } from './ui/field'
 import { Stepper } from './ui/stepper'
 
@@ -85,7 +86,7 @@ export default function FeedEditForm({ feed, onClose }: { feed?: Feed; onClose: 
           <label htmlFor="feed-edit-when" className="block text-xs font-medium text-muted">
             {t('home.time')}
           </label>
-          <Input id="feed-edit-when" type="datetime-local" value={when} max={toLocalInput(new Date())} onChange={(e) => setWhen(e.target.value)} />
+          <DateTimeField id="feed-edit-when" label={t('home.time')} value={when} onChange={setWhen} />
         </div>
         <div className="space-y-1">
           <label htmlFor="feed-edit-note" className="block text-xs font-medium text-muted">

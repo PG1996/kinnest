@@ -1,0 +1,362 @@
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { createPortal } from 'react-dom'
+import { useTranslation } from 'react-i18next'
+import { cn } from '../../lib/cn'
+import { fromInput, toInput, withTime, type Moved, type PickMode } from '../../lib/pickTime'
+import { formatAgo, formatTime } from '../../lib/time'
+import { useNow } from '../../lib/useNow'
+import Sheet from '../Sheet'
+import { Button } from './button'
+import { Chip } from './chip'
+
+type T = (key: string, opts?: Record<string, unknown>) => string
+
+const DAY_MS = 86_400_000
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
+const sameDay = (a: Date, b: Date) => startOfDay(a).getTime() === startOfDay(b).getTime()
+const nowMinute = () => {
+  const n = new Date()
+  return new Date(n.getFullYear(), n.getMonth(), n.getDate(), n.getHours(), n.getMinutes())
+}
+
+/** "Today", "Yesterday", "Tomorrow" or "Sun, 8 Nov". */
+function dayWord(d: Date, t: T): string {
+  const today = new Date()
+  if (sameDay(d, today)) return t('picker.today')
+  if (sameDay(d, new Date(today.getTime() - DAY_MS))) return t('picker.yesterday')
+  if (sameDay(d, new Date(today.getTime() + DAY_MS))) return t('picker.tomorrow')
+  return d.toLocaleDateString([], {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  })
+}
+
+// ---- the time wheels ----
+
+const ITEM_PX = 40
+const VISIBLE = 5
+const HOURS = Array.from({ length: 12 }, (_, i) => String(i + 1))
+const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
+
+/** One wheel: a list that scrolls and snaps; the item in the middle band is the value. Tapping an item picks it too. */
+function Wheel({ label, items, selected, onSelect }: { label: string; items: string[]; selected: number; onSelect: (i: number) => void }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const quiet = useRef(false) // scrolling we did ourselves is not the person choosing
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const current = useRef({ selected, onSelect })
+  useEffect(() => {
+    current.current = { selected, onSelect }
+  })
+  useEffect(() => () => clearTimeout(timer.current), [])
+
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el || Math.round(el.scrollTop / ITEM_PX) === selected) return
+    quiet.current = true
+    el.scrollTop = selected * ITEM_PX
+    requestAnimationFrame(() => {
+      quiet.current = false
+    })
+  }, [selected])
+
+  const settle = () => {
+    const el = ref.current
+    if (!el) return
+    const i = Math.min(items.length - 1, Math.max(0, Math.round(el.scrollTop / ITEM_PX)))
+    if (i !== current.current.selected) current.current.onSelect(i)
+  }
+  const onKeyDown = (e: KeyboardEvent) => {
+    const step = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0
+    if (!step) return
+    e.preventDefault()
+    onSelect(Math.min(items.length - 1, Math.max(0, selected + step)))
+  }
+  const pad = ((VISIBLE - 1) / 2) * ITEM_PX
+
+  return (
+    <div
+      ref={ref}
+      role="listbox"
+      aria-label={label}
+      tabIndex={0}
+      onKeyDown={onKeyDown}
+      onScroll={() => {
+        if (quiet.current) return
+        clearTimeout(timer.current)
+        timer.current = setTimeout(settle, 90)
+      }}
+      className="relative snap-y snap-mandatory overflow-y-scroll rounded-lg outline-none [scrollbar-width:none] focus-visible:ring-2 focus-visible:ring-primary/40 [&::-webkit-scrollbar]:hidden"
+      style={{
+        height: VISIBLE * ITEM_PX,
+        maskImage: 'linear-gradient(transparent, #000 30%, #000 70%, transparent)',
+      }}
+    >
+      <div aria-hidden="true" style={{ height: pad }} />
+      {items.map((item, i) => (
+        <div
+          key={item}
+          role="option"
+          aria-selected={i === selected}
+          onClick={() => onSelect(i)}
+          className={cn(
+            'flex snap-center items-center justify-center text-[1.375rem] tabular-nums select-none',
+            i === selected ? 'font-bold text-ink' : 'font-semibold text-muted',
+          )}
+          style={{ height: ITEM_PX }}
+        >
+          {item}
+        </div>
+      ))}
+      <div aria-hidden="true" style={{ height: pad }} />
+    </div>
+  )
+}
+
+/** Hour, minute and AM/PM wheels for a 24-hour `hour`. */
+export function TimeWheels({ hour, minute, onChange }: { hour: number; minute: number; onChange: (hour: number, minute: number) => void }) {
+  const { t } = useTranslation()
+  const pm = hour >= 12
+  const to24 = (h12: number, isPm: boolean) => (h12 % 12) + (isPm ? 12 : 0)
+  return (
+    <div className="relative grid grid-cols-[1fr_1fr_0.9fr] gap-1.5 rounded-2xl bg-surface-2 px-2">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-2 rounded-xl bg-surface" style={{ top: 2 * ITEM_PX, height: ITEM_PX }} />
+      <Wheel label={t('picker.hour')} items={HOURS} selected={(hour + 11) % 12} onSelect={(i) => onChange(to24(i + 1, pm), minute)} />
+      <Wheel label={t('picker.minute')} items={MINUTES} selected={minute} onSelect={(i) => onChange(hour, i)} />
+      <Wheel label={t('picker.ampm')} items={['AM', 'PM']} selected={pm ? 1 : 0} onSelect={(i) => onChange(to24(((hour + 11) % 12) + 1, i === 1), minute)} />
+    </div>
+  )
+}
+
+// ---- the month calendar ----
+
+/** A month of days to tap; days after `max` cannot be chosen. */
+export function MonthCalendar({ value, onPick, max }: { value: Date | null; onPick: (day: Date) => void; max?: Date }) {
+  const { t } = useTranslation()
+  const [month, setMonth] = useState(() => {
+    const d = value ?? new Date()
+    return new Date(d.getFullYear(), d.getMonth(), 1)
+  })
+  const today = startOfDay(new Date())
+  const limit = max ? startOfDay(max) : null
+  const next = new Date(month.getFullYear(), month.getMonth() + 1, 1)
+  const canNext = !limit || next.getTime() <= limit.getTime()
+  const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate()
+  const lead = month.getDay()
+  const weekdays = Array.from({ length: 7 }, (_, i) => new Date(2026, 0, 4 + i).toLocaleDateString([], { weekday: 'narrow' })) // 4 Jan 2026 is a Sunday
+  const title = month.toLocaleDateString([], {
+    month: 'long',
+    year: 'numeric',
+  })
+
+  return (
+    <div className="space-y-2 rounded-2xl border border-line p-3">
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          aria-label={t('picker.prevMonth')}
+          onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}
+          className="grid size-9 place-items-center rounded-full bg-surface-2"
+        >
+          <ChevronLeft size={18} aria-hidden="true" />
+        </button>
+        <span className="font-bold">{title}</span>
+        <button
+          type="button"
+          aria-label={t('picker.nextMonth')}
+          disabled={!canNext}
+          onClick={() => setMonth(next)}
+          className="grid size-9 place-items-center rounded-full bg-surface-2 disabled:opacity-35"
+        >
+          <ChevronRight size={18} aria-hidden="true" />
+        </button>
+      </div>
+      <div role="group" aria-label={title} className="grid grid-cols-7 gap-0.5 text-center">
+        {weekdays.map((w, i) => (
+          <span key={i} aria-hidden="true" className="py-1 text-[11px] font-bold text-muted">
+            {w}
+          </span>
+        ))}
+        {Array.from({ length: lead }, (_, i) => (
+          <span key={`lead-${i}`} />
+        ))}
+        {Array.from({ length: days }, (_, i) => {
+          const day = new Date(month.getFullYear(), month.getMonth(), i + 1)
+          const on = !!value && sameDay(day, value)
+          return (
+            <button
+              key={i}
+              type="button"
+              aria-pressed={on}
+              aria-label={day.toLocaleDateString([], {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+              })}
+              disabled={!!limit && day.getTime() > limit.getTime()}
+              onClick={() => onPick(day)}
+              className={cn(
+                'aspect-square rounded-full font-semibold tabular-nums disabled:opacity-35',
+                on ? 'bg-primary text-primary-ink' : sameDay(day, today) ? 'ring-1 ring-primary ring-inset' : '',
+              )}
+            >
+              {i + 1}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ---- the date and time field ----
+
+function DateTimeSheet({
+  label,
+  initial,
+  mode,
+  onDone,
+  onClear,
+  onClose,
+}: {
+  label: string
+  initial: Date
+  mode: PickMode
+  onDone: (d: Date) => void
+  onClear?: () => void
+  onClose: () => void
+}) {
+  const { t } = useTranslation()
+  // the day the person chose and the time on the wheels; the value follows from both, so turning one wheel after
+  // another never carries an earlier move to yesterday along
+  const [day, setDay] = useState(() => startOfDay(initial))
+  const [time, setTime] = useState({
+    h: initial.getHours(),
+    m: initial.getMinutes(),
+  })
+  const [calendar, setCalendar] = useState(false)
+  useNow() // keeps "2h 10m ago" ticking; the time itself is checked against the real clock, never a stale one
+  const now = new Date()
+  const { at, moved }: { at: Date; moved: Moved } = withTime(day, time.h, time.m, mode, now)
+  const other = new Date(now.getTime() + (mode === 'past' ? -DAY_MS : DAY_MS))
+  const isToday = sameDay(at, now)
+  const isOther = sameDay(at, other)
+  const pickDay = (d: Date) => {
+    setDay(startOfDay(d))
+    setCalendar(false)
+  }
+  const diff = at.getTime() - now.getTime()
+
+  return (
+    <Sheet title={label} onClose={onClose}>
+      <p className="text-[1.75rem] leading-tight font-bold tabular-nums">
+        {dayWord(at, t)}, {formatTime(at)}
+        <span className="block text-sm font-semibold text-muted">
+          {Math.abs(diff) < 60_000 ? t('picker.justNow') : diff < 0 ? t('picker.ago', { ago: formatAgo(-diff) }) : t('picker.in', { ago: formatAgo(diff) })}
+        </span>
+      </p>
+      {moved && (
+        <p role="status" className="rounded-xl bg-warn-bg px-3 py-2 text-sm font-semibold text-warn-ink">
+          {moved === 'yesterday' ? t('picker.movedYesterday', { time: formatTime(at) }) : t('picker.movedNow')}
+        </p>
+      )}
+      <div role="group" aria-label={t('picker.day')} className="flex flex-wrap gap-2">
+        <Chip pressed={isToday} onClick={() => pickDay(now)}>
+          {t('picker.today')}
+        </Chip>
+        <Chip pressed={isOther} onClick={() => pickDay(other)}>
+          {t(mode === 'past' ? 'picker.yesterday' : 'picker.tomorrow')}
+        </Chip>
+        <Chip pressed={!isToday && !isOther} aria-expanded={calendar} onClick={() => setCalendar(!calendar)}>
+          {!isToday && !isOther ? at.toLocaleDateString([], { day: 'numeric', month: 'short' }) : t('picker.otherDay')}
+        </Chip>
+        {mode === 'past' && (
+          <Chip
+            pressed={false}
+            onClick={() => {
+              const n = nowMinute()
+              setDay(startOfDay(n))
+              setTime({ h: n.getHours(), m: n.getMinutes() })
+            }}
+          >
+            {t('picker.now')}
+          </Chip>
+        )}
+      </div>
+      {calendar && <MonthCalendar value={at} onPick={pickDay} max={mode === 'past' ? now : undefined} />}
+      <TimeWheels hour={at.getHours()} minute={at.getMinutes()} onChange={(h, m) => setTime({ h, m })} />
+      <div className="flex gap-2">
+        {onClear && (
+          <Button variant="ghost" size="lg" onClick={onClear}>
+            {t('picker.clear')}
+          </Button>
+        )}
+        <Button size="lg" className="flex-1" onClick={() => onDone(at)}>
+          {t('picker.done')}
+        </Button>
+      </div>
+    </Sheet>
+  )
+}
+
+/**
+ * A date and time, shown in words ("Yesterday, 11:30 PM") and changed in a sheet: Today / Yesterday / another day, and
+ * hour, minute and AM/PM wheels. The value is the "YYYY-MM-DDTHH:mm" a datetime-local input would hold ('' for none).
+ * `past` (the default) keeps it out of the future; `planned` offers Tomorrow instead. Name it with a <label htmlFor={id}>.
+ */
+export function DateTimeField({
+  id,
+  label,
+  value,
+  onChange,
+  mode = 'past',
+  clearable = false,
+}: {
+  id: string
+  label: string
+  value: string
+  onChange: (value: string) => void
+  mode?: PickMode
+  clearable?: boolean
+}) {
+  const { t } = useTranslation()
+  const [open, setOpen] = useState(false)
+  const at = fromInput(value)
+  return (
+    <>
+      <button
+        id={id}
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex min-h-11 w-full items-center justify-between gap-3 rounded-lg border border-line bg-surface px-3 py-2 text-left text-base focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
+      >
+        <span className={at ? 'font-bold tabular-nums' : 'text-muted'}>{at ? `${dayWord(at, t)}, ${formatTime(at)}` : t('picker.pick')}</span>
+        <span className="text-sm font-bold text-primary">{t('picker.change')}</span>
+      </button>
+      {open &&
+        // outside the form it sits in, so the picker's own buttons never submit that form
+        createPortal(
+          <DateTimeSheet
+            label={label}
+            initial={at ?? nowMinute()}
+            mode={mode}
+            onClose={() => setOpen(false)}
+            onDone={(d) => {
+              onChange(toInput(d))
+              setOpen(false)
+            }}
+            onClear={
+              clearable
+                ? () => {
+                    onChange('')
+                    setOpen(false)
+                  }
+                : undefined
+            }
+          />,
+          document.body,
+        )}
+    </>
+  )
+}

@@ -833,5 +833,27 @@
     "strip": "Days",
     "logged": "has entries",
     "pick": "Pick a date"
+  },
+  "picker": {
+    "pick": "Pick a time",
+    "change": "Change",
+    "day": "Day",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "tomorrow": "Tomorrow",
+    "otherDay": "Other day",
+    "now": "Now",
+    "hour": "Hour",
+    "minute": "Minute",
+    "ampm": "AM or PM",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "done": "Done",
+    "clear": "Clear",
+    "justNow": "Just now",
+    "ago": "{{ago}} ago",
+    "in": "In {{ago}}",
+    "movedYesterday": "{{time}} hasn't come yet today, so it's set to yesterday.",
+    "movedNow": "That's in the future, so it's set to now."
   }
 }
