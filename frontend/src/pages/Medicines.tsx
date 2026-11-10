@@ -20,7 +20,6 @@ export default function MedicinesPage() {
   const past = all.filter((m) => m.ended)
   const [editing, setEditing] = useState<Medicine | 'new' | 'sos' | null>(null)
   const [confirming, setConfirming] = useState<string | null>(null)
-  const [detail, setDetail] = useState<Medicine | null>(null)
   const [historyFor, setHistoryFor] = useState<Medicine | null>(null)
   const [params, setParams] = useSearchParams()
   useEffect(() => {
@@ -68,7 +67,7 @@ export default function MedicinesPage() {
       type="button"
       data-testid={`medicine-${m.id}`}
       data-tone="med"
-      onClick={() => setDetail(m)}
+      onClick={() => setHistoryFor(m)}
       className="flex aspect-square flex-col justify-between rounded-2xl border border-transparent bg-med-bg p-3.5 text-left text-ink transition-transform active:scale-[0.98]"
     >
       <span className="space-y-0.5">
@@ -112,45 +111,50 @@ export default function MedicinesPage() {
           />
         </Sheet>
       )}
-      {detail && (
-        <Sheet title={detail.name} onClose={() => { setDetail(null); setConfirming(null) }}>
-          <div className="space-y-1">
-            {dose(detail) && <p className="text-base font-bold">{dose(detail)}</p>}
-            <p className="text-sm font-medium text-med-ink">{describe(detail)}</p>
-            <p className="text-sm text-muted">
-              {t('medicines.page.from', { date: detail.start_date })}
-              {detail.end_date && ` ${t('medicines.page.until', { date: detail.end_date })}`}
-            </p>
-            {isAdmin && detail.dose_amount == null && <p className="text-sm text-danger">{t('medicines.page.setDose')}</p>}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => { setHistoryFor(detail); setDetail(null) }}>
-              {t('medicines.history.open')}
-            </Button>
-            {isAdmin && (
-              <Button variant="soft" onClick={() => { setEditing(detail); setDetail(null) }}>
-                {t('medicines.page.edit')}
-              </Button>
-            )}
-            {isAdmin &&
-              (confirming === detail.id ? (
-                <>
-                  <Button variant="danger" onClick={() => remove.mutate(detail.id, { onSuccess: () => setDetail(null) })}>
-                    {t('medicines.page.confirmDelete')}
+      {historyFor && (
+        <DoseHistory
+          medicine={historyFor}
+          canEdit={isAdmin}
+          onClose={() => {
+            setHistoryFor(null)
+            setConfirming(null)
+          }}
+          header={
+            <>
+              <div className="space-y-1">
+                {dose(historyFor) && <p className="text-base font-bold">{dose(historyFor)}</p>}
+                <p className="text-sm font-medium text-med-ink">{describe(historyFor)}</p>
+                <p className="text-sm text-muted">
+                  {t('medicines.page.from', { date: historyFor.start_date })}
+                  {historyFor.end_date && ` ${t('medicines.page.until', { date: historyFor.end_date })}`}
+                </p>
+                {isAdmin && historyFor.dose_amount == null && <p className="text-sm text-danger">{t('medicines.page.setDose')}</p>}
+              </div>
+              {isAdmin && (
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="soft" onClick={() => { setEditing(historyFor); setHistoryFor(null) }}>
+                    {t('medicines.page.edit')}
                   </Button>
-                  <Button variant="ghost" onClick={() => setConfirming(null)}>
-                    {t('medicines.form.cancel')}
-                  </Button>
-                </>
-              ) : (
-                <Button variant="ghost" onClick={() => setConfirming(detail.id)}>
-                  {t('medicines.page.delete')}
-                </Button>
-              ))}
-          </div>
-        </Sheet>
+                  {confirming === historyFor.id ? (
+                    <>
+                      <Button variant="danger" onClick={() => remove.mutate(historyFor.id, { onSuccess: () => setHistoryFor(null) })}>
+                        {t('medicines.page.confirmDelete')}
+                      </Button>
+                      <Button variant="ghost" onClick={() => setConfirming(null)}>
+                        {t('medicines.form.cancel')}
+                      </Button>
+                    </>
+                  ) : (
+                    <Button variant="ghost" onClick={() => setConfirming(historyFor.id)}>
+                      {t('medicines.page.delete')}
+                    </Button>
+                  )}
+                </div>
+              )}
+            </>
+          }
+        />
       )}
-      {historyFor && <DoseHistory medicine={historyFor} canEdit={isAdmin} onClose={() => setHistoryFor(null)} />}
       {current.length === 0 && past.length === 0 && <Card className="text-muted">{t('medicines.page.empty')}</Card>}
       {current.length > 0 && grid(current)}
       {!isAdmin && <p className="text-sm text-muted">{t('medicines.page.readOnly')}</p>}

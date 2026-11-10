@@ -1,10 +1,10 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDoseHistory, type DoseRow, type Medicine, type Slot } from '../api/hooks'
 import { useFixDose, useRecordPastDose, useUndoDose } from '../hooks/log'
+import { groupDoses } from '../lib/doseGroups'
 import { formatTime, toLocalInput } from '../lib/time'
 import { formatDose } from '../lib/units'
-import { formatWhen } from '../lib/vitalsFormat'
 import Sheet from './Sheet'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
@@ -112,66 +112,109 @@ export function DoseForm({ medicine, dose, onClose }: { medicine: Medicine; dose
   )
 }
 
-/** Every dose of one medicine in the last 30 days. Everyone can look; the admin can add, fix and delete. */
-export default function DoseHistory({ medicine, canEdit, onClose }: { medicine: Medicine; canEdit: boolean; onClose: () => void }) {
+const sameDay = (a: string, b: string) => new Date(a).toDateString() === new Date(b).toDateString()
+
+/** "Today", "Yesterday" or "Sun, 8 Nov" for the heading of a day of doses. */
+function dayHeading(iso: string, t: (k: string) => string): string {
+  if (sameDay(iso, new Date().toISOString())) return t('medicines.history.dayToday')
+  if (sameDay(iso, new Date(Date.now() - 86_400_000).toISOString())) return t('medicines.history.dayYesterday')
+  return new Date(iso).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })
+}
+
+/**
+ * Every dose of one medicine in the last 30 days, grouped by the time each dose was for. Everyone can look; the admin can
+ * add, fix and delete. `header` (the medicine's details and its own actions) sits under the name.
+ */
+export default function DoseHistory({ medicine, canEdit, onClose, header }: { medicine: Medicine; canEdit: boolean; onClose: () => void; header?: ReactNode }) {
   const { t } = useTranslation()
   const history = useDoseHistory(medicine.id)
   const undo = useUndoDose()
   const [form, setForm] = useState<{ dose?: DoseRow } | null>(null)
   const [confirming, setConfirming] = useState<string | null>(null)
   const rows = Array.isArray(history.data) ? history.data : []
+  const days = groupDoses(rows)
+  const amountOf = (d: DoseRow) =>
+    d.status === 'given' ? (d.amount != null ? formatDose(d.amount, medicine.dose_unit ?? '', t) : t('medicines.history.given')) : t('medicines.history.skipped')
 
   return (
     <Sheet variant="full" title={t('medicines.history.title')} onClose={onClose}>
       <p className="text-base font-bold">{medicine.name}</p>
+      {header}
       {canEdit && (
         <Button className="w-full" onClick={() => setForm({})}>
           {t('medicines.history.add')}
         </Button>
       )}
       {history.isSuccess && rows.length === 0 && <p className="text-sm text-muted">{t('medicines.history.empty')}</p>}
-      <ul className="space-y-3">
-        {rows.map((d) => (
-          <li key={d.id}>
-            <Card className="space-y-1 p-4">
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="font-bold">{formatWhen(d.given_at)}</span>
-                <span className="text-sm font-bold text-med-ink">
-                  {d.status === 'given' ? (d.amount != null ? formatDose(d.amount, medicine.dose_unit ?? '', t) : t('medicines.history.given')) : t('medicines.history.skipped')}
-                </span>
-              </div>
-              <p className="text-sm text-muted">{[t('medicines.history.by', { name: d.by_name }), d.note].filter(Boolean).join(' · ')}</p>
-              {canEdit && (
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {confirming === d.id ? (
-                    <>
-                      <Button
-                        variant="danger"
-                        onClick={() => undo.mutate({ medicineId: medicine.id, doseId: d.id }, { onSuccess: () => setConfirming(null) })}
-                      >
-                        {t('medicines.history.confirmDelete')}
-                      </Button>
-                      <Button variant="ghost" onClick={() => setConfirming(null)}>
-                        {t('medicines.history.keep')}
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <Button variant="soft" onClick={() => setForm({ dose: d })}>
-                        {t('medicines.history.edit')}
-                      </Button>
-                      <Button variant="ghost" onClick={() => setConfirming(d.id)}>
-                        {t('medicines.history.delete')}
-                      </Button>
-                    </>
-                  )}
-                </div>
-              )}
-            </Card>
-          </li>
-        ))}
-      </ul>
+      {days.map((day) => (
+        <section key={day.day} aria-label={dayHeading(day.at, t)} className="space-y-2">
+          <h3 className="pt-1 text-sm font-bold text-muted">{dayHeading(day.at, t)}</h3>
+          <ul className="space-y-3">
+            {day.groups.map((g) => (
+              <li key={g.rows[0]!.id}>
+                <Card className="space-y-2 p-4">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-lg font-bold">{formatTime(g.at)}</span>
+                    {g.rows.length > 1 && (
+                      <span className="text-sm font-bold text-med-ink">
+                        {g.allSkipped ? t('medicines.history.skipped') : formatDose(g.total, medicine.dose_unit ?? '', t)}
+                      </span>
+                    )}
+                  </div>
+                  <ul className="divide-y divide-line">
+                    {g.rows.map((d) => (
+                      <li key={d.id} className="space-y-1 py-2 first:pt-0 last:pb-0">
+                        <p className="font-semibold">{amountOf(d)}</p>
+                        <p className="text-xs text-muted">
+                          {[
+                            g.slot ? t('medicines.history.logged', { time: loggedAt(d.given_at, g.at) }) : '',
+                            t('medicines.history.by', { name: d.by_name }),
+                            d.note,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </p>
+                        {canEdit && (
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            {confirming === d.id ? (
+                              <>
+                                <Button
+                                  variant="danger"
+                                  onClick={() => undo.mutate({ medicineId: medicine.id, doseId: d.id }, { onSuccess: () => setConfirming(null) })}
+                                >
+                                  {t('medicines.history.confirmDelete')}
+                                </Button>
+                                <Button variant="ghost" onClick={() => setConfirming(null)}>
+                                  {t('medicines.history.keep')}
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <Button variant="soft" onClick={() => setForm({ dose: d })}>
+                                  {t('medicines.history.edit')}
+                                </Button>
+                                <Button variant="ghost" onClick={() => setConfirming(d.id)}>
+                                  {t('medicines.history.delete')}
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
       {form && <DoseForm key={form.dose?.id ?? 'new'} medicine={medicine} dose={form.dose} onClose={() => setForm(null)} />}
     </Sheet>
   )
+}
+
+/** When a dose was logged, as seen from the time it was for: just the time on the same day, else with the date. */
+function loggedAt(givenAt: string, reference: string): string {
+  return sameDay(givenAt, reference) ? formatTime(givenAt) : `${new Date(givenAt).toLocaleDateString([], { day: 'numeric', month: 'short' })}, ${formatTime(givenAt)}`
 }

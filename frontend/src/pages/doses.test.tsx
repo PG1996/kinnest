@@ -111,7 +111,6 @@ const openHistory = async (me = ME_ADMIN) => {
   const calls = mockApi(histApi(me))
   renderApp(<App />, '/health?tab=medicines')
   await userEvent.click(await screen.findByTestId('medicine-m1'))
-  await userEvent.click(await screen.findByRole('button', { name: en.medicines.history.open }))
   return { calls, dialog: await screen.findByRole('dialog', { name: en.medicines.history.title }) }
 }
 
@@ -206,7 +205,6 @@ test('fixing a dose lets the admin choose which slot it counts for, or none', as
   const calls = mockApi(slotApi())
   renderApp(<App />, '/health?tab=medicines')
   await userEvent.click(await screen.findByTestId('medicine-m1'))
-  await userEvent.click(await screen.findByRole('button', { name: en.medicines.history.open }))
   const dialog = await screen.findByRole('dialog', { name: en.medicines.history.title })
   await userEvent.click((await within(dialog).findAllByRole('button', { name: en.medicines.history.edit }))[0]!)
   const form = await screen.findByRole('dialog', { name: en.medicines.history.editTitle })
@@ -223,7 +221,6 @@ test('a dose that counts for a slot can be taken off it', async () => {
   const calls = mockApi({ ...slotApi(), 'GET /api/medicines/m1/doses': { body: [onSlot] } })
   renderApp(<App />, '/health?tab=medicines')
   await userEvent.click(await screen.findByTestId('medicine-m1'))
-  await userEvent.click(await screen.findByRole('button', { name: en.medicines.history.open }))
   const dialog = await screen.findByRole('dialog', { name: en.medicines.history.title })
   await userEvent.click(await within(dialog).findByRole('button', { name: en.medicines.history.edit }))
   const form = await screen.findByRole('dialog', { name: en.medicines.history.editTitle })
@@ -239,7 +236,6 @@ test('a past dose is preselected for the open slot so it clears the overdue row'
   const calls = mockApi(slotApi())
   renderApp(<App />, '/health?tab=medicines')
   await userEvent.click(await screen.findByTestId('medicine-m1'))
-  await userEvent.click(await screen.findByRole('button', { name: en.medicines.history.open }))
   const dialog = await screen.findByRole('dialog', { name: en.medicines.history.title })
   await userEvent.click(await within(dialog).findByRole('button', { name: en.medicines.history.add }))
   const form = await screen.findByRole('dialog', { name: en.medicines.history.addTitle })
@@ -253,7 +249,6 @@ test('an SOS medicine has no slot choice in the history form', async () => {
   mockApi({ ...histApi(), 'GET /api/medicines': { body: [syrup({ schedule_kind: 'as_needed', times: [], slots: [] })] } })
   renderApp(<App />, '/health?tab=medicines')
   await userEvent.click(await screen.findByTestId('medicine-m1'))
-  await userEvent.click(await screen.findByRole('button', { name: en.medicines.history.open }))
   const dialog = await screen.findByRole('dialog', { name: en.medicines.history.title })
   await userEvent.click(await within(dialog).findByRole('button', { name: en.medicines.history.add }))
   const form = await screen.findByRole('dialog', { name: en.medicines.history.addTitle })
@@ -268,4 +263,35 @@ test('the dose screen says when a slot is from yesterday', async () => {
   await userEvent.click(partials[1]!) // the current dose comes first on the page, the expanded missed one after it
   const dialog = await screen.findByRole('dialog', { name: en.medicines.giveTitle })
   expect(dialog).toHaveTextContent(`(${en.medicines.yesterday})`)
+})
+
+// --- grouped by the time each dose was for -----------------------------------------------------------------------------
+
+test('doses of one slot sit together under the slot time, with when and who logged each piece in small text', async () => {
+  const at = new Date()
+  at.setHours(8, 0, 0, 0)
+  if (at.getTime() > Date.now()) at.setDate(at.getDate() - 1)
+  const slotIso = at.toISOString()
+  const piece = (id: string, minutes: number, amount: number, by: string) => ({
+    id, medicine_id: 'm1', status: 'given', amount, scheduled_for: slotIso, given_at: new Date(at.getTime() + minutes * 60_000).toISOString(), by_user_id: 'u1', by_name: by, note: '',
+  })
+  mockApi({ ...histApi(), 'GET /api/medicines/m1/doses': { body: [piece('p2', 25, 0.5, 'Dad'), piece('p1', 5, 0.5, 'Mom')] } })
+  renderApp(<App />, '/health?tab=medicines')
+  await userEvent.click(await screen.findByTestId('medicine-m1'))
+  const dialog = await screen.findByRole('dialog', { name: en.medicines.history.title })
+  const group = (await within(dialog).findAllByText('8:00 AM'))[0]!.closest('li')!
+  expect(within(group).getByText('1 ml')).toBeInTheDocument() // the two pieces add up
+  expect(within(group).getAllByText('0.5 ml')).toHaveLength(2)
+  expect(within(group).getByText(`${en.medicines.history.logged.replace('{{time}}', '8:05 AM')} · ${en.medicines.history.by.replace('{{name}}', 'Mom')}`)).toBeInTheDocument()
+  expect(within(group).getByText(`${en.medicines.history.logged.replace('{{time}}', '8:25 AM')} · ${en.medicines.history.by.replace('{{name}}', 'Dad')}`)).toBeInTheDocument()
+  expect(within(dialog).getAllByText('8:00 AM')).toHaveLength(1) // one heading for both pieces
+})
+
+test('a tile opens the dose history straight away, with the medicine details above it', async () => {
+  mockApi(histApi())
+  renderApp(<App />, '/health?tab=medicines')
+  await userEvent.click(await screen.findByTestId('medicine-m1'))
+  const dialog = await screen.findByRole('dialog', { name: en.medicines.history.title })
+  expect(within(dialog).getByText('Syrup')).toBeInTheDocument()
+  expect(within(dialog).getByRole('button', { name: en.medicines.history.add })).toBeInTheDocument()
 })
