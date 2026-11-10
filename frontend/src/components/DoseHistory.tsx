@@ -10,6 +10,7 @@ import { Button } from './ui/button'
 import { Card } from './ui/card'
 import { Chip, ChipGroup } from './ui/chip'
 import { Input, Select } from './ui/field'
+import { DateTimeField } from './ui/datetime'
 
 const sameMoment = (a?: string | null, b?: string | null) => !!a && !!b && Date.parse(a) === Date.parse(b)
 
@@ -61,7 +62,7 @@ export function DoseForm({ medicine, dose, onClose }: { medicine: Medicine; dose
           <label htmlFor="dose-form-when" className="block text-[13px] font-semibold text-muted">
             {t('medicines.history.form.when')}
           </label>
-          <Input id="dose-form-when" type="datetime-local" value={when} max={toLocalInput(new Date())} onChange={(e) => setWhen(e.target.value)} />
+          <DateTimeField id="dose-form-when" label={t('medicines.history.form.when')} value={when} onChange={setWhen} />
         </div>
         <ChipGroup label={t('medicines.history.form.status')}>
           <Chip pressed={status === 'given'} onClick={() => setStatus('given')}>

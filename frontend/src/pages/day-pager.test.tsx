@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from '../App'
 import en from '../i18n/en.json'
-import { ME_ADMIN, mockApi, renderApp } from '../test/utils'
+import { ME_ADMIN, mockApi, renderApp, pickDate } from '../test/utils'
 
 const midnight = (offset = 0) => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate() + offset) }
 const at = (offset: number, h: number) => { const d = midnight(offset); d.setHours(h); return d }
@@ -63,9 +63,8 @@ test('picking a date goes to that day', async () => {
   mockApi(api())
   renderApp(<App />, '/feeds')
   await screen.findByRole('list', { name: en.feeds.listLabel })
-  const picker = screen.getByLabelText(en.dayPager.pick)
   const old = midnight(-40)
-  fireEvent.change(picker, { target: { value: `${old.getFullYear()}-${String(old.getMonth() + 1).padStart(2, '0')}-${String(old.getDate()).padStart(2, '0')}` } })
+  await pickDate(en.dayPager.pick, old)
   await waitFor(() => expect(dayShown()).toBe(chipName(old)))
   expect(within(strip()).getByRole('button', { name: new RegExp(chipName(old)) })).toHaveAttribute('aria-pressed', 'true')
 })

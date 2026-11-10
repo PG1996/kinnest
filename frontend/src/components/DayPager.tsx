@@ -1,11 +1,13 @@
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { addDays, dragOffset, lockAxis, swipeResult, useStripRange, type Turn } from '../lib/dayPager'
 import { cn } from '../lib/cn'
 import { prefersReducedMotion } from '../lib/motion'
 import { toLocalDate } from '../lib/time'
 import { IconButton } from './ui/button'
+import { DateSheet } from './ui/datetime'
 import type { Tone } from './ui/card'
 
 const EDGE_PX = 20 // swipes starting this close to the screen edge are the browser's (back and forward)
@@ -50,6 +52,7 @@ export default function DayPager({
   const canNext = day.getTime() < today.getTime()
   const isToday = day.getTime() === today.getTime()
   const [pos, setPos] = useState({ x: 0, ms: 0 })
+  const [picking, setPicking] = useState(false)
   const area = useRef<HTMLDivElement>(null)
   const stripEl = useRef<HTMLDivElement>(null)
   const drag = useRef<{ x: number; y: number; t: number; id: number; axis: 'x' | 'y' | null } | null>(null)
@@ -138,12 +141,6 @@ export default function DayPager({
     drag.current = null
   }
 
-  const pick = (value: string) => {
-    const [y, m, d] = value.split('-').map(Number)
-    if (!y || !m || !d) return
-    const target = new Date(y, m - 1, d)
-    show(target.getTime() > today.getTime() ? today : target)
-  }
 
   const fade = 1 - Math.min(Math.abs(pos.x) / window.innerWidth, 1) * 0.6
 
@@ -154,25 +151,10 @@ export default function DayPager({
           <IconButton label={prevLabel} onClick={() => turn('prev')}>
             <ChevronLeft size={20} aria-hidden="true" />
           </IconButton>
-          <span className="relative flex items-center gap-1.5 font-semibold">
+          <button type="button" aria-label={t('dayPager.pick')} onClick={() => setPicking(true)} className="flex min-h-11 items-center gap-1.5 rounded-full px-3 font-semibold">
             <CalendarDays size={16} aria-hidden="true" className="text-muted" />
             <span data-testid="day-label">{isToday ? t('timeline.today') : dayName(day)}</span>
-            <input
-              type="date"
-              aria-label={t('dayPager.pick')}
-              value={toLocalDate(day)}
-              max={toLocalDate(today)}
-              onChange={(e) => pick(e.target.value)}
-              onClick={(e) => {
-                try {
-                  e.currentTarget.showPicker?.()
-                } catch {
-                  // the browser opens it itself, or cannot
-                }
-              }}
-              className="absolute inset-0 w-full cursor-pointer opacity-0"
-            />
-          </span>
+          </button>
           <IconButton label={nextLabel} onClick={() => turn('next')} disabled={!canNext} className="disabled:opacity-40">
             <ChevronRight size={20} aria-hidden="true" />
           </IconButton>
@@ -211,6 +193,19 @@ export default function DayPager({
           </div>
         </div>
       </div>
+      {picking &&
+        createPortal(
+          <DateSheet
+            label={t('dayPager.pick')}
+            initial={day}
+            onClose={() => setPicking(false)}
+            onDone={(d) => {
+              setPicking(false)
+              show(d.getTime() > today.getTime() ? today : d)
+            }}
+          />,
+          document.body,
+        )}
       <div className="-mx-4 overflow-x-clip px-4">
         <div
           ref={area}

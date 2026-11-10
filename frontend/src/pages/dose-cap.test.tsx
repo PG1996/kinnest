@@ -1,7 +1,7 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import en from '../i18n/en.json'
-import { ME_ADMIN, mockApi, renderApp } from '../test/utils'
+import { ME_ADMIN, mockApi, renderApp, pickTime } from '../test/utils'
 import Home from './Home'
 import MedicinesPage from './Medicines'
 
@@ -31,7 +31,7 @@ test('an every-few-hours medicine can have a daily maximum and a usual first dos
   await userEvent.click(screen.getByRole('radio', { name: en.medicines.form.kind.interval }))
   expect(screen.queryByLabelText(en.medicines.form.usualStart)).not.toBeInTheDocument() // only once a maximum is set
   await userEvent.type(screen.getByLabelText(en.medicines.form.maxPerDay), '3')
-  fireEvent.change(screen.getByLabelText(en.medicines.form.usualStart), { target: { value: '11:00' } })
+  await pickTime(en.medicines.form.usualStart, 11, 0)
   await userEvent.click(screen.getByRole('button', { name: en.medicines.form.save }))
   await waitFor(() => expect(calls.some((c) => c.key === 'POST /api/medicines')).toBe(true))
   expect(calls.find((c) => c.key === 'POST /api/medicines')!.body).toMatchObject({ schedule_kind: 'interval', interval_hours: 8, max_per_day: 3, day_start: '11:00' })

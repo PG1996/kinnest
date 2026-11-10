@@ -5,6 +5,7 @@ import type { VisitInput } from '../hooks/log'
 import { toLocalInput } from '../lib/time'
 import { Button } from './ui/button'
 import { Input } from './ui/field'
+import { DateTimeField } from './ui/datetime'
 
 export type VisitFormMode = 'add' | 'edit' | 'done'
 
@@ -46,7 +47,11 @@ export default function VisitForm({
       <label htmlFor={id} className="block text-sm text-muted">
         {label}
       </label>
-      <Input id={id} type={type} value={value} onChange={(e) => set(e.target.value)} />
+      {type === 'datetime-local' ? (
+        <DateTimeField id={id} label={label} mode="planned" value={value} onChange={set} />
+      ) : (
+        <Input id={id} type={type} value={value} onChange={(e) => set(e.target.value)} />
+      )}
     </div>
   )
 

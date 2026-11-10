@@ -5,6 +5,7 @@ import type { VaccineInput } from '../hooks/log'
 import { toLocalDate } from '../lib/time'
 import { Button } from './ui/button'
 import { Input } from './ui/field'
+import { DateField } from './ui/datetime'
 
 export type VaccineFormMode = 'add' | 'edit' | 'given'
 
@@ -46,7 +47,11 @@ export default function VaccineForm({
       <label htmlFor={id} className="block text-sm text-muted">
         {label}
       </label>
-      <Input id={id} type={type} value={value} onChange={(e) => set(e.target.value)} />
+      {type === 'date' ? (
+        <DateField id={id} label={label} mode={id === 'vax-given' ? 'past' : 'planned'} value={value} onChange={set} />
+      ) : (
+        <Input id={id} type={type} value={value} onChange={(e) => set(e.target.value)} />
+      )}
     </div>
   )
 

@@ -5,7 +5,7 @@ import { afterAll, beforeAll, vi } from 'vitest'
 import '../../i18n'
 import en from '../../i18n/en.json'
 import Sheet from '../Sheet'
-import { DateTimeField } from './datetime'
+import { DateField, DateTimeField, TimeField } from './datetime'
 
 // 1:20 AM, so "later than now today" and "last night" are both easy to reach
 beforeAll(() => {
@@ -157,4 +157,77 @@ test('the picker inside a form never submits it: Done, Clear and Close are its o
   await userEvent.click(screen.getByRole('button', { name: 'When' }))
   await userEvent.click(within(picker()).getByRole('button', { name: en.picker.clear }))
   expect(submit).not.toHaveBeenCalled()
+})
+
+function DateHarness({ initial = '', mode, clearable }: { initial?: string; mode?: 'past' | 'planned'; clearable?: boolean }) {
+  const [v, setV] = useState(initial)
+  return (
+    <>
+      <DateField label="Given on" labelled={false} value={v} mode={mode} clearable={clearable} onChange={setV} />
+      <output data-testid="value">{v}</output>
+    </>
+  )
+}
+const daySheet = () => screen.getByRole('dialog', { name: 'Given on' })
+
+test('a date field asks for a day, and picks one from the calendar', async () => {
+  render(<DateHarness />)
+  const field = screen.getByRole('button', { name: 'Given on' })
+  expect(field).toHaveTextContent(en.picker.pickDay)
+  await userEvent.click(field)
+  expect(within(daySheet()).getByRole('button', { name: dayLabel(new Date(2026, 10, 12)) })).toBeDisabled()
+  await userEvent.click(within(daySheet()).getByRole('button', { name: dayLabel(new Date(2026, 10, 3)) }))
+  await userEvent.click(within(daySheet()).getByRole('button', { name: en.picker.done }))
+  expect(value()).toBe('2026-11-03')
+  expect(field).toHaveTextContent(new Date(2026, 10, 3).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }))
+})
+
+test('Yesterday in a date field, and the calendar follows it', async () => {
+  render(<DateHarness initial="2026-09-15" />)
+  await userEvent.click(screen.getByRole('button', { name: 'Given on' }))
+  expect(within(daySheet()).getByRole('group', { name: monthLabel(new Date(2026, 8, 1)) })).toBeInTheDocument()
+  await userEvent.click(within(daySheet()).getByRole('button', { name: en.picker.yesterday }))
+  expect(within(daySheet()).getByRole('group', { name: monthLabel(new Date(2026, 10, 1)) })).toBeInTheDocument()
+  await userEvent.click(within(daySheet()).getByRole('button', { name: en.picker.done }))
+  expect(value()).toBe('2026-11-10')
+})
+
+test('a planned date can be after today, and an optional one cleared', async () => {
+  render(<DateHarness initial="2026-11-11" mode="planned" clearable />)
+  await userEvent.click(screen.getByRole('button', { name: 'Given on' }))
+  await userEvent.click(within(daySheet()).getByRole('button', { name: en.picker.nextMonth }))
+  await userEvent.click(within(daySheet()).getByRole('button', { name: dayLabel(new Date(2026, 11, 25)) }))
+  await userEvent.click(within(daySheet()).getByRole('button', { name: en.picker.done }))
+  expect(value()).toBe('2026-12-25')
+  await userEvent.click(screen.getByRole('button', { name: 'Given on' }))
+  await userEvent.click(within(daySheet()).getByRole('button', { name: en.picker.clear }))
+  expect(value()).toBe('')
+})
+
+function TimeHarness({ initial = '' }: { initial?: string }) {
+  const [v, setV] = useState(initial)
+  return (
+    <>
+      <TimeField label="Dose 1" labelled={false} value={v} onChange={setV} />
+      <output data-testid="value">{v}</output>
+    </>
+  )
+}
+
+test('a time field turns the wheels and keeps "HH:mm"', async () => {
+  render(<TimeHarness initial="08:00" />)
+  const field = screen.getByRole('button', { name: 'Dose 1' })
+  expect(field).toHaveTextContent('8:00 AM')
+  await userEvent.click(field)
+  const sheet = screen.getByRole('dialog', { name: 'Dose 1' })
+  expect(within(sheet).queryByRole('group', { name: en.picker.day })).not.toBeInTheDocument()
+  await userEvent.click(within(within(sheet).getByRole('listbox', { name: en.picker.minute })).getByRole('option', { name: '05' }))
+  await userEvent.click(within(within(sheet).getByRole('listbox', { name: en.picker.ampm })).getByRole('option', { name: 'PM' }))
+  await userEvent.click(within(sheet).getByRole('button', { name: en.picker.done }))
+  expect(value()).toBe('20:05')
+})
+
+test('a field can be shown but not changed', () => {
+  render(<DateField label="Birth date" labelled={false} value="2026-03-01" onChange={() => {}} disabled />)
+  expect(screen.getByRole('button', { name: 'Birth date' })).toBeDisabled()
 })

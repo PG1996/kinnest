@@ -1,10 +1,10 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../../lib/cn'
 import { fromInput, toInput, withTime, type Moved, type PickMode } from '../../lib/pickTime'
-import { formatAgo, formatTime } from '../../lib/time'
+import { formatAgo, formatTime, toLocalDate } from '../../lib/time'
 import { useNow } from '../../lib/useNow'
 import Sheet from '../Sheet'
 import { Button } from './button'
@@ -138,6 +138,11 @@ export function MonthCalendar({ value, onPick, max }: { value: Date | null; onPi
     const d = value ?? new Date()
     return new Date(d.getFullYear(), d.getMonth(), 1)
   })
+  const shownKey = value ? value.getFullYear() * 12 + value.getMonth() : null
+  useEffect(() => {
+    // a day chosen elsewhere (Today, Yesterday) brings its month into view
+    if (shownKey !== null) setMonth(new Date(Math.floor(shownKey / 12), shownKey % 12, 1))
+  }, [shownKey])
   const today = startOfDay(new Date())
   const limit = max ? startOfDay(max) : null
   const next = new Date(month.getFullYear(), month.getMonth() + 1, 1)
@@ -286,77 +291,216 @@ function DateTimeSheet({
       </div>
       {calendar && <MonthCalendar value={at} onPick={pickDay} max={mode === 'past' ? now : undefined} />}
       <TimeWheels hour={at.getHours()} minute={at.getMinutes()} onChange={(h, m) => setTime({ h, m })} />
-      <div className="flex gap-2">
-        {onClear && (
-          <Button variant="ghost" size="lg" onClick={onClear}>
-            {t('picker.clear')}
-          </Button>
-        )}
-        <Button size="lg" className="flex-1" onClick={() => onDone(at)}>
-          {t('picker.done')}
-        </Button>
-      </div>
+      <SheetActions onDone={() => onDone(at)} onClear={onClear} />
     </Sheet>
   )
+}
+
+function SheetActions({ onDone, onClear }: { onDone: () => void; onClear?: () => void }) {
+  const { t } = useTranslation()
+  return (
+    <div className="flex gap-2">
+      {onClear && (
+        <Button type="button" variant="ghost" size="lg" onClick={onClear}>
+          {t('picker.clear')}
+        </Button>
+      )}
+      <Button type="button" size="lg" className="flex-1" onClick={onDone}>
+        {t('picker.done')}
+      </Button>
+    </div>
+  )
+}
+
+/** A day on its own: Today and Yesterday (or Tomorrow for something planned), and the month calendar. */
+export function DateSheet({
+  label,
+  initial,
+  mode = 'past',
+  onDone,
+  onClear,
+  onClose,
+}: {
+  label: string
+  initial: Date
+  mode?: PickMode
+  onDone: (day: Date) => void
+  onClear?: () => void
+  onClose: () => void
+}) {
+  const { t } = useTranslation()
+  const [day, setDay] = useState(() => startOfDay(initial))
+  const now = new Date()
+  const today = startOfDay(now)
+  const other = new Date(today.getFullYear(), today.getMonth(), today.getDate() + (mode === 'past' ? -1 : 1))
+  return (
+    <Sheet title={label} onClose={onClose}>
+      <p className="text-[1.75rem] leading-tight font-bold">{day.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</p>
+      <div role="group" aria-label={t('picker.day')} className="flex flex-wrap gap-2">
+        <Chip pressed={sameDay(day, today)} onClick={() => setDay(today)}>
+          {t('picker.today')}
+        </Chip>
+        <Chip pressed={sameDay(day, other)} onClick={() => setDay(other)}>
+          {t(mode === 'past' ? 'picker.yesterday' : 'picker.tomorrow')}
+        </Chip>
+      </div>
+      <MonthCalendar value={day} onPick={setDay} max={mode === 'past' ? now : undefined} />
+      <SheetActions onDone={() => onDone(day)} onClear={onClear} />
+    </Sheet>
+  )
+}
+
+/** A time of day on its own: the wheels. */
+function TimeSheet({ label, initial, onDone, onClear, onClose }: { label: string; initial: { h: number; m: number }; onDone: (h: number, m: number) => void; onClear?: () => void; onClose: () => void }) {
+  const [time, setTime] = useState(initial)
+  return (
+    <Sheet title={label} onClose={onClose}>
+      <p className="text-[1.75rem] leading-tight font-bold tabular-nums">{formatTime(new Date(2000, 0, 1, time.h, time.m))}</p>
+      <TimeWheels hour={time.h} minute={time.m} onChange={(h, m) => setTime({ h, m })} />
+      <SheetActions onDone={() => onDone(time.h, time.m)} onClear={onClear} />
+    </Sheet>
+  )
+}
+
+type FieldProps = {
+  /** names the button for a <label htmlFor={id}> */
+  id?: string
+  /** the sheet's title; also the button's name when there is no visible label (`labelled` false) */
+  label: string
+  labelled?: boolean
+  clearable?: boolean
+  disabled?: boolean
+  /** smaller, without "Change", for table cells */
+  compact?: boolean
+  /** what an empty field says */
+  placeholder?: string
+  className?: string
+}
+
+/** The button a field shows: its value in words, or what to pick. */
+function Trigger({ id, label, labelled = true, disabled, compact, className, text, empty, onOpen }: FieldProps & { text: string | null; empty: string; onOpen: () => void }) {
+  const { t } = useTranslation()
+  return (
+    <button
+      id={id}
+      type="button"
+      aria-label={labelled ? undefined : label}
+      disabled={disabled}
+      onClick={onOpen}
+      className={cn(
+        'flex w-full items-center justify-between gap-3 rounded-lg border border-line bg-surface text-left focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none disabled:opacity-60',
+        compact ? 'min-h-10 px-2 text-sm' : 'min-h-11 px-3 py-2 text-base',
+        className,
+      )}
+    >
+      <span className={cn('whitespace-nowrap', text ? 'font-bold tabular-nums' : 'text-muted')}>{text ?? empty}</span>
+      {!compact && !disabled && <span className="text-sm font-bold text-primary">{t('picker.change')}</span>}
+    </button>
+  )
+}
+
+/** Opens `sheet` over everything, outside any form it sits in, so the picker's own buttons never submit that form. */
+function usePortalSheet() {
+  const [open, setOpen] = useState(false)
+  return { open, show: () => setOpen(true), hide: () => setOpen(false), portal: (sheet: ReactNode) => (open ? createPortal(sheet, document.body) : null) }
 }
 
 /**
  * A date and time, shown in words ("Yesterday, 11:30 PM") and changed in a sheet: Today / Yesterday / another day, and
  * hour, minute and AM/PM wheels. The value is the "YYYY-MM-DDTHH:mm" a datetime-local input would hold ('' for none).
- * `past` (the default) keeps it out of the future; `planned` offers Tomorrow instead. Name it with a <label htmlFor={id}>.
+ * `past` (the default) keeps it out of the future; `planned` offers Tomorrow instead.
  */
-export function DateTimeField({
-  id,
-  label,
-  value,
-  onChange,
-  mode = 'past',
-  clearable = false,
-}: {
-  id: string
-  label: string
-  value: string
-  onChange: (value: string) => void
-  mode?: PickMode
-  clearable?: boolean
-}) {
+export function DateTimeField({ value, onChange, mode = 'past', ...field }: FieldProps & { value: string; onChange: (value: string) => void; mode?: PickMode }) {
   const { t } = useTranslation()
-  const [open, setOpen] = useState(false)
+  const sheet = usePortalSheet()
   const at = fromInput(value)
+  const clear = field.clearable
+    ? () => {
+        onChange('')
+        sheet.hide()
+      }
+    : undefined
   return (
     <>
-      <button
-        id={id}
-        type="button"
-        onClick={() => setOpen(true)}
-        className="flex min-h-11 w-full items-center justify-between gap-3 rounded-lg border border-line bg-surface px-3 py-2 text-left text-base focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
-      >
-        <span className={at ? 'font-bold tabular-nums' : 'text-muted'}>{at ? `${dayWord(at, t)}, ${formatTime(at)}` : t('picker.pick')}</span>
-        <span className="text-sm font-bold text-primary">{t('picker.change')}</span>
-      </button>
-      {open &&
-        // outside the form it sits in, so the picker's own buttons never submit that form
-        createPortal(
-          <DateTimeSheet
-            label={label}
-            initial={at ?? nowMinute()}
-            mode={mode}
-            onClose={() => setOpen(false)}
-            onDone={(d) => {
-              onChange(toInput(d))
-              setOpen(false)
-            }}
-            onClear={
-              clearable
-                ? () => {
-                    onChange('')
-                    setOpen(false)
-                  }
-                : undefined
-            }
-          />,
-          document.body,
-        )}
+      <Trigger {...field} text={at ? `${dayWord(at, t)}, ${formatTime(at)}` : null} empty={field.placeholder ?? t('picker.pick')} onOpen={sheet.show} />
+      {sheet.portal(
+        <DateTimeSheet
+          label={field.label}
+          initial={at ?? nowMinute()}
+          mode={mode}
+          onClose={sheet.hide}
+          onDone={(d) => {
+            onChange(toInput(d))
+            sheet.hide()
+          }}
+          onClear={clear}
+        />,
+      )}
+    </>
+  )
+}
+
+/** A day on its own ("Tue, 10 Nov"); the value is "YYYY-MM-DD" ('' for none). */
+export function DateField({ value, onChange, mode = 'past', ...field }: FieldProps & { value: string; onChange: (value: string) => void; mode?: PickMode }) {
+  const { t } = useTranslation()
+  const sheet = usePortalSheet()
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(value) ? fromInput(`${value}T00:00`) : null
+  return (
+    <>
+      <Trigger {...field} text={day ? dayWord(day, t) : null} empty={field.placeholder ?? t('picker.pickDay')} onOpen={sheet.show} />
+      {sheet.portal(
+        <DateSheet
+          label={field.label}
+          initial={day ?? new Date()}
+          mode={mode}
+          onClose={sheet.hide}
+          onDone={(d) => {
+            onChange(toLocalDate(d))
+            sheet.hide()
+          }}
+          onClear={
+            field.clearable
+              ? () => {
+                  onChange('')
+                  sheet.hide()
+                }
+              : undefined
+          }
+        />,
+      )}
+    </>
+  )
+}
+
+/** A time of day on its own ("8:00 AM"); the value is "HH:mm" ('' for none). */
+export function TimeField({ value, onChange, ...field }: FieldProps & { value: string; onChange: (value: string) => void }) {
+  const { t } = useTranslation()
+  const sheet = usePortalSheet()
+  const m = /^(\d{2}):(\d{2})/.exec(value)
+  const time = m ? { h: Number(m[1]), m: Number(m[2]) } : null
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return (
+    <>
+      <Trigger {...field} text={time ? formatTime(new Date(2000, 0, 1, time.h, time.m)) : null} empty={field.placeholder ?? t('picker.pick')} onOpen={sheet.show} />
+      {sheet.portal(
+        <TimeSheet
+          label={field.label}
+          initial={time ?? { h: nowMinute().getHours(), m: nowMinute().getMinutes() }}
+          onClose={sheet.hide}
+          onDone={(h, mm) => {
+            onChange(`${pad(h)}:${pad(mm)}`)
+            sheet.hide()
+          }}
+          onClear={
+            field.clearable
+              ? () => {
+                  onChange('')
+                  sheet.hide()
+                }
+              : undefined
+          }
+        />,
+      )}
     </>
   )
 }

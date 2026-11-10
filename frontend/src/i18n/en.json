@@ -854,6 +854,9 @@
     "ago": "{{ago}} ago",
     "in": "In {{ago}}",
     "movedYesterday": "{{time}} hasn't come yet today, so it's set to yesterday.",
-    "movedNow": "That's in the future, so it's set to now."
+    "movedNow": "That's in the future, so it's set to now.",
+    "pickDay": "Pick a day",
+    "anyDay": "Any day",
+    "noEnd": "No end date"
   }
 }

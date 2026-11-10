@@ -10,7 +10,7 @@ import { PLACES } from '../lib/vitalsFormat'
 import { Button } from './ui/button'
 import { Card } from './ui/card'
 import { Chip, ChipGroup } from './ui/chip'
-import { Input } from './ui/field'
+import { DateField } from './ui/datetime'
 
 type Row = { id: string; include: boolean; date: string; time: string; values: Partial<Record<MeasurementKey, string>>; unsure: Set<MeasurementKey> }
 
@@ -105,7 +105,7 @@ export default function ScanReview({ draft, photoUrl, photoAlt, onDone }: { draf
         <label htmlFor="scan-default-date" className="block text-[13px] font-semibold text-muted">
           {t('scan.defaultDate')}
         </label>
-        <Input id="scan-default-date" type="date" value={defaultDate} onChange={(e) => setDefaultDate(e.target.value)} />
+        <DateField id="scan-default-date" label={t('scan.defaultDate')} value={defaultDate} onChange={setDefaultDate} />
       </div>
       <ul className="space-y-3">
         {rows.map((r, i) => (
@@ -119,13 +119,7 @@ export default function ScanReview({ draft, photoUrl, photoAlt, onDone }: { draf
                   onChange={(e) => update(i, { include: e.target.checked })}
                   className="size-6 accent-primary"
                 />
-                <input
-                  type="date"
-                  aria-label={`${t('vitals.bulk.date')} ${i + 1}`}
-                  value={r.date}
-                  onChange={(e) => update(i, { date: e.target.value })}
-                  className="min-h-11 flex-1 rounded-xl border border-line bg-app px-2 text-sm"
-                />
+                <DateField label={`${t('vitals.bulk.date')} ${i + 1}`} labelled={false} compact value={r.date} onChange={(date) => update(i, { date })} className="flex-1" />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {MEASUREMENTS.filter((m) => r.values[m.key] !== undefined || r.unsure.has(m.key)).map((m) => (
