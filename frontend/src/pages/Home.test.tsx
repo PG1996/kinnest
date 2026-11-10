@@ -262,8 +262,20 @@ test('a feed being timed shows on Home with who started it and opens the feed sh
   expect(within(banner).getByText(en.feedTypes.breast_left)).toBeInTheDocument()
   expect(within(banner).getByText(en.home.by.replace('{{name}}', 'Pankhuri'))).toBeInTheDocument()
   expect(within(banner).getByTestId('feed-timer-elapsed').textContent).toMatch(/^4:\d\d$/)
+  const live = within(banner).getByText(en.home.timerBanner)
+  expect(live.closest('[data-badge]')!.querySelector('.animate-ping')).not.toBeNull() // a live, pulsing badge while it runs
   await userEvent.click(within(banner).getByRole('button', { name: en.home.timerOpen }))
   expect(await screen.findByRole('dialog', { name: en.home.feed })).toBeInTheDocument()
+})
+
+test('a stopped timer is no longer a live badge: it says stopped and does not pulse', async () => {
+  const timer = { id: 'tm1', type: 'formula', started_at: minsAgo(9), ended_at: minsAgo(4), started_by_name: 'Pankhuri' }
+  mockApi(base(ME_ADMIN, SUMMARY({ feed_timer: timer })))
+  renderApp(<Home />)
+  const banner = await screen.findByTestId('feed-timer-banner')
+  const badge = within(banner).getByText(en.home.timerHalted).closest('[data-badge]')!
+  expect(badge.querySelector('.animate-ping')).toBeNull()
+  expect(within(banner).queryByText(en.home.timerBanner)).not.toBeInTheDocument()
 })
 
 test('no banner when nothing is being timed', async () => {
