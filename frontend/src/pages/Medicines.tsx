@@ -84,6 +84,9 @@ export default function MedicinesPage() {
     },
   })
 
+  // the open medicine as the latest list has it, so a dose just given counts at once (SOS gap, last dose)
+  const shown = historyFor ? (all.find((m) => m.id === historyFor.id) ?? historyFor) : null
+
   const describe = (m: Medicine) =>
     m.schedule_kind === 'fixed'
       ? t('medicines.page.fixed', { times: m.times.join(', ') })
@@ -118,6 +121,19 @@ export default function MedicinesPage() {
     </div>
   )
 
+  /** A titled group of tiles: the heading carries a count and a rule across the page, so each group's start is clear. */
+  const section = (title: string, list: Medicine[]) =>
+    list.length > 0 && (
+      <section aria-label={title} className="space-y-3 pt-3">
+        <div className="flex items-center gap-3">
+          <h3 className="shrink-0 text-xs font-bold tracking-wider text-med-ink uppercase">{title}</h3>
+          <span className="rounded-full bg-med-bg px-2 text-xs font-bold text-med-ink tabular-nums">{list.length}</span>
+          <span aria-hidden="true" className="h-px flex-1 bg-line" />
+        </div>
+        {grid(list)}
+      </section>
+    )
+
   return (
     <>
       <h2 className="text-lg font-bold">{t('medicines.page.title')}</h2>
@@ -147,7 +163,7 @@ export default function MedicinesPage() {
       )}
       {historyFor && (
         <DoseHistory
-          medicine={historyFor}
+          medicine={shown ?? historyFor}
           canEdit={isAdmin}
           onClose={() => {
             setHistoryFor(null)
@@ -168,6 +184,10 @@ export default function MedicinesPage() {
                 )}
                 {isAdmin && historyFor.dose_amount == null && <p className="text-sm text-danger">{t('medicines.page.setDose')}</p>}
               </div>
+              {shown && shown.schedule_kind === 'as_needed' && !shown.ended && canLog && (
+                // the same give buttons as on Home, with its gap and daily-maximum checks; the popup stays open
+                <MedicinesToday giveOnly medicines={[shown]} pending={pending} canLog={canLog} myName={me?.user.name ?? ''} now={now} onToast={setToast} />
+              )}
               {isAdmin && (
                 <div className="flex flex-wrap gap-2">
                   <Button variant="soft" onClick={() => { setEditing(historyFor); setHistoryFor(null) }}>
@@ -215,23 +235,10 @@ export default function MedicinesPage() {
         />
       )}
       {current.length === 0 && past.length === 0 && <Card className="text-muted">{t('medicines.page.empty')}</Card>}
-      {active.length > 0 && (
-        <section aria-label={t('medicines.page.active')} className="space-y-3">
-          <h2 className="font-medium">{t('medicines.page.active')}</h2>
-          {grid(active)}
-        </section>
-      )}
-      {sos.length > 0 && (
-        // the same card as on Home, so an SOS dose can be given here once it has left Home
-        <MedicinesToday title={t('medicines.page.sos')} medicines={sos} pending={pending} canLog={canLog} myName={me?.user.name ?? ''} now={now} onToast={setToast} />
-      )}
+      {section(t('medicines.page.active'), active)}
+      {section(t('medicines.page.sos'), sos)}
       {!isAdmin && <p className="text-sm text-muted">{t('medicines.page.readOnly')}</p>}
-      {past.length > 0 && (
-        <section aria-label={t('medicines.page.past')} className="space-y-3 pt-2">
-          <h2 className="font-medium">{t('medicines.page.past')}</h2>
-          {grid(past)}
-        </section>
-      )}
+      {section(t('medicines.page.past'), past)}
       {toast && <Toast toast={toast} onClose={closeToast} />}
     </>
   )
