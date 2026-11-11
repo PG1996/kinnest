@@ -110,6 +110,10 @@ export type Medicine = {
   start_date: string
   end_date: string | null
   notes: string
+  /** when it was added; missing from older servers */
+  created_at?: string
+  /** an admin stopped it early ("End now") */
+  ended_at?: string | null
   ended: boolean
   slots: Slot[]
   last_dose: { id: string; status: 'given' | 'skipped'; amount: number | null; given_at: string; by_name: string } | null

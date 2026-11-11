@@ -99,8 +99,13 @@ def _fixed_slots_on(m: Medicine, day: date, tz: str) -> list[datetime]:
     return out
 
 
+def ended_early(m: Medicine, now: datetime) -> bool:
+    """An admin stopped the medicine ("End now") at or before `now`."""
+    return m.ended_at is not None and m.ended_at <= now
+
+
 def is_active(m: Medicine, now: datetime, tz: str) -> bool:
-    return m.deleted_at is None and _in_course(m, _local_date(now, tz))
+    return m.deleted_at is None and not ended_early(m, now) and _in_course(m, _local_date(now, tz))
 
 
 def _usual_start(m: Medicine, tz: str) -> time:

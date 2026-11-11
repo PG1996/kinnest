@@ -459,3 +459,47 @@ def test_doses_for_one_medicine_are_serialised_with_a_row_lock(family, clock, db
     insert = next(i for i, s in enumerate(statements) if s.startswith("INSERT INTO medicine_doses"))
     assert lock < insert  # two phones cannot both pass the over-dose check
     assert Decimal("5") == db_session.query(MedicineDose).one().amount
+
+
+def end_now(client, med):
+    return client.post(f"/api/medicines/{med['id']}/end")
+
+
+def test_ending_a_medicine_moves_it_to_past_at_once(family, clock):
+    med = make(family.owner, fixed(clock))
+    r = end_now(family.owner, med)
+    assert r.status_code == 200, r.text
+    assert r.json()["ended"] is True and when(r.json()["ended_at"]) == clock.now
+    assert listing(family.mom) == []  # off Home straight away, not at midnight
+    past = listing(family.mom, include_ended="true")
+    assert len(past) == 1 and past[0]["ended"] is True and past[0]["slots"] == []  # no doses due, so no reminders
+    assert past[0]["end_date"] is None  # the planned end date is left as it was
+
+
+def test_ending_again_keeps_the_first_end(family, clock):
+    med = make(family.owner, fixed(clock))
+    end_now(family.owner, med)
+    clock.now += timedelta(hours=2)
+    assert when(end_now(family.owner, med).json()["ended_at"]) == clock.now - timedelta(hours=2)
+
+
+def test_an_ended_medicine_can_be_resumed(family, clock):
+    med = make(family.owner, fixed(clock))
+    end_now(family.owner, med)
+    r = family.owner.post(f"/api/medicines/{med['id']}/resume")
+    assert r.status_code == 200, r.text
+    assert r.json()["ended"] is False and r.json()["ended_at"] is None
+    assert [m["id"] for m in listing(family.mom)] == [med["id"]]
+
+
+def test_only_an_admin_ends_or_resumes(family, clock):
+    med = make(family.owner, fixed(clock))
+    assert end_now(family.mom, med).status_code == 403
+    assert end_now(family.aunt, med).status_code == 403
+    end_now(family.owner, med)
+    assert family.mom.post(f"/api/medicines/{med['id']}/resume").status_code == 403
+
+
+def test_a_medicine_says_when_it_was_added(family, clock):
+    med = make(family.owner, as_needed(clock))
+    assert med["created_at"] is not None and med["ended_at"] is None

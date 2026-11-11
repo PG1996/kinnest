@@ -1,23 +1,37 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { useMe, useMedicines, type Medicine } from '../api/hooks'
 import DoseHistory from '../components/DoseHistory'
 import MedicineForm from '../components/MedicineForm'
+import MedicinesToday from '../components/MedicinesToday'
 import Sheet from '../components/Sheet'
+import Toast, { type ToastData } from '../components/Toast'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { formatDose } from '../lib/units'
+import { toLocalDate } from '../lib/time'
+import { useNow } from '../lib/useNow'
+import { useQueue } from '../offline/pending'
 
 export default function MedicinesPage() {
   const { t } = useTranslation()
   const qc = useQueryClient()
-  const isAdmin = useMe().data?.role === 'admin'
+  const me = useMe().data
+  const isAdmin = me?.role === 'admin'
+  const canLog = me?.role === 'admin' || me?.role === 'caregiver'
   const all = useMedicines(true).data ?? []
   const current = all.filter((m) => !m.ended)
+  const active = current.filter((m) => m.schedule_kind !== 'as_needed')
+  const sos = current.filter((m) => m.schedule_kind === 'as_needed')
   const past = all.filter((m) => m.ended)
+  const { pending } = useQueue()
+  const now = useNow()
+  const [toast, setToast] = useState<ToastData | null>(null)
+  const closeToast = useCallback(() => setToast(null), [])
+  const [endAsk, setEndAsk] = useState<string | null>(null)
   const [editing, setEditing] = useState<Medicine | 'new' | 'sos' | null>(null)
   const [confirming, setConfirming] = useState<string | null>(null)
   const [historyFor, setHistoryFor] = useState<Medicine | null>(null)
@@ -56,6 +70,16 @@ export default function MedicinesPage() {
     mutationFn: (id: string) => api(`/api/medicines/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
       setConfirming(null)
+      refresh()
+    },
+  })
+
+  // "End now" and its undo; the open history shows the medicine as it is after the change
+  const lifecycle = useMutation({
+    mutationFn: ({ id, action }: { id: string; action: 'end' | 'resume' }) => api<Medicine>(`/api/medicines/${id}/${action}`, { method: 'POST' }),
+    onSuccess: (m) => {
+      setEndAsk(null)
+      setHistoryFor((h) => (h && h.id === m.id ? m : h))
       refresh()
     },
   })
@@ -128,6 +152,7 @@ export default function MedicinesPage() {
           onClose={() => {
             setHistoryFor(null)
             setConfirming(null)
+            setEndAsk(null)
           }}
           header={
             <>
@@ -138,6 +163,9 @@ export default function MedicinesPage() {
                   {t('medicines.page.from', { date: historyFor.start_date })}
                   {historyFor.end_date && ` ${t('medicines.page.until', { date: historyFor.end_date })}`}
                 </p>
+                {historyFor.ended && historyFor.ended_at && (
+                  <p className="text-sm font-semibold text-med-ink">{t('medicines.page.endedOn', { date: toLocalDate(new Date(historyFor.ended_at)) })}</p>
+                )}
                 {isAdmin && historyFor.dose_amount == null && <p className="text-sm text-danger">{t('medicines.page.setDose')}</p>}
               </div>
               {isAdmin && (
@@ -145,6 +173,27 @@ export default function MedicinesPage() {
                   <Button variant="soft" onClick={() => { setEditing(historyFor); setHistoryFor(null) }}>
                     {t('medicines.page.edit')}
                   </Button>
+                  {!historyFor.ended &&
+                    (endAsk === historyFor.id ? (
+                      <>
+                        <Button onClick={() => lifecycle.mutate({ id: historyFor.id, action: 'end' })} disabled={lifecycle.isPending}>
+                          {t('medicines.page.confirmEnd')}
+                        </Button>
+                        <Button variant="ghost" onClick={() => setEndAsk(null)}>
+                          {t('medicines.form.cancel')}
+                        </Button>
+                        <p className="w-full text-sm text-muted">{t('medicines.page.endHint')}</p>
+                      </>
+                    ) : (
+                      <Button variant="soft" onClick={() => setEndAsk(historyFor.id)}>
+                        {t('medicines.page.endNow')}
+                      </Button>
+                    ))}
+                  {historyFor.ended && historyFor.ended_at && (
+                    <Button variant="soft" onClick={() => lifecycle.mutate({ id: historyFor.id, action: 'resume' })} disabled={lifecycle.isPending}>
+                      {t('medicines.page.resume')}
+                    </Button>
+                  )}
                   {confirming === historyFor.id ? (
                     <>
                       <Button variant="danger" onClick={() => remove.mutate(historyFor.id, { onSuccess: () => setHistoryFor(null) })}>
@@ -166,14 +215,24 @@ export default function MedicinesPage() {
         />
       )}
       {current.length === 0 && past.length === 0 && <Card className="text-muted">{t('medicines.page.empty')}</Card>}
-      {current.length > 0 && grid(current)}
+      {active.length > 0 && (
+        <section aria-label={t('medicines.page.active')} className="space-y-3">
+          <h2 className="font-medium">{t('medicines.page.active')}</h2>
+          {grid(active)}
+        </section>
+      )}
+      {sos.length > 0 && (
+        // the same card as on Home, so an SOS dose can be given here once it has left Home
+        <MedicinesToday title={t('medicines.page.sos')} medicines={sos} pending={pending} canLog={canLog} myName={me?.user.name ?? ''} now={now} onToast={setToast} />
+      )}
       {!isAdmin && <p className="text-sm text-muted">{t('medicines.page.readOnly')}</p>}
       {past.length > 0 && (
-        <>
-          <h2 className="pt-2 font-medium">{t('medicines.page.past')}</h2>
+        <section aria-label={t('medicines.page.past')} className="space-y-3 pt-2">
+          <h2 className="font-medium">{t('medicines.page.past')}</h2>
           {grid(past)}
-        </>
+        </section>
       )}
+      {toast && <Toast toast={toast} onClose={closeToast} />}
     </>
   )
 }

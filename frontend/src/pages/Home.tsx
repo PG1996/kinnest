@@ -21,6 +21,7 @@ import Today from '../components/Today'
 import { Button } from '../components/ui/button'
 import { useFeedTimerActions, useLogDiaper, useLogFeed, useUndoDiaper, useUpdateSleep, type FeedInput } from '../hooks/log'
 import { useSleepActions } from '../hooks/sleepActions'
+import { onHome } from '../lib/medicineHome'
 import { lastDays, wetPerDay } from '../lib/timeline'
 import { formatClock, toLocalDate } from '../lib/time'
 import { useDismissStaleNotifications } from '../lib/staleNotifications'
@@ -35,14 +36,17 @@ export default function Home() {
   const canLog = me ? me.role !== 'viewer' : false
   const serverSummary = useSummary().data
   const { pending, rejected } = useQueue()
-  const medicines = useMedicines().data ?? []
+  const medicinesData = useMedicines().data
+  const allMedicines = Array.isArray(medicinesData) ? medicinesData : [] // an odd reply must not take Home down
   const medsRef = useRef<HTMLDivElement>(null)
   const [scrollToMeds, setScrollToMeds] = useState(false)
   const [focusMed, setFocusMed] = useState<string | null>(null)
   const summary = serverSummary && mergePending(serverSummary, pending, me?.user.name ?? '')
   const now = useNow()
   const kid = useKid().data
-  useDismissStaleNotifications({ summary, kid, medicines, now })
+  // reminders are dismissed against every current medicine; the card shows scheduled ones and recently given SOS ones
+  useDismissStaleNotifications({ summary, kid, medicines: allMedicines, now })
+  const medicines = allMedicines.filter((m) => onHome(m, now))
   const today = toLocalDate(new Date(now))
   // the seven local days ending today; stable for the whole day so the query key does not change every tick
   const week = useMemo(() => {
