@@ -87,6 +87,40 @@ test('adding a past diaper posts its kind, time and note', async () => {
   expect(near(body.at, when)).toBe(true)
 })
 
+const asleepSince = (h: number) => ({
+  'GET /api/summary': { body: { last_feed: null, next_feed_due_at: null, last_diaper: null, feeds_today: 0, diapers_today: { wet: 0, dirty: 0, both: 0 },
+    sleep: { open: { id: 's1', started_at: today(h).toISOString(), ended_at: null, started_by_name: 'Mom', ended_by_name: null, duration_min: null, note: '' }, last: null } } },
+  'POST /api/sleep/s1/end': { body: { ok: true } },
+})
+
+test('adding a past diaper while the baby sleeps can end the sleep at the diaper\'s time', async () => {
+  const calls = mockApi(api(ME_ADMIN, asleepSince(10)))
+  renderApp(<App />, '/diapers')
+  await userEvent.click(await screen.findByRole('button', { name: en.diapers.addPast }))
+  const form = await screen.findByRole('dialog', { name: en.diapers.addTitle })
+  const when = today(11, 15)
+  await pickDateTime(en.diapers.form.when, when)
+  const woke = await within(form).findByRole('switch', { name: en.diapers.wokeUp })
+  expect(woke).toHaveAttribute('aria-checked', 'false')
+  await userEvent.click(woke)
+  await userEvent.click(within(form).getByRole('button', { name: en.diapers.form.save }))
+  const end = await waitFor(() => calls.find((c) => c.key === 'POST /api/sleep/s1/end')!)
+  expect(near((end.body as { ended_at: string }).ended_at, when)).toBe(true)
+})
+
+test('a past diaper from before the sleep began does not offer "Woke up"', async () => {
+  const calls = mockApi(api(ME_ADMIN, asleepSince(10)))
+  renderApp(<App />, '/diapers')
+  await userEvent.click(await screen.findByRole('button', { name: en.diapers.addPast }))
+  const form = await screen.findByRole('dialog', { name: en.diapers.addTitle })
+  await within(form).findByRole('switch', { name: en.diapers.wokeUp }) // now is after the sleep began
+  await pickDateTime(en.diapers.form.when, today(9, 0))
+  expect(within(form).queryByRole('switch', { name: en.diapers.wokeUp })).not.toBeInTheDocument()
+  await userEvent.click(within(form).getByRole('button', { name: en.diapers.form.save }))
+  await waitFor(() => expect(calls.some((c) => c.key === 'POST /api/diapers')).toBe(true))
+  expect(calls.some((c) => c.key.startsWith('POST /api/sleep'))).toBe(false)
+})
+
 test('a time later than now today is taken as last night', async () => {
   const calls = mockApi(api())
   renderApp(<App />, '/diapers')
