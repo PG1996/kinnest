@@ -6,7 +6,7 @@ const row = (id: string, over: Partial<DoseRow> = {}): DoseRow => ({
 })
 const local = (day: number, hh: number, mm = 0) => new Date(2026, 10, day, hh, mm).toISOString()
 
-test('pieces of one slot are grouped under the time the dose was for, oldest piece first', () => {
+test('pieces of one slot are grouped under the time the dose was for, newest piece first', () => {
   const slot = local(8, 8)
   const days = groupDoses([
     row('b', { scheduled_for: slot, given_at: local(8, 8, 40), amount: 0.5 }),
@@ -15,7 +15,7 @@ test('pieces of one slot are grouped under the time the dose was for, oldest pie
   expect(days).toHaveLength(1)
   expect(days[0]!.groups).toHaveLength(1)
   expect(days[0]!.groups[0]!.at).toBe(slot)
-  expect(days[0]!.groups[0]!.rows.map((r) => r.id)).toEqual(['a', 'b'])
+  expect(days[0]!.groups[0]!.rows.map((r) => r.id)).toEqual(['b', 'a'])
 })
 
 test('a dose with no slot is its own group at the time it was given', () => {

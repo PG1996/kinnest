@@ -201,6 +201,16 @@ test('queued entry shows waiting to sync', async () => {
   expect(screen.getByText(/3\.6 kg/)).toBeInTheDocument()
 })
 
+test('the list is newest first, with entries waiting to sync in their place', async () => {
+  await enqueue({ kind: 'vital', id: 'q2', payload: { id: 'q2', measured_at: hoursAgo(5), place_kind: 'home', weight_kg: 3.6 } })
+  mockApi(routes(ME_ADMIN, [VITAL({ id: 'v1', measured_at: hoursAgo(2), weight_kg: 3.42 }), VITAL({ id: 'v0', measured_at: hoursAgo(9), weight_kg: 3.3 })]))
+  renderApp(<VitalsTab />)
+  await toList()
+  await screen.findByText(en.vitals.list.waiting)
+  const weights = screen.getAllByText(/3\.\d+ kg/).map((el) => el.textContent?.match(/3\.\d+/)?.[0])
+  expect(weights).toEqual(['3.42', '3.6', '3.3'])
+})
+
 test('the add form opens from a link with ?add=1', async () => {
   mockApi(routes(ME_ADMIN, []))
   renderApp(<VitalsTab />, '/health?tab=vitals&add=1')

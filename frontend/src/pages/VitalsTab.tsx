@@ -125,7 +125,7 @@ export default function VitalsTab() {
         </div>
       </div>
       <VitalList
-        rows={[...waiting, ...vitals]}
+        rows={[...waiting, ...vitals].sort((a, b) => Date.parse(b.measured_at) - Date.parse(a.measured_at))}
         canEdit={canEdit}
         onEdit={(v) => setEditing(v)}
         onDelete={(id) => remove.mutate(id)}

@@ -5,7 +5,7 @@ export type DoseGroup = {
   at: string
   /** the dose belongs to a schedule slot (pieces of one slot share a group) */
   slot: boolean
-  /** oldest piece first */
+  /** newest piece first */
   rows: DoseRow[]
   /** the amounts given, added up */
   total: number
@@ -33,7 +33,7 @@ export function groupDoses(rows: DoseRow[]): DoseDay[] {
   }
   const days = new Map<string, DoseDay>()
   for (const g of [...groups.values()].sort((a, b) => Date.parse(b.at) - Date.parse(a.at))) {
-    g.rows.sort((a, b) => Date.parse(a.given_at) - Date.parse(b.given_at))
+    g.rows.sort((a, b) => Date.parse(b.given_at) - Date.parse(a.given_at))
     g.total = Math.round(g.total * 100) / 100
     const key = dayKey(g.at)
     const day = days.get(key) ?? { day: key, at: g.at, groups: [] }

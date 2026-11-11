@@ -98,6 +98,8 @@ export default function VaccinesTab() {
       {list.length === 0 && <p className="text-sm text-muted">{t('vaccines.empty')}</p>}
       {GROUPS.map((g) => {
         const items = list.filter((v) => groupOf(v) === g)
+        // what is still to come stays soonest first; what is done is newest first, by the day it was given
+        if (g === 'done') items.sort((a, b) => (b.given_on ?? b.due_date).localeCompare(a.given_on ?? a.due_date))
         if (items.length === 0) return null
         return (
           <section key={g} className="space-y-2">
