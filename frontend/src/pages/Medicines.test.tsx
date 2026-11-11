@@ -244,6 +244,22 @@ test('as-needed offers full or partial; full posts the whole dose with no slot',
   expect(doseCall(calls, 'm2')).not.toHaveProperty('scheduled_for')
 })
 
+test('Home shows an SOS medicine only while its last dose is under 48 hours old', async () => {
+  mockApi(base([med(), asNeeded(47 * 60), asNeeded(49 * 60, { id: 'm3', name: 'Ibuprofen' })]))
+  renderApp(<Home />)
+  const grid = await screen.findByTestId('medicine-grid')
+  expect(within(grid).getByText('Paracetamol')).toBeInTheDocument()
+  expect(within(grid).getByText('Vitamin D')).toBeInTheDocument()
+  expect(within(grid).queryByText('Ibuprofen')).not.toBeInTheDocument()
+})
+
+test('with only an old SOS medicine Home has no medicine card', async () => {
+  mockApi(base([asNeeded(72 * 60)]))
+  renderApp(<Home />)
+  await screen.findByText(en.home.noDiaper)
+  expect(screen.queryByTestId('medicine-grid')).not.toBeInTheDocument()
+})
+
 test('as-needed partial steps within one dose and posts the chosen amount', async () => {
   const calls = mockApi({ ...base([asNeeded(8 * 60)]), 'POST /api/medicines/m2/doses': posted() })
   renderApp(<Home />)

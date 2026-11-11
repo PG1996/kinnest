@@ -125,6 +125,62 @@ test('past medicines are listed separately', async () => {
   expect(screen.getAllByText(/Vitamin D/)).toHaveLength(1)
 })
 
+const sos = (over: object = {}) =>
+  med({ id: 's1', name: 'Paracetamol', dose_amount: 1.5, dose_unit: 'ml', schedule_kind: 'as_needed', times: [], min_gap_hours: null, ...over })
+const section = (name: string) => screen.getByRole('region', { name })
+
+test('the page has active, SOS and past medicines, each in its own section', async () => {
+  mockApi(base([med(), sos(), med({ id: 'm2', name: 'Old antibiotic', ended: true })]))
+  renderApp(<MedicinesPage />, '/medicines')
+  await screen.findByText(/Vitamin D/)
+  expect(within(section(en.medicines.page.active)).getByText(/Vitamin D/)).toBeInTheDocument()
+  expect(within(section(en.medicines.page.sos)).getByText('Paracetamol')).toBeInTheDocument()
+  expect(within(section(en.medicines.page.past)).getByText(/Old antibiotic/)).toBeInTheDocument()
+  expect(within(section(en.medicines.page.active)).queryByText('Paracetamol')).not.toBeInTheDocument()
+})
+
+test('a caregiver gives an SOS dose from the medicines page', async () => {
+  const calls = mockApi({
+    ...base([sos()], { ...ME_ADMIN, role: 'caregiver' }),
+    'POST /api/medicines/s1/doses': { status: 201, body: { id: 'x', by_name: 'Owner', gap_warning: null, slot: null } },
+  })
+  renderApp(<MedicinesPage />, '/medicines')
+  await userEvent.click(await within(await screen.findByRole('region', { name: en.medicines.page.sos })).findByRole('button', { name: en.medicines.giveFull }))
+  await waitFor(() => expect(calls.find((c) => c.key === 'POST /api/medicines/s1/doses')?.body).toMatchObject({ status: 'given', amount: 1.5 }))
+})
+
+test('End now needs a second tap, then ends the medicine', async () => {
+  const calls = mockApi({ ...base([med()]), 'POST /api/medicines/m1/end': { body: med({ ended: true, ended_at: new Date().toISOString() }) } })
+  renderApp(<MedicinesPage />, '/medicines')
+  await userEvent.click(await screen.findByTestId('medicine-m1'))
+  const d = await screen.findByRole('dialog', { name: en.medicines.history.title })
+  await userEvent.click(within(d).getByRole('button', { name: en.medicines.page.endNow }))
+  expect(calls.some((c) => c.key === 'POST /api/medicines/m1/end')).toBe(false)
+  await userEvent.click(within(d).getByRole('button', { name: en.medicines.page.confirmEnd }))
+  await waitFor(() => expect(calls.some((c) => c.key === 'POST /api/medicines/m1/end')).toBe(true))
+})
+
+test('a medicine ended early says when, and the admin can resume it', async () => {
+  const endedAt = new Date(2026, 10, 9, 15, 0).toISOString()
+  const calls = mockApi({ ...base([med({ ended: true, ended_at: endedAt })]), 'POST /api/medicines/m1/resume': { body: med() } })
+  renderApp(<MedicinesPage />, '/medicines')
+  await userEvent.click(await screen.findByTestId('medicine-m1'))
+  const d = await screen.findByRole('dialog', { name: en.medicines.history.title })
+  expect(within(d).getByText(text(en.medicines.page.endedOn, { date: '2026-11-09' }))).toBeInTheDocument()
+  expect(within(d).queryByRole('button', { name: en.medicines.page.endNow })).not.toBeInTheDocument()
+  await userEvent.click(within(d).getByRole('button', { name: en.medicines.page.resume }))
+  await waitFor(() => expect(calls.some((c) => c.key === 'POST /api/medicines/m1/resume')).toBe(true))
+})
+
+test('a caregiver cannot end or resume a medicine', async () => {
+  mockApi(base([med(), med({ id: 'm2', name: 'Iron', ended: true, ended_at: new Date().toISOString() })], { ...ME_ADMIN, role: 'caregiver' }))
+  renderApp(<MedicinesPage />, '/medicines')
+  await userEvent.click(await screen.findByTestId('medicine-m1'))
+  await screen.findByRole('dialog', { name: en.medicines.history.title })
+  expect(screen.queryByRole('button', { name: en.medicines.page.endNow })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: en.medicines.page.resume })).not.toBeInTheDocument()
+})
+
 test('editing prefills the form and PATCHes the change', async () => {
   const calls = mockApi({ ...base([med()]), 'PATCH /api/medicines/m1': { body: med({ dose_amount: 7.5, dose_unit: 'mg' }) } })
   renderApp(<MedicinesPage />, '/medicines')

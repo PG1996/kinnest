@@ -193,7 +193,9 @@ def medicine_json(
         "start_date": m.start_date.isoformat(),
         "end_date": m.end_date.isoformat() if m.end_date else None,
         "notes": m.notes,
-        "ended": m.end_date is not None and m.end_date < today,
+        "created_at": _iso(m.created_at),
+        "ended_at": _iso(m.ended_at),
+        "ended": schedule.ended_early(m, now) or (m.end_date is not None and m.end_date < today),
         "slots": [
             {
                 "due_at": _iso(s.due_at),
@@ -287,6 +289,37 @@ def patch_medicine(
     for f, v in data.items():
         setattr(m, f, v)
     m.updated_by = member.user.id
+    db.commit()
+    return _render(db, m, now, settings.app_timezone)
+
+
+@router.post("/medicines/{medicine_id}/end")
+def end_medicine(
+    medicine_id: uuid.UUID,
+    member: Member = Depends(require_admin),
+    db: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+    now: datetime = Depends(get_now),
+) -> dict:
+    """Stop a medicine now: it moves to past medicines and no more doses are due. Ending it again keeps the first end."""
+    m = _medicine(db, member, medicine_id)
+    if m.ended_at is None:
+        m.ended_at, m.updated_by = now, member.user.id
+        db.commit()
+    return _render(db, m, now, settings.app_timezone)
+
+
+@router.post("/medicines/{medicine_id}/resume")
+def resume_medicine(
+    medicine_id: uuid.UUID,
+    member: Member = Depends(require_admin),
+    db: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+    now: datetime = Depends(get_now),
+) -> dict:
+    """Undo "End now": the medicine is current again (unless its end date has passed)."""
+    m = _medicine(db, member, medicine_id)
+    m.ended_at, m.updated_by = None, member.user.id
     db.commit()
     return _render(db, m, now, settings.app_timezone)
 

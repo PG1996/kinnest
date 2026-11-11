@@ -235,6 +235,8 @@ class Medicine(Base):
     day_start: Mapped[str | None] = mapped_column(String(5), nullable=True)  # interval: the usual first dose time ("HH:MM", family timezone)
     start_date: Mapped[date] = mapped_column(Date)
     end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # stopped early by an admin ("End now"): no doses are due from this moment, whatever end_date says
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     notes: Mapped[str] = mapped_column(Text, default="")
     created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     updated_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))

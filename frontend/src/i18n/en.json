@@ -263,7 +263,14 @@
       "readOnly": "Only the admin can change medicines.",
       "setDose": "Set a proper dose for this medicine",
       "addSos": "Add SOS medicine",
-      "editTitle": "Edit {{name}}"
+      "editTitle": "Edit {{name}}",
+      "active": "Active medicines",
+      "sos": "SOS medicines",
+      "endNow": "End now",
+      "confirmEnd": "Yes, end it now",
+      "endHint": "It moves to past medicines and no more doses are due.",
+      "endedOn": "Ended {{date}}",
+      "resume": "Resume"
     },
     "form": {
       "name": "Medicine name",

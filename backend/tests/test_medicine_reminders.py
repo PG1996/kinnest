@@ -62,6 +62,15 @@ def test_nothing_before_the_slot_is_due(world):
     assert [x for x in s.sent if x[1].startswith("med")] == []
 
 
+def test_a_medicine_ended_early_sends_no_reminder(world):
+    med = add_med(world)
+    med.ended_at = SLOT - timedelta(minutes=5)
+    world.db.commit()
+    s = FakeSender()
+    tick(world.db, SLOT, s)
+    assert [x for x in s.sent if x[1].startswith("med")] == []
+
+
 def test_level1_and_level2_admin_only_high(world):
     med = add_med(world)
     s = FakeSender()
