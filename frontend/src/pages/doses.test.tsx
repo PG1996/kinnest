@@ -248,8 +248,7 @@ test('a past dose is preselected for the open slot so it clears the overdue row'
 test('an SOS medicine has no slot choice in the history form', async () => {
   mockApi({ ...histApi(), 'GET /api/medicines': { body: [syrup({ schedule_kind: 'as_needed', times: [], slots: [] })] } })
   renderApp(<App />, '/health?tab=medicines')
-  // an SOS medicine sits in the SOS card, whose History button opens the same dose history
-  await userEvent.click(await within(await screen.findByRole('region', { name: en.medicines.page.sos })).findByRole('button', { name: new RegExp(en.medicines.history.open) }))
+  await userEvent.click(await screen.findByTestId('medicine-m1'))
   const dialog = await screen.findByRole('dialog', { name: en.medicines.history.title })
   await userEvent.click(await within(dialog).findByRole('button', { name: en.medicines.history.add }))
   const form = await screen.findByRole('dialog', { name: en.medicines.history.addTitle })

@@ -134,9 +134,9 @@ test('the page has active, SOS and past medicines, each in its own section', asy
   renderApp(<MedicinesPage />, '/medicines')
   await screen.findByText(/Vitamin D/)
   expect(within(section(en.medicines.page.active)).getByText(/Vitamin D/)).toBeInTheDocument()
-  expect(within(section(en.medicines.page.sos)).getByText('Paracetamol')).toBeInTheDocument()
+  expect(within(section(en.medicines.page.sos)).getByText(/Paracetamol/)).toBeInTheDocument()
   expect(within(section(en.medicines.page.past)).getByText(/Old antibiotic/)).toBeInTheDocument()
-  expect(within(section(en.medicines.page.active)).queryByText('Paracetamol')).not.toBeInTheDocument()
+  expect(within(section(en.medicines.page.active)).queryByText(/Paracetamol/)).not.toBeInTheDocument()
 })
 
 test('a caregiver gives an SOS dose from the medicines page', async () => {
@@ -145,8 +145,25 @@ test('a caregiver gives an SOS dose from the medicines page', async () => {
     'POST /api/medicines/s1/doses': { status: 201, body: { id: 'x', by_name: 'Owner', gap_warning: null, slot: null } },
   })
   renderApp(<MedicinesPage />, '/medicines')
-  await userEvent.click(await within(await screen.findByRole('region', { name: en.medicines.page.sos })).findByRole('button', { name: en.medicines.giveFull }))
+  const sosSection = await screen.findByRole('region', { name: en.medicines.page.sos })
+  // like every other medicine on the page: a tile that opens a popup, no dose buttons on the page itself
+  expect(within(sosSection).queryByRole('button', { name: en.medicines.giveFull })).not.toBeInTheDocument()
+  await userEvent.click(within(sosSection).getByTestId('medicine-s1'))
+  const d = await screen.findByRole('dialog', { name: en.medicines.history.title })
+  await userEvent.click(within(d).getByRole('button', { name: en.medicines.giveFull }))
   await waitFor(() => expect(calls.find((c) => c.key === 'POST /api/medicines/s1/doses')?.body).toMatchObject({ status: 'given', amount: 1.5 }))
+})
+
+test('the popup of a scheduled, past or viewer-seen SOS medicine has no give buttons', async () => {
+  mockApi(base([med(), sos({ id: 's2', ended: true })]))
+  renderApp(<MedicinesPage />, '/medicines')
+  for (const id of ['medicine-m1', 'medicine-s2']) {
+    await userEvent.click(await screen.findByTestId(id))
+    const d = await screen.findByRole('dialog', { name: en.medicines.history.title })
+    expect(within(d).queryByTestId('sos-give')).not.toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  }
 })
 
 test('End now needs a second tap, then ends the medicine', async () => {

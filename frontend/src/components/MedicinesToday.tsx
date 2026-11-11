@@ -28,14 +28,14 @@ type Props = {
   onToast: (t: ToastData) => void
   /** a medicine to open (from a tapped reminder) */
   focusId?: string | null
-  /** the section heading; "Medicines" on Home */
-  title?: string
+  /** only the give buttons of the one SOS medicine passed, for the Medicines page's popup: no heading, tiles or card */
+  giveOnly?: boolean
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 
 /** Medicines on Home: today's slots with full or partial dosing, progress, and a reminder for the rest of a dose. */
-export default function MedicinesToday({ medicines, pending, canLog, myName, now, onToast, focusId, title: heading }: Props) {
+export default function MedicinesToday({ medicines, pending, canLog, myName, now, onToast, focusId, giveOnly = false }: Props) {
   const { t } = useTranslation()
   const qc = useQueryClient()
   const navigate = useNavigate()
@@ -562,8 +562,14 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
 
   return (
     <>
-      <section aria-label={heading ?? t('medicines.title')} className="space-y-3">
-        <h2 className="font-medium">{heading ?? t('medicines.title')}</h2>
+      {giveOnly && selected ? (
+        <div data-testid="sos-give" className="space-y-2">
+          {asNeededRow(selected)}
+          {sosWait(selected) && <p className="text-sm font-bold text-warn-ink">{sosWait(selected)}</p>}
+        </div>
+      ) : (
+      <section aria-label={t('medicines.title')} className="space-y-3">
+        <h2 className="font-medium">{t('medicines.title')}</h2>
         <div data-testid="medicine-grid" className="grid grid-cols-3 gap-2">
           {ordered.map((m) => {
             const st = tileStatus(m)
@@ -617,6 +623,7 @@ export default function MedicinesToday({ medicines, pending, canLog, myName, now
           </Card>
         )}
       </section>
+      )}
       {partial && (
         <GiveDoseSheet
           medicine={partial.medicine}
