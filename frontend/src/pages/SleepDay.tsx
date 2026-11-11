@@ -41,7 +41,7 @@ export default function SleepDay() {
   const dayEnd = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1).getTime()
   const onDay = sessions
     .filter((s) => Date.parse(s.started_at) < dayEnd && (s.ended_at ? Date.parse(s.ended_at) : now) > day.getTime())
-    .sort((a, b) => Date.parse(a.started_at) - Date.parse(b.started_at))
+    .sort((a, b) => Date.parse(b.started_at) - Date.parse(a.started_at)) // newest first, as every list of past entries
   const [form, setForm] = useState(false)
 
   return (

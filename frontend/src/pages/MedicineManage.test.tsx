@@ -198,6 +198,18 @@ test('a caregiver cannot end or resume a medicine', async () => {
   expect(screen.queryByRole('button', { name: en.medicines.page.resume })).not.toBeInTheDocument()
 })
 
+test('past medicines are newest first, by when they ended', async () => {
+  mockApi(base([
+    med({ id: 'p1', name: 'First course', ended: true, end_date: '2026-10-01' }),
+    med({ id: 'p2', name: 'Stopped early', ended: true, end_date: null, ended_at: new Date(2026, 10, 9, 15).toISOString() }),
+    med({ id: 'p3', name: 'Second course', ended: true, end_date: '2026-10-20' }),
+  ]))
+  renderApp(<MedicinesPage />, '/medicines')
+  await screen.findByText(/First course/)
+  const ids = within(screen.getByRole('region', { name: en.medicines.page.past })).getAllByTestId(/^medicine-p/).map((el) => el.dataset.testid)
+  expect(ids).toEqual(['medicine-p2', 'medicine-p3', 'medicine-p1'])
+})
+
 test('editing prefills the form and PATCHes the change', async () => {
   const calls = mockApi({ ...base([med()]), 'PATCH /api/medicines/m1': { body: med({ dose_amount: 7.5, dose_unit: 'mg' }) } })
   renderApp(<MedicinesPage />, '/medicines')

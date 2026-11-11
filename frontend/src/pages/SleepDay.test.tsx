@@ -66,6 +66,16 @@ test('previous day fetches the earlier range and shows that day', async () => {
   expect(screen.getByRole('button', { name: en.sleep.nextDay })).toBeEnabled()
 })
 
+test('a day lists its sleeps newest first', async () => {
+  mockApi(api())
+  renderApp(<App />, '/sleep')
+  await screen.findByRole('img', { name: /Slept/ })
+  await userEvent.click(screen.getByRole('button', { name: en.sleep.prevDay }))
+  await screen.findByRole('img', { name: /Slept 2h 0m/ })
+  const items = within(screen.getByRole('list', { name: en.sleep.listLabel })).getAllByRole('listitem')
+  expect(items.map((li) => li.textContent?.includes('Dad'))).toEqual([false, true]) // 23:00 (Mom) above 14:00 (Dad)
+})
+
 test('there is no next day after today', async () => {
   mockApi(api())
   renderApp(<App />, '/sleep')

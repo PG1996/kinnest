@@ -74,6 +74,13 @@ test('list groups overdue, due soon and done', async () => {
   expect(screen.getByText(en.vaccines.doctorFirst)).toBeInTheDocument()
 })
 
+test('done vaccines are newest first, by the day they were given', async () => {
+  mockApi(routes([...LIST, VAX('e', { status: 'given', given_on: iso(-5), due_date: iso(-40), days_until: -40 })]))
+  renderApp(<VaccinesTab />)
+  const done = (await screen.findByRole('heading', { name: en.vaccines.groups.done })).closest('section') as HTMLElement
+  expect(within(done).getAllByRole('listitem').map((li) => li.textContent?.match(/Vaccine (\w)/)?.[1])).toEqual(['e', 'd'])
+})
+
 test('mark given posts date place and notes', async () => {
   const calls = mockApi(routes())
   renderApp(<VaccinesTab />)
