@@ -317,6 +317,60 @@ test('diaper wet button posts immediately and offers undo', async () => {
   await waitFor(() => expect(screen.queryByRole('button', { name: en.home.undo })).not.toBeInTheDocument())
 })
 
+const ASLEEP = { open: { id: 's1', started_at: minsAgo(90), ended_at: null, started_by_name: 'Mom', ended_by_name: null, duration_min: null, note: '' }, last: null }
+const diaperApi = (sleep: object | null) => ({
+  ...base(ME_ADMIN, SUMMARY(sleep ? { sleep } : {})),
+  'POST /api/diapers': { status: 201, body: { id: 'x', recent_other: null } },
+  'POST /api/sleep/s1/end': { body: { ok: true } },
+})
+const logDiaperFromHome = async (kind: string, woke = false) => {
+  await userEvent.click(await screen.findByRole('button', { name: en.home.diaper }))
+  const dialog = await screen.findByRole('dialog', { name: en.home.diaperTitle })
+  if (woke) await userEvent.click(within(dialog).getByRole('switch', { name: en.diapers.wokeUp }))
+  await userEvent.click(within(dialog).getByRole('button', { name: kind }))
+}
+
+test('while the baby sleeps the diaper sheet offers "Woke up", off, and the sleep keeps running', async () => {
+  const calls = mockApi(diaperApi(ASLEEP))
+  renderApp(<Home />)
+  await userEvent.click(await screen.findByRole('button', { name: en.home.diaper }))
+  const dialog = await screen.findByRole('dialog', { name: en.home.diaperTitle })
+  expect(within(dialog).getByRole('switch', { name: en.diapers.wokeUp })).toHaveAttribute('aria-checked', 'false')
+  await userEvent.click(within(dialog).getByRole('button', { name: en.diaperKinds.wet }))
+  await waitFor(() => expect(calls.some((c) => c.key === 'POST /api/diapers')).toBe(true))
+  await screen.findByRole('button', { name: en.home.undo })
+  expect(calls.some((c) => c.key.startsWith('POST /api/sleep'))).toBe(false)
+})
+
+test('"Woke up" ends the sleep at the time of the diaper', async () => {
+  const calls = mockApi(diaperApi(ASLEEP))
+  renderApp(<Home />)
+  await logDiaperFromHome(en.diaperKinds.both, true)
+  const end = await waitFor(() => calls.find((c) => c.key === 'POST /api/sleep/s1/end')!)
+  const diaper = calls.find((c) => c.key === 'POST /api/diapers')!.body as { at: string }
+  expect(end.body).toMatchObject({ id: 's1', ended_at: diaper.at })
+})
+
+test('undo after "Woke up" takes the diaper back and the baby is asleep again', async () => {
+  const calls = mockApi({ ...diaperApi(ASLEEP), 'PATCH /api/sleep/s1': { body: { ok: true } } })
+  renderApp(<Home />)
+  await logDiaperFromHome(en.diaperKinds.wet, true)
+  await waitFor(() => expect(calls.some((c) => c.key === 'POST /api/sleep/s1/end')).toBe(true))
+  const id = (calls.find((c) => c.key === 'POST /api/diapers')!.body as { id: string }).id
+  const after = mockApi({ ...diaperApi(ASLEEP), [`DELETE /api/diapers/${id}`]: { body: { ok: true } }, 'PATCH /api/sleep/s1': { body: { ok: true } } })
+  await userEvent.click(await screen.findByRole('button', { name: en.home.undo }))
+  await waitFor(() => expect(after.find((c) => c.key === 'PATCH /api/sleep/s1')?.body).toEqual({ ended_at: null }))
+  expect(after.some((c) => c.key === `DELETE /api/diapers/${id}`)).toBe(true)
+})
+
+test('no "Woke up" when the baby is awake', async () => {
+  mockApi(diaperApi({ open: null, last: null }))
+  renderApp(<Home />)
+  await userEvent.click(await screen.findByRole('button', { name: en.home.diaper }))
+  const dialog = await screen.findByRole('dialog', { name: en.home.diaperTitle })
+  expect(within(dialog).queryByRole('switch')).not.toBeInTheDocument()
+})
+
 test('feed sheet is prefilled from the last feed and saves in one tap', async () => {
   const calls = mockApi({ ...base(), 'POST /api/feeds': { status: 201, body: { id: 'x', recent_other: null } } })
   renderApp(<Home />)

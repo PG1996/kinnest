@@ -19,7 +19,7 @@ import Toast, { type ToastData } from '../components/Toast'
 import UpcomingCard from '../components/UpcomingCard'
 import Today from '../components/Today'
 import { Button } from '../components/ui/button'
-import { useFeedTimerActions, useLogDiaper, useLogFeed, useUndoDiaper, type FeedInput } from '../hooks/log'
+import { useFeedTimerActions, useLogDiaper, useLogFeed, useUndoDiaper, useUpdateSleep, type FeedInput } from '../hooks/log'
 import { useSleepActions } from '../hooks/sleepActions'
 import { lastDays, wetPerDay } from '../lib/timeline'
 import { formatClock, toLocalDate } from '../lib/time'
@@ -101,6 +101,7 @@ export default function Home() {
   }, [stopWanted, serverSummary])
   const logDiaper = useLogDiaper()
   const undoDiaper = useUndoDiaper()
+  const reopenSleep = useUpdateSleep()
 
   useEffect(() => {
     if (scrollToMeds && medsRef.current) {
@@ -123,14 +124,22 @@ export default function Home() {
       },
     })
 
-  const pickDiaper = (kind: DiaperKind, changedBy?: string) => {
+  const pickDiaper = (kind: DiaperKind, changedBy?: string, woke = false) => {
     const id = crypto.randomUUID()
+    const at = new Date().toISOString()
     setSheet(null)
     logDiaper.mutate(
-      { id, kind, at: new Date().toISOString(), ...(changedBy ? { changed_by_user_id: changedBy } : {}) },
+      { id, kind, at, ...(changedBy ? { changed_by_user_id: changedBy } : {}) },
       {
         onError: () => setToast({ message: t('home.saveError'), tone: 'error' }),
-        onSuccess: (r) =>
+        onSuccess: (r) => {
+          // the baby woke for this change: end the sleep at the same minute, only once the diaper is saved
+          const wake = woke ? sleepActions.wake(at) : Promise.resolve(null)
+          // undo takes the wake back too: the sleep runs on as if nothing happened
+          const unwake = () =>
+            wake
+              .then((w) => w && (w.queued ? remove(`${w.id}:end`) : reopenSleep.mutateAsync({ id: w.id, ended_at: null })))
+              .catch(() => {})
           setToast({
             message: r.queued
               ? t('home.queued')
@@ -139,9 +148,13 @@ export default function Home() {
                 : t('home.logged'),
             action: {
               label: t('home.undo'),
-              run: () => (r.queued ? remove(id).then(closeToast) : undoDiaper.mutate(id, { onSettled: closeToast })),
+              run: () => {
+                void unwake()
+                return r.queued ? remove(id).then(closeToast) : undoDiaper.mutate(id, { onSettled: closeToast })
+              },
             },
-          }),
+          })
+        },
       },
     )
   }
@@ -220,7 +233,7 @@ export default function Home() {
         />
       )}
       {sideAsk && <FeedSidePicker last={summary?.last_feed?.type ?? null} onPick={startTimer} onClose={() => setSideAsk(false)} />}
-      {sheet === 'diaper' && <DiaperSheet onPick={pickDiaper} onClose={() => setSheet(null)} />}
+      {sheet === 'diaper' && <DiaperSheet asleep={sleepActions.open !== null} onPick={pickDiaper} onClose={() => setSheet(null)} />}
       {toast && <Toast toast={toast} onClose={closeToast} />}
     </>
   )

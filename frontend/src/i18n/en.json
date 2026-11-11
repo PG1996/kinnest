@@ -779,7 +779,9 @@
     "zoom12": "12 h",
     "zoom6": "6 h",
     "zoomEarlier": "Earlier",
-    "zoomLater": "Later"
+    "zoomLater": "Later",
+    "wokeUp": "Woke up",
+    "wokeUpHint": "Ends the sleep at this time"
   },
   "relations": {
     "mom": "Mom",

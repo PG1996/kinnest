@@ -31,5 +31,14 @@ export function useSleepActions(sleep: SummarySleep | undefined, onToast: (t: To
       open
         ? end.mutate({ id: open.id, ended_at: new Date().toISOString() }, { onSuccess: queuedNotice, onError: failed })
         : start.mutate({ id: crypto.randomUUID(), started_at: new Date().toISOString() }, { onSuccess: queuedNotice, onError: failed }),
+    /** End the open sleep at `ended_at` (a diaper change woke the baby). Gives back which sleep and whether it was only queued, or null. */
+    wake: (ended_at: string): Promise<{ id: string; queued: boolean } | null> => {
+      if (!open) return Promise.resolve(null)
+      const id = open.id
+      return end.mutateAsync({ id, ended_at }).then(
+        (r) => ({ id, queued: !!r.queued }),
+        (e) => (failed(e), null),
+      )
+    },
   }
 }
