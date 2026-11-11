@@ -16,7 +16,7 @@ export type FeedTimerInfo = {
 }
 
 export type Role = 'admin' | 'caregiver' | 'viewer'
-export const RELATIONS = ['mom', 'dad', 'grandparent', 'relative', 'nanny', 'other'] as const
+export const RELATIONS = ['mom', 'dad', 'grandparent', 'aunt', 'relative', 'nanny', 'other'] as const
 export type Relation = (typeof RELATIONS)[number]
 export type Me = {
   user: { id: string; email: string; name: string }

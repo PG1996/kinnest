@@ -45,6 +45,17 @@ test('an invite can carry an optional relation', async () => {
   await waitFor(() => expect(calls.find((c) => c.key === 'POST /api/family/invites')?.body).toEqual({ email: 'gran@x.com', role: 'caregiver', relation: 'grandparent' }))
 })
 
+test('an invite can name the baby\'s aunt', async () => {
+  const calls = mockApi(api(ME_ADMIN, { 'POST /api/family/invites': { body: { ok: true } } }))
+  renderApp(<Members />, '/family')
+  await userEvent.type(await screen.findByLabelText(en.members.inviteEmail), 'aunt@x.com')
+  const pick = screen.getByLabelText(en.members.inviteRelation)
+  expect(within(pick).getByRole('option', { name: 'Aunt' })).toBeInTheDocument()
+  await userEvent.selectOptions(pick, 'aunt')
+  await userEvent.click(screen.getByRole('button', { name: en.members.sendInvite }))
+  await waitFor(() => expect(calls.find((c) => c.key === 'POST /api/family/invites')?.body).toEqual({ email: 'aunt@x.com', role: 'caregiver', relation: 'aunt' }))
+})
+
 test('an invite without a relation sends none', async () => {
   const calls = mockApi(api(ME_ADMIN, { 'POST /api/family/invites': { body: { ok: true } } }))
   renderApp(<Members />, '/family')

@@ -73,7 +73,7 @@ class User(Base):
         return value.strip().lower()
 
 
-RELATIONS = ("mom", "dad", "grandparent", "relative", "nanny", "other")
+RELATIONS = ("mom", "dad", "grandparent", "aunt", "relative", "nanny", "other")
 PARENT_RELATIONS = ("mom", "dad")
 
 
@@ -82,7 +82,7 @@ class Membership(Base):
     __table_args__ = (
         UniqueConstraint("family_id", "user_id"),
         CheckConstraint("role in ('admin','caregiver','viewer')", name="ck_membership_role"),
-        CheckConstraint("relation is null or relation in ('mom','dad','grandparent','relative','nanny','other')", name="ck_membership_relation"),
+        CheckConstraint("relation is null or relation in ('mom','dad','grandparent','aunt','relative','nanny','other')", name="ck_membership_relation"),
         # one mom and one dad per family
         Index("uq_membership_parent", "family_id", "relation", unique=True, postgresql_where=text("relation in ('mom','dad')")),
     )
@@ -99,7 +99,7 @@ class Invite(Base):
     __tablename__ = "invites"
     __table_args__ = (
         CheckConstraint("role in ('admin','caregiver','viewer')", name="ck_invite_role"),
-        CheckConstraint("relation is null or relation in ('mom','dad','grandparent','relative','nanny','other')", name="ck_invite_relation"),
+        CheckConstraint("relation is null or relation in ('mom','dad','grandparent','aunt','relative','nanny','other')", name="ck_invite_relation"),
     )
     id: Mapped[uuid.UUID] = _pk()
     family_id: Mapped[uuid.UUID] = _fk("families")
