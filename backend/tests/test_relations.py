@@ -74,6 +74,14 @@ def test_an_invite_can_carry_a_relation_that_is_applied_on_first_login(make_clie
     assert wife.get("/api/me").json()["relation"] == "mom"
 
 
+def test_an_aunt_can_be_invited_and_set(family):
+    r = family.owner.post("/api/family/invites", json={"email": "bua@x.com", "role": "viewer", "relation": "aunt"})
+    assert r.status_code == 200
+    pending = {m["email"]: m for m in family.owner.get("/api/family/members").json()}
+    assert pending["bua@x.com"]["relation"] == "aunt"
+    assert _set(family.owner, _uid(family.mom), "aunt").status_code == 200
+
+
 def test_an_invite_for_a_taken_mom_or_dad_is_refused(family):
     assert _set(family.owner, _uid(family.mom), "mom").status_code == 200
     r = family.owner.post("/api/family/invites", json={"email": "x@x.com", "role": "caregiver", "relation": "mom"})

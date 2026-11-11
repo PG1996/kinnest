@@ -17,7 +17,7 @@ from app.services.vaccines import follow_birth_date
 router = APIRouter(prefix="/api")
 
 Role = Literal["admin", "caregiver", "viewer"]
-Relation = Literal["mom", "dad", "grandparent", "relative", "nanny", "other"]
+Relation = Literal["mom", "dad", "grandparent", "aunt", "relative", "nanny", "other"]
 
 
 class InviteBody(BaseModel):
