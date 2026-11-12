@@ -1,6 +1,7 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import en from '../i18n/en.json'
+import { formatTime } from '../lib/time'
 import { enqueue } from '../offline/queue'
 import { ME_ADMIN, ME_VIEWER, mockApi, renderApp } from '../test/utils'
 import Timeline from './Timeline'
@@ -14,6 +15,11 @@ const ITEMS = [
   { kind: 'vital', id: 'v1', at: at(8, 0), data: { weight_kg: 3.42, place_kind: 'home', place_name: '', temperature_c: null, height_cm: null, head_cm: null, heart_rate: null, resp_rate: null, spo2: null } },
 ]
 const api = (items: object[] = ITEMS, me = ME_ADMIN) => ({ 'GET /api/me': { body: me }, 'GET /api/timeline': { body: { items } } })
+const chart = () => screen.getByRole('group', { name: en.dayChart.label })
+const tap = (el: Element) => {
+  fireEvent.pointerDown(el, { pointerId: 1, pointerType: 'touch', clientX: 100, clientY: 100, button: 0 })
+  fireEvent.pointerUp(el, { pointerId: 1, pointerType: 'touch', clientX: 100, clientY: 100, button: 0 })
+}
 const timelineCalls = (calls: { key: string; url: string }[]) => calls.filter((c) => c.key === 'GET /api/timeline').map((c) => new URL(c.url, 'http://x'))
 
 test('rows render newest first with titles and who did it', async () => {
@@ -30,15 +36,55 @@ test('rows render newest first with titles and who did it', async () => {
   expect(rows[4]).toHaveTextContent('3.42')
 })
 
-test('filter chips ask the server for just those kinds', async () => {
-  const calls = mockApi(api())
+test('the totals add up the day, and tapping one hides that kind from the chart and the list', async () => {
+  mockApi(api())
   renderApp(<Timeline />)
   await screen.findByText(`${en.feedTypes.formula} · 60 ml`)
-  await userEvent.click(screen.getByRole('button', { name: en.timeline.filters.feed }))
-  await waitFor(() => expect(timelineCalls(calls).some((u) => u.searchParams.get('kinds') === 'feed')).toBe(true))
-  expect(screen.getByRole('button', { name: en.timeline.filters.feed, pressed: true })).toBeInTheDocument()
-  await userEvent.click(screen.getByRole('button', { name: en.timeline.filters.health }))
-  await waitFor(() => expect(timelineCalls(calls).some((u) => u.searchParams.get('kinds') === 'vaccine,visit')).toBe(true))
+  const totals = screen.getByRole('group', { name: en.dayChart.totalsLabel })
+  expect(within(totals).getByRole('button', { name: /^Sleep: 1h 50m\./ })).toBeInTheDocument()
+  expect(within(totals).getByRole('button', { name: /^Diapers: 1 · 1 wet\./ })).toBeInTheDocument()
+  expect(within(totals).getByRole('button', { name: /^Medicine: 1 dose\./ })).toBeInTheDocument()
+  const feeds = within(totals).getByRole('button', { name: /^Feeds: 1 feed · 60 ml\./ })
+  await userEvent.click(feeds)
+  expect(feeds).toHaveAttribute('aria-pressed', 'false')
+  expect(screen.queryByText(`${en.feedTypes.formula} · 60 ml`)).not.toBeInTheDocument()
+  expect(within(chart()).queryByText(en.dayChart.lanes.feed)).not.toBeInTheDocument()
+  await userEvent.click(feeds)
+  expect(await screen.findByText(`${en.feedTypes.formula} · 60 ml`)).toBeInTheDocument()
+})
+
+test('tapping a mark narrows the list and the totals to its time; Whole day brings everything back', async () => {
+  mockApi(api())
+  renderApp(<Timeline />)
+  await screen.findByText(`${en.feedTypes.formula} · 60 ml`)
+  tap(within(chart()).getByRole('button', { name: new RegExp(`^${en.timeline.slept.replace('{{duration}}', '1h 50m')}`) }))
+  await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(1))
+  expect(screen.getByRole('heading', { name: `${formatTime(at(10, 30))} – ${formatTime(at(12, 20))}` })).toBeInTheDocument()
+  expect(within(screen.getByRole('group', { name: en.dayChart.totalsLabel })).getByRole('button', { name: /^Feeds: None\./ })).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: en.dayChart.wholeDay }))
+  expect(screen.getAllByRole('listitem')).toHaveLength(5)
+  expect(screen.getByRole('heading', { name: en.dayChart.wholeDay })).toBeInTheDocument()
+})
+
+test('a quick range picks that part of the day, and Zoom draws just that part', async () => {
+  mockApi(api())
+  renderApp(<Timeline />)
+  await screen.findByText(`${en.feedTypes.formula} · 60 ml`)
+  await userEvent.click(screen.getByRole('button', { name: en.dayChart.presets.night }))
+  expect(screen.getByRole('button', { name: en.dayChart.presets.night })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByText(en.dayChart.emptyRange)).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: en.dayChart.presets.morning }))
+  expect(screen.getAllByRole('listitem')).toHaveLength(3) // the vital at 8, the dose at 9:20, the sleep from 10:30
+  await userEvent.click(screen.getByRole('button', { name: en.dayChart.zoom }))
+  expect(screen.getByRole('button', { name: en.dayChart.zoomed })).toHaveAttribute('aria-pressed', 'true')
+})
+
+test('a sleep that ran into the day from the night before is drawn from midnight and listed', async () => {
+  const yesterday22 = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - 1, 22).toISOString()
+  mockApi(api([{ kind: 'sleep', id: 'n1', at: yesterday22, data: { started_at: yesterday22, ended_at: at(2), duration_min: 240, started_by_name: 'Mom' } }]))
+  renderApp(<Timeline />)
+  expect(await screen.findByText(en.timeline.slept.replace('{{duration}}', '4h 0m'))).toBeInTheDocument()
+  expect(within(chart()).getByRole('button', { name: new RegExp(`^${en.timeline.slept.replace('{{duration}}', '4h 0m')}`) })).toBeInTheDocument()
 })
 
 test('an empty day says so', async () => {
@@ -55,15 +101,14 @@ test('entries waiting to sync show as pending sync', async () => {
   expect(screen.getByText(new RegExp(en.timeline.pendingSync))).toBeInTheDocument()
 })
 
-test('show earlier day fetches the previous day', async () => {
+test('one fetch covers the day and the night before it; the arrow shows the day before', async () => {
   const calls = mockApi(api())
   renderApp(<Timeline />)
   await screen.findByText(`${en.feedTypes.formula} · 60 ml`)
-  await userEvent.click(screen.getByRole('button', { name: en.timeline.earlier }))
-  await waitFor(() => expect(timelineCalls(calls).length).toBeGreaterThanOrEqual(2))
-  const yesterday = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - 1).toISOString()
-  await waitFor(() => expect(timelineCalls(calls).map((u) => u.searchParams.get('from'))).toContain(yesterday))
-  expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(2)
+  const midnight = (n: number) => new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() + n)
+  expect(timelineCalls(calls).map((u) => u.searchParams.get('from'))).toContain(midnight(-1).toISOString())
+  await userEvent.click(screen.getByRole('button', { name: en.timeline.prevDay }))
+  await waitFor(() => expect(timelineCalls(calls).map((u) => u.searchParams.get('from'))).toContain(midnight(-2).toISOString()))
 })
 
 test('a viewer can read the timeline', async () => {
@@ -219,5 +264,5 @@ test('a link with ?entry= opens that entry straight away', async () => {
 test('a link with ?day= shows that day', async () => {
   const calls = mockApi(apiFull())
   renderApp(<Timeline />, '/timeline?day=2026-10-01&entry=diaper:d1')
-  await waitFor(() => expect(timelineCalls(calls).some((u) => new Date(u.searchParams.get('from')!).getMonth() === 9)).toBe(true))
+  await waitFor(() => expect(timelineCalls(calls).map((u) => u.searchParams.get('from'))).toContain(new Date(2026, 8, 30).toISOString()))
 })

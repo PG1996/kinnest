@@ -1,8 +1,6 @@
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { vi } from 'vitest'
 import en from '../i18n/en.json'
-import { toLocalDate } from '../lib/time'
 import { ME_ADMIN, mockApi, renderApp } from '../test/utils'
 import Timeline from './Timeline'
 
@@ -19,7 +17,12 @@ const api = () => ({ 'GET /api/me': { body: ME_ADMIN }, 'GET /api/timeline': { b
 const froms = (calls: { key: string; url: string }[]) => calls.filter((c) => c.key === 'GET /api/timeline').map((c) => new URL(c.url, 'http://x').searchParams.get('from'))
 const strip = () => screen.getByRole('group', { name: en.dayPager.strip })
 const chip = (d: Date) => within(strip()).getByRole('button', { name: new RegExp(`^${chipName(d)}`) })
-const section = (d: Date) => document.querySelector(`[data-day="${toLocalDate(d)}"]`)
+function swipe(el: Element, dx: number) {
+  fireEvent.pointerDown(el, { pointerId: 1, pointerType: 'touch', clientX: 200, clientY: 300 })
+  fireEvent.pointerMove(el, { pointerId: 1, pointerType: 'touch', clientX: 200 + dx / 2, clientY: 300 })
+  fireEvent.pointerMove(el, { pointerId: 1, pointerType: 'touch', clientX: 200 + dx, clientY: 300 })
+  fireEvent.pointerUp(el, { pointerId: 1, pointerType: 'touch', clientX: 200 + dx, clientY: 300 })
+}
 
 test('the timeline has a strip of the last three weeks, today chosen', async () => {
   mockApi(api())
@@ -36,45 +39,21 @@ test('each day says what was logged on it', async () => {
   expect(chip(midnight(-1))).toHaveAccessibleName(chipName(midnight(-1)))
 })
 
-test('tapping an older day loads the days down to it and shows it', async () => {
+test('tapping an older day shows only that day, fetched with the night before it', async () => {
   const calls = mockApi(api())
   renderApp(<Timeline />)
   await screen.findByText(`${en.feedTypes.formula} · 60 ml`)
   await userEvent.click(chip(midnight(-2)))
-  await waitFor(() => expect(section(midnight(-2))).not.toBeNull())
-  expect(section(midnight(-1))).not.toBeNull()
-  expect(froms(calls)).toContain(midnight(-2).toISOString())
+  expect(await screen.findByText(`${en.feedTypes.formula} · 90 ml`)).toBeInTheDocument()
+  expect(screen.queryByText(`${en.feedTypes.formula} · 60 ml`)).not.toBeInTheDocument()
+  expect(froms(calls)).toContain(midnight(-3).toISOString())
   expect(chip(midnight(-2))).toHaveAttribute('aria-pressed', 'true')
-  expect(await within(section(midnight(-2)) as HTMLElement).findByText(`${en.feedTypes.formula} · 90 ml`)).toBeInTheDocument()
 })
 
-test('scrolling the list moves the strip to the day at the top', async () => {
+test('swiping right on the chart shows the day before', async () => {
   mockApi(api())
   renderApp(<Timeline />)
   await screen.findByText(`${en.feedTypes.formula} · 60 ml`)
-  await userEvent.click(chip(midnight(-2)))
-  await waitFor(() => expect(section(midnight(-2))).not.toBeNull())
-  // lay the days out: today scrolled past, yesterday at the top under the strip, the day before below
-  const tops: Record<string, number> = { [toLocalDate(midnight(0))]: -400, [toLocalDate(midnight(-1))]: 2, [toLocalDate(midnight(-2))]: 500 }
-  for (const [day, top] of Object.entries(tops)) {
-    const el = document.querySelector(`[data-day="${day}"]`) as HTMLElement
-    el.getBoundingClientRect = () => ({ top, bottom: top + 300, left: 0, right: 0, width: 0, height: 300, x: 0, y: top, toJSON: () => ({}) })
-  }
-  fireEvent.scroll(window)
+  swipe(screen.getByRole('group', { name: en.dayChart.label }).querySelector('svg')!, 260)
   await waitFor(() => expect(chip(midnight(-1))).toHaveAttribute('aria-pressed', 'true'))
-})
-
-test('reaching the end of the list loads the day before by itself', async () => {
-  const seen: ((entries: { isIntersecting: boolean }[]) => void)[] = []
-  vi.stubGlobal('IntersectionObserver', class {
-    constructor(cb: (entries: { isIntersecting: boolean }[]) => void) { seen.push(cb) }
-    observe() {}
-    disconnect() {}
-  })
-  const calls = mockApi(api())
-  renderApp(<Timeline />)
-  await screen.findByText(`${en.feedTypes.formula} · 60 ml`)
-  act(() => seen.at(-1)!([{ isIntersecting: true }]))
-  await waitFor(() => expect(froms(calls)).toContain(midnight(-1).toISOString()))
-  expect(section(midnight(-1))).not.toBeNull()
 })

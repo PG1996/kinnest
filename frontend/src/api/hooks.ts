@@ -290,12 +290,17 @@ export function useVisits() {
 
 /** Every entry between `from` and `to` (at most 31 days), newest first. Keep `from`/`to` stable between renders. */
 export function useTimeline({ from, to, kinds }: { from: Date; to: Date; kinds?: TimelineKind[] }) {
+  return useQuery(timelineQuery(from, to, kinds))
+}
+
+/** The query behind `useTimeline`, for prefetching a range. */
+export function timelineQuery(from: Date, to: Date, kinds?: TimelineKind[]) {
   const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() })
   if (kinds?.length) params.set('kinds', kinds.join(','))
-  return useQuery({
+  return {
     queryKey: ['timeline', from.toISOString(), to.toISOString(), kinds?.join(',') ?? ''],
     queryFn: async () => (await api<{ items: TimelineItem[] }>(`/api/timeline?${params}`)).items,
-  })
+  }
 }
 
 export type DoseRow = {

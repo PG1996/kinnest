@@ -671,7 +671,6 @@
     "yesterday": "Yesterday",
     "empty": "Nothing logged this day.",
     "pendingSync": "pending sync",
-    "earlier": "Show earlier day",
     "slept": "Slept {{duration}}",
     "asleep": "Asleep",
     "doseSkipped": "{{name}} skipped",
@@ -693,7 +692,9 @@
     },
     "pickMedicine": "Which medicine?",
     "feedEditTitle": "Edit feed",
-    "feedAddTitle": "Add a past feed"
+    "feedAddTitle": "Add a past feed",
+    "prevDay": "Day before",
+    "nextDay": "Day after"
   },
   "patterns": {
     "title": "Patterns",
@@ -868,5 +869,58 @@
     "pickDay": "Pick a day",
     "anyDay": "Any day",
     "noEnd": "No end date"
+  },
+  "dayChart": {
+    "label": "Day chart",
+    "lanes": {
+      "sleep": "Sleep",
+      "feed": "Feeds",
+      "diaper": "Diapers",
+      "dose": "Medicine",
+      "vital": "Vitals",
+      "health": "Visits & vaccines"
+    },
+    "rangeStart": "Start of range",
+    "rangeEnd": "End of range",
+    "hint": "Hold, then drag to pick a range · Tap a mark",
+    "wholeDay": "Whole day",
+    "zoom": "Zoom",
+    "zoomed": "Zoomed",
+    "presetsLabel": "Quick ranges",
+    "presets": {
+      "night": "Night",
+      "morning": "Morning",
+      "afternoon": "Afternoon",
+      "evening": "Evening"
+    },
+    "totalsLabel": "Totals, tap to show or hide",
+    "entries_one": "{{count}} entry",
+    "entries_other": "{{count}} entries",
+    "emptyRange": "Nothing logged in this range.",
+    "range": "{{from}} – {{to}}",
+    "midnight": "midnight",
+    "totals": {
+      "sleep": "{{duration}}",
+      "feedCount_one": "{{count}} feed",
+      "feedCount_other": "{{count}} feeds",
+      "ml": "{{n}} ml",
+      "breastMin": "{{n}} min mom's",
+      "diaperCount": "{{count}}",
+      "wet": "{{n}} wet",
+      "dirty": "{{n}} dirty",
+      "both": "{{n}} both",
+      "doses_one": "{{count}} dose",
+      "doses_other": "{{count}} doses",
+      "skipped": "{{n}} skipped",
+      "readings_one": "{{count}} reading",
+      "readings_other": "{{count}} readings",
+      "visits_one": "{{count}} visit",
+      "visits_other": "{{count}} visits",
+      "vaccines_one": "{{count}} vaccine",
+      "vaccines_other": "{{count}} vaccines",
+      "none": "None"
+    },
+    "show": "{{name}}: {{total}}. Tap to show",
+    "hide": "{{name}}: {{total}}. Tap to hide"
   }
 }

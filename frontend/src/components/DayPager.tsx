@@ -30,16 +30,25 @@ export default function DayPager({
   prevLabel,
   nextLabel,
   marked,
+  marks,
+  describe,
+  stripClassName,
   onPrefetch,
   children,
 }: {
   day: Date
   today: Date
   onDay: (d: Date) => void
-  tone: Tone
+  tone: Tone | 'primary'
   prevLabel: string
   nextLabel: string
-  marked: Set<string>
+  /** days with entries get one dot in the page's colour */
+  marked?: Set<string>
+  /** or the page names the dots (one per kind) and the words for each day itself */
+  marks?: (d: Date) => StripTone[]
+  describe?: (d: Date) => string
+  /** classes for the strip's wrapper, e.g. to hide it on a phone turned sideways */
+  stripClassName?: string
   onPrefetch?: (d: Date) => void
   children: ReactNode
 }) {
@@ -144,14 +153,16 @@ export default function DayPager({
             <ChevronRight size={20} aria-hidden="true" />
           </IconButton>
         </div>
-        <DayStrip
-          days={days}
-          selected={day}
-          onPick={show}
-          tone={tone as StripTone}
-          marks={(d) => (marked.has(toLocalDate(d)) ? [tone as StripTone] : [])}
-          describe={(d) => (marked.has(toLocalDate(d)) ? t('dayPager.logged') : '')}
-        />
+        <div className={stripClassName}>
+          <DayStrip
+            days={days}
+            selected={day}
+            onPick={show}
+            tone={tone as StripTone}
+            marks={marks ?? ((d) => (marked?.has(toLocalDate(d)) ? [tone as StripTone] : []))}
+            describe={describe ?? ((d) => (marked?.has(toLocalDate(d)) ? t('dayPager.logged') : ''))}
+          />
+        </div>
       </div>
       {picking &&
         createPortal(

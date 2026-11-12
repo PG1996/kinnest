@@ -1,6 +1,9 @@
 @import 'tailwindcss';
 @import './theme/tokens.css';
 
+/* a phone turned sideways: wide but short */
+@custom-variant land (@media (orientation: landscape) and (max-height: 540px));
+
 @theme inline {
   --color-app: var(--app);
   --color-surface: var(--surface);
