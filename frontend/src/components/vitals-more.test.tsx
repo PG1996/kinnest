@@ -60,7 +60,7 @@ test('the list shows temperatures in °F', async () => {
   fahrenheit()
   mockApi(api())
   renderApp(<App />, '/health?tab=vitals')
-  await userEvent.click(await screen.findByRole('radio', { name: en.vitals.charts.list }))
+  await userEvent.click(await screen.findByRole('radio', { name: en.vitals.charts.calendar }))
   expect(await screen.findByText(/98\.6 °F/)).toBeInTheDocument()
 })
 
@@ -90,7 +90,7 @@ test('head circumference and breathing rate wait under More vitals in the form',
 test('editing an entry that has a head circumference opens More vitals by itself', async () => {
   mockApi(api([VITAL({ head_cm: 35 })]))
   renderApp(<App />, '/health?tab=vitals')
-  await userEvent.click(await screen.findByRole('radio', { name: en.vitals.charts.list }))
+  await userEvent.click(await screen.findByRole('radio', { name: en.vitals.charts.calendar }))
   await userEvent.click(await screen.findByRole('button', { name: en.vitals.list.edit }))
   const form = screen.getByRole('dialog')
   expect(within(form).getByRole('button', { name: en.vitals.measurements.head_cm, pressed: true })).toBeInTheDocument()

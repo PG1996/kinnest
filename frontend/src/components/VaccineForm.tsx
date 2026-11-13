@@ -16,8 +16,11 @@ export default function VaccineForm({
   saving,
   serverError,
   onSave,
+  day,
 }: {
   mode: VaccineFormMode
+  /** a new vaccine opened from this day on the calendar: due that day */
+  day?: string
   initial?: Vaccination
   saving?: boolean
   serverError?: string
@@ -26,7 +29,7 @@ export default function VaccineForm({
   const { t } = useTranslation()
   const [name, setName] = useState(initial?.name ?? '')
   const [dose, setDose] = useState(initial?.dose_label ?? '')
-  const [due, setDue] = useState(initial?.due_date ?? '')
+  const [due, setDue] = useState(initial?.due_date ?? day ?? '')
   const [givenOn, setGivenOn] = useState(initial?.given_on ?? toLocalDate(new Date()))
   const [place, setPlace] = useState(initial?.place ?? '')
   const [notes, setNotes] = useState(initial?.notes ?? '')

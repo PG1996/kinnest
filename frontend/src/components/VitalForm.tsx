@@ -8,6 +8,7 @@ import { PLACES } from '../lib/vitalsFormat'
 import { Button } from './ui/button'
 import { Input, Select } from './ui/field'
 import { DateTimeField } from './ui/datetime'
+import { atDay } from '../lib/calendar'
 
 const chipClass = (on: boolean) =>
   cn('min-h-10 rounded-full border px-3 text-sm', on ? 'border-primary bg-primary text-primary-ink' : 'border-line')
@@ -18,8 +19,11 @@ export default function VitalForm({
   saving,
   serverError,
   onSave,
+  day,
 }: {
   initial?: Vital
+  /** a new reading opened from this day on the calendar */
+  day?: string
   saving?: boolean
   serverError?: string
   onSave: (input: VitalInput) => void
@@ -31,7 +35,7 @@ export default function VitalForm({
   const [values, setValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(MEASUREMENTS.map((m) => [m.key, initial?.[m.key] != null ? String(shownValue(m.key, initial[m.key] as number)) : ''])),
   )
-  const [when, setWhen] = useState(() => toLocalInput(initial ? new Date(initial.measured_at) : new Date()))
+  const [when, setWhen] = useState(() => toLocalInput(initial ? new Date(initial.measured_at) : day ? atDay(day) : new Date()))
   const [place, setPlace] = useState<PlaceKind>(initial?.place_kind ?? 'home')
   const [placeName, setPlaceName] = useState(initial?.place_name ?? '')
   const [measuredBy, setMeasuredBy] = useState(initial?.measured_by ?? '')

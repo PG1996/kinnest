@@ -507,7 +507,6 @@
     },
     "charts": {
       "title": "Charts",
-      "list": "List",
       "growth": {
         "weight": "Weight for age",
         "height": "Length/height for age",
@@ -530,7 +529,8 @@
       "metrics": "Chart",
       "view": "View",
       "more": "More vitals",
-      "noChange": "no change"
+      "noChange": "no change",
+      "calendar": "Calendar"
     },
     "bulk": {
       "title": "Add past readings",
@@ -548,6 +548,21 @@
       "fixRows": "Nothing was saved. Fix the rows marked below.",
       "offline": "No connection. Nothing was saved; try again when you are online.",
       "tooMany": "At most 200 rows at a time."
+    },
+    "calendar": {
+      "label": "Vitals calendar",
+      "days_one": "{{count}} day with readings",
+      "days_other": "{{count}} days with readings",
+      "readings_one": "{{count}} reading",
+      "readings_other": "{{count}} readings",
+      "fever": "fever",
+      "feverKey": "38 °C or more",
+      "showDays": "Show days with",
+      "all": "All",
+      "places": "Places, tap to show or hide",
+      "monthTitle": "{{month}} readings",
+      "monthEmpty": "No readings in {{month}}.",
+      "addDay": "Add vitals for this day"
     }
   },
   "vaccines": {
@@ -601,7 +616,17 @@
       "futureGiven": "The given date cannot be in the future",
       "required": "Enter the vaccine name and due date"
     },
-    "restore": "Back to due"
+    "restore": "Back to due",
+    "calendar": {
+      "label": "Vaccines calendar",
+      "days_one": "{{count}} day with vaccines",
+      "days_other": "{{count}} days with vaccines",
+      "count_one": "{{count}} vaccine",
+      "count_other": "{{count}} vaccines",
+      "statusLabel": "Status, tap to show or hide",
+      "wasDue": "was due {{date}}",
+      "addDay": "Add a vaccine for this day"
+    }
   },
   "visits": {
     "add": "Add visit",
@@ -636,7 +661,16 @@
       "invalid": "Enter the date and time"
     },
     "restore": "Back to upcoming",
-    "vitalsLabel": "Readings: {{values}}"
+    "vitalsLabel": "Readings: {{values}}",
+    "calendar": {
+      "label": "Visits calendar",
+      "days_one": "{{count}} day with visits",
+      "days_other": "{{count}} days with visits",
+      "count_one": "{{count}} visit",
+      "count_other": "{{count}} visits",
+      "statusLabel": "Status, tap to show or hide",
+      "addDay": "Add a visit on this day"
+    }
   },
   "upcoming": {
     "title": "Coming up",
@@ -922,5 +956,22 @@
     },
     "show": "{{name}}: {{total}}. Tap to show",
     "hide": "{{name}}: {{total}}. Tap to hide"
+  },
+  "calendar": {
+    "size": "Calendar size",
+    "month": "Month",
+    "year": "Year",
+    "prevMonth": "Month before",
+    "nextMonth": "Month after",
+    "prevYear": "Year before",
+    "nextYear": "Year after",
+    "earlier": "Earlier entry, {{date}}",
+    "later": "Later entry, {{date}}",
+    "nothingMonth": "Nothing this month",
+    "nothing": "nothing logged",
+    "today": "today",
+    "tapMonth": "Tap a month to open it",
+    "showAll": "Show all",
+    "emptyDay": "Nothing logged on this day."
   }
 }

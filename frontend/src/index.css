@@ -56,6 +56,20 @@ body {
   }
 }
 
+/* the history calendar slides a new month in from the side it came from */
+@keyframes cal-in-l {
+  from {
+    opacity: 0.4;
+    transform: translateX(28px);
+  }
+}
+@keyframes cal-in-r {
+  from {
+    opacity: 0.4;
+    transform: translateX(-28px);
+  }
+}
+
 @keyframes heat-in {
   from {
     opacity: 0;
