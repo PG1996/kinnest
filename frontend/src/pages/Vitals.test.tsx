@@ -27,8 +27,8 @@ const chip = (name: string) => within(screen.queryByRole('dialog') ?? document.b
 const input = (key: keyof typeof en.vitals.measurements) =>
   within(screen.getByRole('dialog')).getByLabelText(new RegExp(`^${en.vitals.measurements[key]}`))
 
-/** The tab opens on charts; the list is one tap away. */
-const toList = async () => userEvent.click(await screen.findByRole('radio', { name: en.vitals.charts.list }))
+/** The tab opens on charts; the calendar and its list are one tap away. */
+const toList = async () => userEvent.click(await screen.findByRole('radio', { name: en.vitals.charts.calendar }))
 
 async function openForm() {
   await userEvent.click(await screen.findByRole('button', { name: en.vitals.add }))
@@ -101,17 +101,6 @@ test('delete needs a second confirm', async () => {
   expect(calls.some((c) => c.key === 'DELETE /api/vitals/v1')).toBe(false)
   await userEvent.click(screen.getByRole('button', { name: en.vitals.list.confirmDelete }))
   await waitFor(() => expect(calls.some((c) => c.key === 'DELETE /api/vitals/v1')).toBe(true))
-})
-
-test('filters list by place', async () => {
-  mockApi(routes())
-  renderApp(<VitalsTab />)
-  await toList()
-  expect(await screen.findByText(/City Hospital/)).toBeInTheDocument()
-  await userEvent.selectOptions(screen.getByLabelText(en.vitals.list.place), 'hospital')
-  await waitFor(() =>
-    expect(vi.mocked(fetch).mock.calls.some(([u]) => String(u) === '/api/vitals?place_kind=hospital')).toBe(true),
-  )
 })
 
 const homeSummary = (latest: object, previous: object = {}) => ({
@@ -217,12 +206,12 @@ test('the add form opens from a link with ?add=1', async () => {
   expect(await screen.findByRole('dialog')).toBeInTheDocument()
 })
 
-test('charts are the default view and the list is one tap away', async () => {
+test('charts are the default view and the calendar is one tap away', async () => {
   mockApi({ ...routes(), 'GET /api/vitals/growth/weight': { status: 409, body: { detail: 'birth date not set' } }, 'GET /api/vitals/growth/height': { status: 409, body: {} }, 'GET /api/vitals/growth/head': { status: 409, body: {} } })
   renderApp(<VitalsTab />)
   expect(await screen.findByRole('radio', { name: en.vitals.charts.title, checked: true })).toBeInTheDocument()
   expect(screen.queryByText('City Hospital')).not.toBeInTheDocument()
-  await userEvent.click(screen.getByRole('radio', { name: en.vitals.charts.list }))
+  await userEvent.click(screen.getByRole('radio', { name: en.vitals.charts.calendar }))
   expect(await screen.findByText(/City Hospital/)).toBeInTheDocument()
 })
 
@@ -248,19 +237,6 @@ test('each reading in the list shows its values as separate tiles, like the Home
     expect.stringContaining('98'),
   ])
 })
-
-test('the list filters give the place a row of its own and the two dates share the next one', async () => {
-  mockApi(routes())
-  renderApp(<VitalsTab />)
-  await toList()
-  const place = await screen.findByLabelText(en.vitals.list.place)
-  const from = screen.getByLabelText(en.vitals.list.from)
-  const to = screen.getByLabelText(en.vitals.list.to)
-  expect(place.closest('div')!.parentElement).not.toBe(from.closest('div')!.parentElement)
-  expect(from.closest('div')!.parentElement).toBe(to.closest('div')!.parentElement)
-  expect(from.closest('div')!.parentElement!.className).toContain('grid-cols-2')
-})
-
 
 test('Home vitals tiles sit three over two and show the change since the reading before', async () => {
   const card = await homeCard(

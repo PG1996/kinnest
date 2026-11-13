@@ -6,6 +6,7 @@ import { toLocalInput } from '../lib/time'
 import { Button } from './ui/button'
 import { Input } from './ui/field'
 import { DateTimeField } from './ui/datetime'
+import { atDay } from '../lib/calendar'
 
 export type VisitFormMode = 'add' | 'edit' | 'done'
 
@@ -16,15 +17,18 @@ export default function VisitForm({
   saving,
   serverError,
   onSave,
+  day,
 }: {
   mode: VisitFormMode
+  /** a new visit opened from this day on the calendar */
+  day?: string
   initial?: Visit
   saving?: boolean
   serverError?: string
   onSave: (body: VisitInput) => void
 }) {
   const { t } = useTranslation()
-  const [when, setWhen] = useState(() => toLocalInput(initial ? new Date(initial.scheduled_at) : new Date()))
+  const [when, setWhen] = useState(() => toLocalInput(initial ? new Date(initial.scheduled_at) : day ? atDay(day) : new Date()))
   const [doctor, setDoctor] = useState(initial?.doctor ?? '')
   const [place, setPlace] = useState(initial?.place ?? '')
   const [reason, setReason] = useState(initial?.reason ?? '')

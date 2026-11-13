@@ -2,28 +2,35 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import { useScanStatus } from '../api/scan'
-import { useMe, useVitals, type PlaceKind, type Vital, type VitalFilters } from '../api/hooks'
+import { useMe, useVitals, type PlaceKind, type Vital } from '../api/hooks'
 import BulkVitals from '../components/BulkVitals'
 import Sheet from '../components/Sheet'
 import SnapRecord from '../components/SnapRecord'
 import VitalForm from '../components/VitalForm'
-import VitalList, { type VitalRow } from '../components/VitalList'
+import { type VitalRow } from '../components/VitalList'
+import VitalsCalendar from '../components/VitalsCalendar'
 import { Button } from '../components/ui/button'
 import { Segmented } from '../components/ui/segmented'
-import { Select } from '../components/ui/field'
 import { useCreateVital, useDeleteVital, useUpdateVital } from '../hooks/log'
-import { PLACES } from '../lib/vitalsFormat'
 import { useQueue } from '../offline/pending'
 import type { QueueEntry } from '../offline/queue'
-import { DateField } from '../components/ui/datetime'
 
 // the charts library is large: load it only when the charts are opened
 const VitalsCharts = lazy(() => import('./VitalsCharts'))
 
 /** A queued (not yet synced) entry shown like a saved one. */
 const fromQueue = (e: QueueEntry): VitalRow => ({
-  weight_kg: null, height_cm: null, head_cm: null, temperature_c: null, heart_rate: null, resp_rate: null, spo2: null,
-  place_name: '', measured_by: '', note: '', entered_by_name: '',
+  weight_kg: null,
+  height_cm: null,
+  head_cm: null,
+  temperature_c: null,
+  heart_rate: null,
+  resp_rate: null,
+  spo2: null,
+  place_name: '',
+  measured_by: '',
+  note: '',
+  entered_by_name: '',
   ...(e.payload as Partial<Vital>),
   id: e.id,
   measured_at: String(e.payload.measured_at),
@@ -31,24 +38,25 @@ const fromQueue = (e: QueueEntry): VitalRow => ({
   waiting: true,
 })
 
-const dayStart = (d: string) => (d ? new Date(`${d}T00:00:00`).toISOString() : undefined)
-const dayEnd = (d: string) => (d ? new Date(`${d}T23:59:59.999`).toISOString() : undefined)
-
 export default function VitalsTab() {
   const { t } = useTranslation()
   const canEdit = (useMe().data?.role ?? 'viewer') !== 'viewer'
   const [params, setParams] = useSearchParams()
-  const [place, setPlace] = useState<PlaceKind | ''>('')
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
-  const filters: VitalFilters = { place_kind: place || undefined, from: dayStart(from), to: dayEnd(to) }
-  const vitals = useVitals(filters).data ?? []
-  const waiting = useQueue().pending.filter((p) => p.kind === 'vital').map(fromQueue)
+  // the calendar needs every reading to mark its days (the server's most)
+  const vitals = useVitals({ limit: 2000 }).data ?? []
+  const waiting = useQueue()
+    .pending.filter((p) => p.kind === 'vital')
+    .map(fromQueue)
   const [editing, setEditing] = useState<Vital | 'new' | null>(null)
+  const [newDay, setNewDay] = useState<string | undefined>()
+  const close = () => {
+    setEditing(null)
+    setNewDay(undefined)
+  }
   const [bulkOpen, setBulkOpen] = useState(false)
   const [snapOpen, setSnapOpen] = useState(false)
   const scanOn = useScanStatus().data?.enabled === true
-  const [view, setView] = useState<'list' | 'charts'>('charts')
+  const [view, setView] = useState<'calendar' | 'charts'>('charts')
   const create = useCreateVital()
   const update = useUpdateVital()
   const remove = useDeleteVital()
@@ -62,8 +70,7 @@ export default function VitalsTab() {
   }, [canEdit, params, setParams])
 
   const save = editing === 'new' ? create : update
-  const onSave = (input: Parameters<typeof create.mutate>[0]) =>
-    save.mutate(input, { onSuccess: () => setEditing(null) })
+  const onSave = (input: Parameters<typeof create.mutate>[0]) => save.mutate(input, { onSuccess: () => close() })
 
   return (
     <div className="space-y-4">
@@ -86,7 +93,7 @@ export default function VitalsTab() {
         onChange={setView}
         options={[
           { value: 'charts', label: t('vitals.charts.title') },
-          { value: 'list', label: t('vitals.charts.list') },
+          { value: 'calendar', label: t('vitals.charts.calendar') },
         ]}
       />
       {view === 'charts' ? (
@@ -94,43 +101,16 @@ export default function VitalsTab() {
           <VitalsCharts />
         </Suspense>
       ) : (
-        <>
-      <div className="space-y-2">
-        <div>
-          <label htmlFor="vitals-place" className="block text-xs text-muted">
-            {t('vitals.list.place')}
-          </label>
-          <Select id="vitals-place" value={place} onChange={(e) => setPlace(e.target.value as PlaceKind | '')}>
-            <option value="">{t('vitals.list.all')}</option>
-            {PLACES.map((p) => (
-              <option key={p} value={p}>
-                {t(`vitals.places.${p}`)}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label htmlFor="vitals-from" className="block text-xs text-muted">
-            {t('vitals.list.from')}
-          </label>
-          <DateField id="vitals-from" label={t('vitals.list.from')} clearable placeholder={t('picker.anyDay')} value={from} onChange={setFrom} />
-        </div>
-        <div>
-          <label htmlFor="vitals-to" className="block text-xs text-muted">
-            {t('vitals.list.to')}
-          </label>
-          <DateField id="vitals-to" label={t('vitals.list.to')} clearable placeholder={t('picker.anyDay')} value={to} onChange={setTo} />
-        </div>
-        </div>
-      </div>
-      <VitalList
-        rows={[...waiting, ...vitals].sort((a, b) => Date.parse(b.measured_at) - Date.parse(a.measured_at))}
-        canEdit={canEdit}
-        onEdit={(v) => setEditing(v)}
-        onDelete={(id) => remove.mutate(id)}
-      />
-        </>
+        <VitalsCalendar
+          rows={[...waiting, ...vitals]}
+          canEdit={canEdit}
+          onEdit={(v) => setEditing(v)}
+          onDelete={(id) => remove.mutate(id)}
+          onAddDay={(day) => {
+            setNewDay(day)
+            setEditing('new')
+          }}
+        />
       )}
       {snapOpen && (
         <SnapRecord
@@ -147,9 +127,10 @@ export default function VitalsTab() {
         </Sheet>
       )}
       {editing && (
-        <Sheet variant="full" title={t(editing === 'new' ? 'vitals.form.title' : 'vitals.form.editTitle')} onClose={() => setEditing(null)}>
+        <Sheet variant="full" title={t(editing === 'new' ? 'vitals.form.title' : 'vitals.form.editTitle')} onClose={() => close()}>
           <VitalForm
             initial={editing === 'new' ? undefined : editing}
+            day={editing === 'new' ? newDay : undefined}
             saving={save.isPending}
             serverError={save.error?.message}
             onSave={onSave}

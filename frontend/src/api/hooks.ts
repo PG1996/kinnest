@@ -243,7 +243,7 @@ export type Visit = {
   /** the readings taken at this visit */
   vitals?: Vital[]
 }
-export type VitalFilters = { from?: string; to?: string; place_kind?: PlaceKind }
+export type VitalFilters = { from?: string; to?: string; place_kind?: PlaceKind; limit?: number }
 
 const qs = (params: Record<string, string | undefined>) => {
   const p = new URLSearchParams(Object.entries(params).filter((e): e is [string, string] => !!e[1]))
@@ -253,7 +253,7 @@ const qs = (params: Record<string, string | undefined>) => {
 export function useVitals(filters: VitalFilters = {}) {
   return useQuery({
     queryKey: ['vitals', filters],
-    queryFn: () => api<Vital[]>(`/api/vitals${qs(filters)}`),
+    queryFn: () => api<Vital[]>(`/api/vitals${qs({ ...filters, limit: filters.limit?.toString() })}`),
   })
 }
 
