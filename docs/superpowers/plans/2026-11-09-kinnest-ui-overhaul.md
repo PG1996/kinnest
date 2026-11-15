@@ -331,3 +331,11 @@ Slice 3b task 4–5 frontend pieces (`PhotoPicker`, `ScanNotice`, `useScanStatus
 are built here with the same names. When 3b runs, its frontend steps shrink to: attach the uploaded photo as `role: "source"`
 after saving, add the vaccine-schedule and medicine-label scan entry points, and drop the "hidden on 404" fallback once the
 status endpoint always exists.
+
+## After the plan
+
+All 14 tasks are done and reviewed (ledger: `.superpowers/sdd/2026-11-09-kinnest-ui-overhaul/progress.md`). Work then went
+on in the same branch from owner feedback: dozens of smaller changes plus two designed features (the timeline day chart,
+`docs/superpowers/specs/2026-11-12-timeline-day-chart-design.md`, and the history calendars). Some rulings above were later
+reversed by the owner: timeline rows are now tappable to edit, and Vitals' List view became a Calendar. Everything after the
+plan is summarised in `docs/CHANGES.md`.

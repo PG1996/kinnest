@@ -134,6 +134,16 @@ Not seen in a real browser while it was built (no browser was available): look a
 - [ ] **Reduce motion** (phone accessibility setting): nothing animates; numbers and the gauge show their final value at once.
 - [ ] **Viewer account**: every screen above is read-only (no quick log, no sliders, no add, no snap).
 
+## After the UI overhaul (see `docs/CHANGES.md`)
+Built from owner feedback on the dev stack; each item below was only tested in jsdom.
+- [ ] **Feed timer**: start it on one phone, see it on the other; pause, resume, stop, answer the breaks question, save. Open the feed sheet while it runs: Time shows when the timer started. Discard it, type a duration, save: the feed starts at the timer's start.
+- [ ] **Sleep form**: add a past sleep without a wake-up time: it asks for one. Tick **Still asleep**: Woke up hides and the sleep saves as going on. The tile reads well in dark mode.
+- [ ] **Diaper sheet**: a clear gap under the Changed by chips; Close lines up with the right edge of the tiles. With a sleep running, **Woke up** ends it.
+- [ ] **Timeline day chart**: swipe between days on the chart; hold then drag picks a range (a quick drag swipes the day instead); handles, Zoom and Whole day; totals hide a kind. Turn the phone sideways: chart left, totals and list right.
+- [ ] **History calendars** on Vitals (Calendar view), Vaccines and Visits: swipe months, Year view, jump buttons, tap a day and Show all; fever days amber; an empty day offers to add with that day filled in.
+- [ ] **Medicines**: daily maximum and "done today", give a dose ahead, partial dose reminder turns the rest yellow, End now and Resume, SOS leaves Home 48h after its last dose.
+- [ ] **Day pager** on Feeds, Diapers and Sleep: strip, swipe, date picker; vertical scrolling is not taken over by the swipe.
+
 ## Real-use stack on the Mac
 - [ ] `curl localhost:8080/api/health` returns ok through Caddy, and the tunnel address opens the app.
 - [ ] Reboot the Mac: OrbStack and the four containers come back, and reminders still fire.
