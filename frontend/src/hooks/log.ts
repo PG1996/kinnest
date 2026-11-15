@@ -203,11 +203,11 @@ const refreshSleep = (qc: ReturnType<typeof useQueryClient>) => {
   qc.invalidateQueries({ queryKey: ['summary'] })
 }
 
-/** A sleep that already ended, logged afterwards (online only: the server checks it does not overlap another). */
+/** A sleep logged afterwards, ended or (no `ended_at`) still going (online only: the server checks it does not overlap another). */
 export function useAddPastSleep() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (b: { id: string; started_at: string; ended_at: string; note?: string }) => api('/api/sleep/past', { json: b }),
+    mutationFn: (b: { id: string; started_at: string; ended_at: string | null; note?: string }) => api('/api/sleep/past', { json: b }),
     onSuccess: () => refreshSleep(qc),
   })
 }

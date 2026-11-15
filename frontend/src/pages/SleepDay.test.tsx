@@ -111,6 +111,48 @@ test('an end before the start is refused before anything is sent', async () => {
   expect(calls.some((c) => c.key === 'POST /api/sleep/past')).toBe(false)
 })
 
+const openAddPast = async () => {
+  await userEvent.click(await screen.findByRole('button', { name: en.sleep.addPast }))
+  return screen.findByRole('dialog', { name: en.sleep.addTitle })
+}
+
+test('a past sleep needs a wake-up time unless Still asleep is ticked', async () => {
+  const calls = mockApi(api())
+  renderApp(<App />, '/sleep')
+  const form = await openAddPast()
+  expect(within(form).getByRole('checkbox', { name: en.sleep.form.stillAsleep })).not.toBeChecked()
+  await pickDateTime(en.sleep.form.start, yest(9))
+  await userEvent.click(within(form).getByRole('button', { name: en.sleep.form.save }))
+  expect(await within(form).findByText(en.sleep.form.endRequired)).toBeInTheDocument()
+  expect(calls.some((c) => c.key === 'POST /api/sleep/past')).toBe(false)
+})
+
+test('ticking Still asleep hides Woke up and saves a sleep that is still going', async () => {
+  const calls = mockApi(api())
+  renderApp(<App />, '/sleep')
+  const form = await openAddPast()
+  const start = today(11, 0)
+  await pickDateTime(en.sleep.form.start, start)
+  await userEvent.click(within(form).getByRole('checkbox', { name: en.sleep.form.stillAsleep }))
+  expect(within(form).queryByRole('button', { name: en.sleep.form.end })).not.toBeInTheDocument()
+  await userEvent.click(within(form).getByRole('button', { name: en.sleep.form.save }))
+  await waitFor(() => expect(calls.some((c) => c.key === 'POST /api/sleep/past')).toBe(true))
+  const body = calls.find((c) => c.key === 'POST /api/sleep/past')!.body as Record<string, unknown>
+  expect(near(body.started_at, start)).toBe(true)
+  expect(body.ended_at).toBeNull()
+})
+
+test('a sleep still going that started over 24 hours ago is refused', async () => {
+  const calls = mockApi(api())
+  renderApp(<App />, '/sleep')
+  const form = await openAddPast()
+  await pickDateTime(en.sleep.form.start, yest(9))
+  await userEvent.click(within(form).getByRole('checkbox', { name: en.sleep.form.stillAsleep }))
+  await userEvent.click(within(form).getByRole('button', { name: en.sleep.form.save }))
+  expect(await within(form).findByText(en.sleep.form.tooLong)).toBeInTheDocument()
+  expect(calls.some((c) => c.key === 'POST /api/sleep/past')).toBe(false)
+})
+
 test('an overlap with another sleep is explained', async () => {
   mockApi(api(ME_ADMIN, { 'POST /api/sleep/past': { status: 409, body: { detail: 'overlaps another sleep', overlaps: SLEEPS[0] } } }))
   renderApp(<App />, '/sleep')
@@ -160,7 +202,7 @@ test('the sleep card on Home opens the day screen', async () => {
   expect(await screen.findByRole('link', { name: new RegExp(en.sleep.title) })).toHaveAttribute('href', '/sleep')
 })
 
-// --- editing short sleeps and clearing the wake-up time ----------------------------------------------------------------
+// --- editing short sleeps, and Still asleep ----------------------------------------------------------------
 
 const SHORT = { id: 's9', started_at: new Date(today(0, 30).getTime() + 37_000).toISOString(), ended_at: new Date(today(0, 30).getTime() + 40_000).toISOString(), started_by_name: 'Mom', ended_by_name: 'Mom', duration_min: 0, note: '' }
 const shortApi = (extra: object = {}) => api(ME_ADMIN, { 'GET /api/sleep': { body: [SHORT] }, 'GET /api/timeline': { body: { items: [{ kind: 'sleep', id: 's9', at: SHORT.started_at, data: SHORT }] } }, 'PATCH /api/sleep/s9': (b: unknown) => ({ body: { ...SHORT, ...(b as object) } }), ...extra })
@@ -177,16 +219,17 @@ test('editing only the note of a sleep a few seconds long saves without a time e
   expect(body).toEqual({ note: 'tap test' }) // untouched times are not rounded to the minute and resent
 })
 
-test('emptying Woke up on a finished sleep marks it as still asleep', async () => {
+test('ticking Still asleep on a finished sleep marks it as still going', async () => {
   const calls = mockApi(shortApi())
   renderApp(<App />, '/timeline?entry=sleep:s9')
   await userEvent.click(await screen.findByRole('button', { name: en.timeline.edit }))
   const form = await screen.findByRole('dialog', { name: en.sleep.editTitle })
-  await userEvent.click(within(form).getByRole('button', { name: en.sleep.form.end }))
-  await userEvent.click(within(screen.getAllByRole('dialog').at(-1)!).getByRole('button', { name: en.picker.clear }))
+  const still = within(form).getByRole('checkbox', { name: en.sleep.form.stillAsleep })
+  expect(still).not.toBeChecked()
+  await userEvent.click(still)
   await userEvent.click(within(form).getByRole('button', { name: en.sleep.form.save }))
   await waitFor(() => expect(calls.some((c) => c.key === 'PATCH /api/sleep/s9')).toBe(true))
-  expect(calls.find((c) => c.key === 'PATCH /api/sleep/s9')!.body).toMatchObject({ ended_at: null })
+  expect(calls.find((c) => c.key === 'PATCH /api/sleep/s9')!.body).toEqual({ ended_at: null })
 })
 
 test('when another sleep is already going, reopening says so instead of a vague error', async () => {
@@ -194,8 +237,33 @@ test('when another sleep is already going, reopening says so instead of a vague 
   renderApp(<App />, '/timeline?entry=sleep:s9')
   await userEvent.click(await screen.findByRole('button', { name: en.timeline.edit }))
   const form = await screen.findByRole('dialog', { name: en.sleep.editTitle })
-  await userEvent.click(within(form).getByRole('button', { name: en.sleep.form.end }))
-  await userEvent.click(within(screen.getAllByRole('dialog').at(-1)!).getByRole('button', { name: en.picker.clear }))
+  await userEvent.click(within(form).getByRole('checkbox', { name: en.sleep.form.stillAsleep }))
   await userEvent.click(within(form).getByRole('button', { name: en.sleep.form.save }))
   expect(await within(form).findByText(en.sleep.alreadyAsleep.replace('{{name}}', 'Nanny'))).toBeInTheDocument()
+})
+
+const OPEN = { ...SHORT, id: 's8', started_at: today(10, 0).toISOString(), ended_at: null, ended_by_name: null, duration_min: null }
+const openApi = () =>
+  api(ME_ADMIN, {
+    'GET /api/sleep': { body: [OPEN] },
+    'GET /api/timeline': { body: { items: [{ kind: 'sleep', id: 's8', at: OPEN.started_at, data: OPEN }] } },
+    'PATCH /api/sleep/s8': (b: unknown) => ({ body: { ...OPEN, ...(b as object) } }),
+  })
+
+test('a sleep still going opens with Still asleep ticked; unticking it needs a wake-up time', async () => {
+  const calls = mockApi(openApi())
+  renderApp(<App />, '/timeline?entry=sleep:s8')
+  await userEvent.click(await screen.findByRole('button', { name: en.timeline.edit }))
+  const form = await screen.findByRole('dialog', { name: en.sleep.editTitle })
+  const still = within(form).getByRole('checkbox', { name: en.sleep.form.stillAsleep })
+  expect(still).toBeChecked()
+  expect(within(form).queryByRole('button', { name: en.sleep.form.end })).not.toBeInTheDocument()
+  await userEvent.click(still)
+  await userEvent.click(within(form).getByRole('button', { name: en.sleep.form.save }))
+  expect(await within(form).findByText(en.sleep.form.endRequired)).toBeInTheDocument()
+  expect(calls.some((c) => c.key === 'PATCH /api/sleep/s8')).toBe(false)
+  await pickDateTime(en.sleep.form.end, today(11, 30))
+  await userEvent.click(within(form).getByRole('button', { name: en.sleep.form.save }))
+  await waitFor(() => expect(calls.some((c) => c.key === 'PATCH /api/sleep/s8')).toBe(true))
+  expect(near((calls.find((c) => c.key === 'PATCH /api/sleep/s8')!.body as { ended_at: string }).ended_at, today(11, 30))).toBe(true)
 })
