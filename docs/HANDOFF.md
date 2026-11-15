@@ -1,7 +1,8 @@
 # Handoff: Kinnest project state and how to work on it
 
-Written 2026-11-09 so a new session can continue without the old conversation. Read this first, then the plan you are
-asked to execute.
+Written 2026-11-09 and updated 2026-11-15 so a new session can continue without the old conversations. Read this first,
+then `docs/CHANGES.md` (everything changed after the UI overhaul plan, by area, with migrations and open items), then the
+plan you are asked to execute.
 
 ## What Kinnest is
 A family logbook for one child (the owner's daughter, born around 2026-10-23), built for the owner's own family first and
@@ -11,16 +12,16 @@ from an installed phone app (PWA) and get push reminders. Design: `docs/superpow
 ## Status
 | Slice | What | State |
 |---|---|---|
-| 1 | Login, family roles, feeds, diapers, PWA, offline queue, push reminders, Mac hosting, backups | merged to `main` on GitHub |
-| 2 | Medicines (3 schedule kinds), doses, medicine reminders, sleep | branch `slice-2`, reviewed and fixed, local only |
-| 2b | Structured doses (amount + unit), partial dosing, over-dose guard, temporary reminders | branch `slice-2b` (on top of `slice-2`), reviewed and fixed, local only |
-| 3a | Vitals and growth (WHO charts), vaccines (templates), doctor visits | plan written: `docs/superpowers/plans/2026-11-09-kinnest-slice-3a.md` |
-| 3b | File storage, attachments, photo scanning (vitals records, vaccine schedule, medicine labels) | plan written: `docs/superpowers/plans/2026-11-09-kinnest-slice-3b.md` |
-| 4 | Photos, cry clips, timeline view, supplies stock | not planned yet |
+| 1 | Login, family roles, feeds, diapers, PWA, offline queue, push reminders, Mac hosting, backups | merged to `main` |
+| 2 | Medicines (3 schedule kinds), doses, medicine reminders, sleep | merged to `main` |
+| 2b | Structured doses (amount + unit), partial dosing, over-dose guard, temporary reminders | merged to `main` |
+| 3a | Vitals and growth (WHO charts), vaccines (templates), doctor visits | merged to `main` |
+| UI overhaul | New design, glass navigation, Timeline, Patterns, Family; then owner-feedback changes (feed timer on the server, medicine schedule upgrades, day screens and pagers, timeline day chart, history calendars, Still asleep, and more) | branch `ui-overhaul`, pushed to GitHub 2026-11-15, **not merged**. Plan: `docs/superpowers/plans/2026-11-09-kinnest-ui-overhaul.md`; later changes: `docs/CHANGES.md` |
+| 3b | File storage, attachments, photo scanning (vitals records, vaccine schedule, medicine labels) | plan written: `docs/superpowers/plans/2026-11-09-kinnest-slice-3b.md` (its frontend parts were partly built in the UI overhaul) |
+| 4 | Photos, cry clips, supplies stock | not planned yet (the timeline view from this slice is done in `ui-overhaul`) |
 
-Slices 2 and 2b are running on the owner's Mac (real-use stack) but are **not pushed to GitHub**. The owner decides when;
-the owner merges on GitHub, then branch the next slice from the updated `main`. Remote: `git@github.com:PG1996/kinnest.git`.
-Real-phone checklists for slices 2 and 2b (`docs/MANUAL_TEST_CHECKLIST.md`) are still the owner's to run.
+The owner merges on GitHub, then the next slice branches from the updated `main`. Remote: `git@github.com:PG1996/kinnest.git`.
+The real-phone checklists in `docs/MANUAL_TEST_CHECKLIST.md` are the owner's to run.
 
 ## Owner preferences (follow these)
 - **Commits: the owner is the only author, no Claude co-author or "Generated with" line**, in commits or PR text. Git identity
@@ -30,6 +31,11 @@ Real-phone checklists for slices 2 and 2b (`docs/MANUAL_TEST_CHECKLIST.md`) are 
   (superpowers:executing-plans: you implement every task, then one fresh reviewer checks the whole branch).
 - Hosting: the Mac first, a hosted VM (Oracle, see `deploy/ORACLE_SETUP.md`) later. Free services only.
 - The owner is a developer; explain trade-offs briefly and ask when a decision is really theirs.
+- **The dev stack (`kinnest-dev`) holds the owner's real data too**: keep it running, never reset it or create test data in
+  it, and back it up before a migration (see Dev DB snapshots below). Do not touch the `kinnest-prod` stack; the owner runs
+  tunnel and ingress commands.
+- Every list of past entries is newest first; what is still to come stays soonest first.
+- New screens or larger UI ideas: build a clickable mock as an Artifact first, iterate with the owner, then implement.
 
 ## How the work was done (keep doing this)
 1. Plan in `docs/superpowers/plans/`, then `superpowers:executing-plans` with a ledger in
@@ -50,6 +56,11 @@ export PATH=/Applications/OrbStack.app/Contents/MacOS/xbin:$PATH      # docker l
 - **Frontend**: `cd frontend && npx vitest run && npx tsc -b` (and `npx vite build`).
 - **Two stacks, separate compose project names**: dev `kinnest-dev` (`deploy/docker-compose.yml`, web on 5173, api on 8000,
   db on 5433) and the real-use stack `kinnest-prod` (`deploy/docker-compose.prod.yml --env-file .env`, Caddy on 8080).
+- **Dev DB snapshots**: `deploy/backup-dev.sh` writes a full `pg_dump` to `~/kinnest-backups/dev/dev-<time>.sql.gz` and keeps the
+  newest 3. Schedule every 15 min with launchd: copy `deploy/com.kinnest.dev-backup.plist` to `~/Library/LaunchAgents/`, replace
+  `REPO_DIR` and `HOME_DIR`, then `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.kinnest.dev-backup.plist`.
+  No runs while the Mac sleeps or OrbStack is stopped. Restore into a scratch DB:
+  `COMPOSE="docker-compose -p kinnest-dev -f deploy/docker-compose.yml" deploy/restore.sh <snapshot> [target_db]`.
 - **Real-use stack rebuild** (backup first):
   ```bash
   bash -c 'COMPOSE="docker-compose -f deploy/docker-compose.prod.yml --env-file .env" BACKUP_TARGET=local:$HOME/kinnest-backups deploy/backup.sh'
@@ -101,7 +112,9 @@ export PATH=/Applications/OrbStack.app/Contents/MacOS/xbin:$PATH      # docker l
 - All user-facing text goes through i18n keys (English only now, structured for more languages).
 
 ## Open items for the owner
-- Push `slice-2` and `slice-2b`, merge on GitHub, run the real-phone checklists.
+- Merge `ui-overhaul` on GitHub after the phone checks in `docs/MANUAL_TEST_CHECKLIST.md` ("UI overhaul" and "After the UI
+  overhaul" sections). The real-use stack needs a backup, then a rebuild from it; seven migrations run (list in
+  `docs/CHANGES.md`).
 - Pick a stable free HTTPS address (Tailscale Funnel, ngrok static domain, or a named Cloudflare tunnel with a domain).
 - Schedule the daily backup (see `docs/RUNNING_ON_MAC.md`), replace placeholder secrets, move to Oracle hosting when ready.
 - For slice 3b: decide whether to set `ANTHROPIC_API_KEY`.
@@ -115,5 +128,6 @@ medicines; the 409 handler relies on the English word "skipped"; Cancel-reminder
 Details are in each slice's ledger under `.superpowers/sdd/` (local, git-ignored).
 
 ## Starting the next session
-Suggested first message: "Read docs/HANDOFF.md. Slices 2 and 2b are merged to main. Create branch slice-3a from main and
-execute docs/superpowers/plans/2026-11-09-kinnest-slice-3a.md with the executing-plans skill (native)."
+Suggested first message: "Read docs/HANDOFF.md and docs/CHANGES.md, then continue on branch ui-overhaul" (or, once it is
+merged: "Create branch slice-3b from main and execute docs/superpowers/plans/2026-11-09-kinnest-slice-3b.md with the
+executing-plans skill (native)"). Add each finished change to `docs/CHANGES.md` in the same commit.
