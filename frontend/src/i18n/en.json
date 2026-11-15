@@ -207,6 +207,8 @@
       "start": "Fell asleep",
       "end": "Woke up",
       "stillAsleep": "Still asleep",
+      "stillAsleepOff": "Tick if the baby hasn't woken up yet.",
+      "stillAsleepOn": "No wake-up time yet. End it from the Sleep card.",
       "endRequired": "Add the wake-up time, or tick Still asleep.",
       "note": "Note",
       "save": "Save",

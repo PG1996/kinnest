@@ -1,8 +1,10 @@
+import { Check, Moon } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError } from '../api/client'
 import type { Sleep } from '../api/hooks'
 import { useAddPastSleep, useUpdateSleep } from '../hooks/log'
+import { cn } from '../lib/cn'
 import { formatTime, toLocalInput } from '../lib/time'
 import Sheet from './Sheet'
 import { Button } from './ui/button'
@@ -74,9 +76,39 @@ export default function SleepForm({ sleep, onClose }: { sleep?: Sleep; onClose: 
           </label>
           <DateTimeField id="sleep-start" label={t('sleep.form.start')} value={start} onChange={setStart} />
         </div>
-        <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-line px-3 text-sm font-semibold">
-          <input type="checkbox" checked={still} onChange={(e) => setStill(e.target.checked)} className="size-5 accent-primary" />
-          {t('sleep.form.stillAsleep')}
+        {/* a drawn box instead of the browser's, which stays white in dark mode */}
+        <label
+          className={cn(
+            'flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors',
+            still ? 'border-sleep/50 bg-sleep-bg' : 'border-line bg-surface',
+          )}
+        >
+          <input
+            type="checkbox"
+            checked={still}
+            onChange={(e) => setStill(e.target.checked)}
+            aria-labelledby="sleep-still"
+            aria-describedby="sleep-still-hint"
+            className="peer sr-only"
+          />
+          <span
+            aria-hidden="true"
+            className={cn(
+              'grid size-6 flex-none place-items-center rounded-md border-2 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-primary peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-surface',
+              still ? 'border-sleep bg-sleep text-surface' : 'border-muted/50 bg-surface',
+            )}
+          >
+            {still && <Check size={16} strokeWidth={3} />}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span id="sleep-still" className={cn('block text-sm font-bold', still ? 'text-sleep-ink' : 'text-ink')}>
+              {t('sleep.form.stillAsleep')}
+            </span>
+            <span id="sleep-still-hint" className="block text-xs text-muted">
+              {t(still ? 'sleep.form.stillAsleepOn' : 'sleep.form.stillAsleepOff')}
+            </span>
+          </span>
+          <Moon size={18} aria-hidden="true" className={cn('flex-none transition-opacity', still ? 'text-sleep opacity-100' : 'opacity-0')} />
         </label>
         {!still && (
           <div className="space-y-1">
