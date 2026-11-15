@@ -206,7 +206,8 @@
     "form": {
       "start": "Fell asleep",
       "end": "Woke up",
-      "endHint": "Leave empty while still asleep.",
+      "stillAsleep": "Still asleep",
+      "endRequired": "Add the wake-up time, or tick Still asleep.",
       "note": "Note",
       "save": "Save",
       "endBeforeStart": "Waking up must be after falling asleep.",

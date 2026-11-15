@@ -29,7 +29,8 @@ class SleepEnd(BaseModel):
 class SleepPast(BaseModel):
     id: uuid.UUID
     started_at: AwareDatetime
-    ended_at: AwareDatetime
+    # empty: still asleep, so the sleep stays open (like one started with the timer)
+    ended_at: AwareDatetime | None = None
     note: str = ""
 
 
@@ -128,7 +129,7 @@ def start_sleep(
 def add_past_sleep(
     body: SleepPast, response: Response, member: Member = Depends(require_caregiver), db: Session = Depends(get_session)
 ):
-    """A sleep that has already ended, logged afterwards. It may not overlap another sleep."""
+    """A sleep logged afterwards: one that has ended, or (no end) one still going on. It may not overlap another sleep."""
     existing = db.get(SleepSession, body.id)
     if existing is not None:
         if existing.family_id != member.family_id:
@@ -136,21 +137,34 @@ def add_past_sleep(
         response.status_code = 200
         return _render(db, existing)
     reject_future(body.started_at)
-    reject_future(body.ended_at)
-    if body.ended_at <= body.started_at:
-        raise HTTPException(422, "a sleep must end after it starts")
-    if body.ended_at - body.started_at > MAX_SLEEP:
+    end = body.ended_at
+    if end is not None:
+        reject_future(end)
+        if end <= body.started_at:
+            raise HTTPException(422, "a sleep must end after it starts")
+    if (end or datetime.now(UTC)) - body.started_at > MAX_SLEEP:
         raise HTTPException(422, "a sleep can be at most 24 hours")
-    other = _overlapping(db, member.kid_id, body.started_at, body.ended_at, None)
+    if end is None:
+        open_session = _open_session(db, member.kid_id)
+        if open_session is not None:
+            return _already_asleep(db, open_session)
+    other = _overlapping(db, member.kid_id, body.started_at, end, None)
     if other is not None:
         return _overlap_refusal(db, other)
     me = member.user.id
     s = SleepSession(
-        id=body.id, family_id=member.family_id, kid_id=member.kid_id, started_at=body.started_at, ended_at=body.ended_at,
-        started_by_user_id=me, ended_by_user_id=me, note=body.note, created_by=me, updated_by=me,
+        id=body.id, family_id=member.family_id, kid_id=member.kid_id, started_at=body.started_at, ended_at=end,
+        started_by_user_id=me, ended_by_user_id=me if end else None, note=body.note, created_by=me, updated_by=me,
     )
     db.add(s)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:  # another phone started a session at the same moment
+        db.rollback()
+        open_session = _open_session(db, member.kid_id)
+        if open_session is None:
+            raise
+        return _already_asleep(db, open_session)
     return _render(db, s)
 
 
