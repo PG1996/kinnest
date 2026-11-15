@@ -85,7 +85,8 @@ export default function Sheet({
           <h2 ref={titleRef} tabIndex={-1} className="text-base font-bold outline-none">
             {title}
           </h2>
-          <Button variant="ghost" onClick={onClose}>
+          {/* pulled into the padding so the word lines up with the content's right edge, keeping the full tap area */}
+          <Button variant="ghost" onClick={onClose} className="-mr-4">
             {t('home.close')}
           </Button>
         </div>

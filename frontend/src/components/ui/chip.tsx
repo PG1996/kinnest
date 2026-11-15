@@ -22,7 +22,8 @@ export function Chip({
 
 export function ChipGroup({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
   return (
-    <fieldset className="m-0 border-0 p-0">
+    // no m-0: it would beat a parent's space-y (a zero-specificity :where rule) and glue the next block to the chips
+    <fieldset className="border-0 p-0">
       <legend className="pb-2 text-[13px] font-semibold text-muted">{label}</legend>
       <div className={cn('flex flex-wrap gap-2', className)}>{children}</div>
     </fieldset>
