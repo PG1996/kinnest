@@ -1,4 +1,5 @@
 import { Badge } from './badge'
+import { ChipGroup } from './chip'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
@@ -207,4 +208,17 @@ test('a sheet with a tone is marked with it but stays plain (the tint was tried 
 test('a soft badge has a border in its tone, so it reads as a badge', () => {
   render(<Badge tone="feed">Feeding</Badge>)
   expect(screen.getByText('Feeding').className).toContain('border-feed/30')
+})
+
+test('a chip group leaves the gap of the stack it sits in alone (no margin class of its own)', () => {
+  // the parent's space-y is a zero-specificity :where rule, so any m-* here would override it and remove the gap below the chips
+  render(
+    <div className="space-y-4">
+      <ChipGroup label="Changed by">
+        <span>chip</span>
+      </ChipGroup>
+      <p>next</p>
+    </div>,
+  )
+  expect(screen.getByRole('group', { name: 'Changed by' }).className).not.toMatch(/(^|\s)-?m[trblxy]?-/)
 })
