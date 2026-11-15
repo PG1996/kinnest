@@ -52,11 +52,13 @@ export default function FeedSheet({ last, saving, failed, onSave, onClose }: Pro
   const breakMin = stopped ? askedBreak : recorded
   // the feeding itself: the whole time on the clock less the breaks, or the running clock (which already leaves breaks out)
   const timerMinutes = stopped ? Math.max(0, wall - askedBreak) : Math.max(1, Math.round(elapsedS / 60))
-  // a timer sets the type it was started with, once; after that the chips drive it
+  // a timer sets the type and the time it was started with, once; after that the chips and the Time field drive them.
+  // Discarding the timer then keeps that start, so a duration typed instead is logged from when the feed began.
   const [syncedTimer, setSyncedTimer] = useState<string | null>(null)
   if (timer && syncedTimer !== timer.id) {
     setSyncedTimer(timer.id)
     setType(timer.type)
+    setWhen(toLocalInput(new Date(timer.started_at)))
   }
   const isBottle = BOTTLE.includes(type)
   const fedBy = by ?? me?.user.id ?? null

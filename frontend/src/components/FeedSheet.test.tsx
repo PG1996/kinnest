@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import en from '../i18n/en.json'
+import { formatTime } from '../lib/time'
 import { ME_ADMIN, mockApi, renderApp } from '../test/utils'
 import FeedSheet from './FeedSheet'
 
@@ -152,6 +153,27 @@ test('Discard timer throws it away on the server', async () => {
   await userEvent.click(await screen.findByRole('button', { name: en.home.timerDiscard }))
   await waitFor(() => expect(calls.some((c) => c.key === 'DELETE /api/feed-timer')).toBe(true))
   expect(await screen.findByRole('button', { name: en.home.timerStart })).toBeInTheDocument()
+})
+
+test('a running timer shows its own start in Time, and Discard keeps that start for a typed duration', async () => {
+  const state = { timer: running(33) }
+  mockApi(timerApi(state))
+  const onSave = vi.fn()
+  sheet(onSave)
+  const started = new Date((state.timer as { started_at: string }).started_at)
+  await screen.findByRole('button', { name: new RegExp(en.home.timerStop) })
+  expect(screen.getByRole('button', { name: en.home.time })).toHaveTextContent(formatTime(started))
+  await userEvent.click(screen.getByRole('button', { name: en.home.timerDiscard }))
+  await screen.findByRole('button', { name: en.home.timerStart })
+  expect(screen.getByRole('button', { name: en.home.time })).toHaveTextContent(formatTime(started))
+  await userEvent.clear(screen.getByLabelText(en.home.duration))
+  await userEvent.type(screen.getByLabelText(en.home.duration), '25')
+  await userEvent.click(screen.getByRole('button', { name: en.home.saveFeed }))
+  const saved = onSave.mock.calls[0]![0]
+  expect(saved).toMatchObject({ type: 'breast_left', duration_min: 25 })
+  expect(saved).not.toHaveProperty('timer_id')
+  // the start is the timer's, to the minute, not the moment of saving
+  expect(Math.abs(Date.parse(saved.started_at) - started.getTime())).toBeLessThan(60_000)
 })
 
 test('closing the sheet leaves the timer running', async () => {
