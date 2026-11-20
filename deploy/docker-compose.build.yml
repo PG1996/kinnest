@@ -1,0 +1,13 @@
+# Mac only: builds the images that docker-compose.prod.yml expects. Use as the second -f file.
+services:
+  api:
+    build: ../backend
+    image: ${KINNEST_API_IMAGE:-kinnest-api:local}
+  worker:
+    build: ../backend
+    image: ${KINNEST_API_IMAGE:-kinnest-api:local}
+  caddy:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.caddy
+    image: ${KINNEST_WEB_IMAGE:-kinnest-web:local}

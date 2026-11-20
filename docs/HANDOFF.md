@@ -29,7 +29,7 @@ The real-phone checklists in `docs/MANUAL_TEST_CHECKLIST.md` are the owner's to 
 - Replies are terse (the session may have a "caveman" hook); anything written to files or commits is normal prose.
 - Plans are written with superpowers:writing-plans and approved before building. The owner chose **native execution**
   (superpowers:executing-plans: you implement every task, then one fresh reviewer checks the whole branch).
-- Hosting: the Mac first, a hosted VM (Oracle, see `deploy/ORACLE_SETUP.md`) later. Free services only.
+- Hosting: moving from the Mac to **AWS EC2 Mumbai** (decided 2026-11-15; `deploy/AWS_SETUP.md`, plan `docs/superpowers/plans/2026-11-20-kinnest-aws-deploy.md`). The ngrok address stays. After the switch, real data lives on AWS and the Mac dev stack must be neutralised (see the plan, phase 5).
 - The owner is a developer; explain trade-offs briefly and ask when a decision is really theirs.
 - **The dev stack (`kinnest-dev`) holds the owner's real data too**: keep it running, never reset it or create test data in
   it, and back it up before a migration (see Dev DB snapshots below). Do not touch the `kinnest-prod` stack; the owner runs
@@ -64,7 +64,7 @@ export PATH=/Applications/OrbStack.app/Contents/MacOS/xbin:$PATH      # docker l
 - **Real-use stack rebuild** (backup first):
   ```bash
   bash -c 'COMPOSE="docker-compose -f deploy/docker-compose.prod.yml --env-file .env" BACKUP_TARGET=local:$HOME/kinnest-backups deploy/backup.sh'
-  docker-compose -f deploy/docker-compose.prod.yml --env-file .env up -d --build
+  docker-compose -f deploy/docker-compose.prod.yml -f deploy/docker-compose.build.yml --env-file .env up -d --build
   curl localhost:8080/api/health; docker exec kinnest-prod-api-1 alembic current
   ```
   Migrations run automatically when the API container starts. The owner reaches it from the phone through a Cloudflare quick
@@ -112,6 +112,7 @@ export PATH=/Applications/OrbStack.app/Contents/MacOS/xbin:$PATH      # docker l
 - All user-facing text goes through i18n keys (English only now, structured for more languages).
 
 ## Open items for the owner
+- **AWS move** (branch `deploy-aws`): repo work is done; the owner does the AWS account steps and the soak and switch in `deploy/AWS_SETUP.md`. The Mac `.env` needs `COMPOSE_PROFILES=worker` before the real-use stack is rebuilt, or the worker no longer starts (the worker is now a compose profile).
 - Merge `ui-overhaul` on GitHub after the phone checks in `docs/MANUAL_TEST_CHECKLIST.md` ("UI overhaul" and "After the UI
   overhaul" sections). The real-use stack needs a backup, then a rebuild from it; seven migrations run (list in
   `docs/CHANGES.md`).

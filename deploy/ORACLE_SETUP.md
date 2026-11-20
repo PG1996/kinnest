@@ -1,3 +1,5 @@
+> **Superseded (2026-11-20).** Hosting moved to AWS EC2 with GitHub Actions deploys: see `deploy/AWS_SETUP.md`. This guide is kept for reference only.
+
 > **Later stage.** The first step is running on your Mac (`docs/RUNNING_ON_MAC.md`). Use this guide when you move to a
 > hosted VM with a domain, so reminders no longer depend on your Mac being awake.
 

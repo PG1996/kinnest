@@ -209,6 +209,8 @@ Defaults (my call, owner may override): timezone Asia/Kolkata, metric units (ml,
 - All secrets/URLs in `.env`; nothing hard-coded.
 
 ## 7. Hosting and environments
+> **Decision 2026-11-15 (owner):** production runs on AWS EC2 (Mumbai) with GitHub Actions deploys, keeping the existing ngrok address. The Oracle text below is the original plan. See `deploy/AWS_SETUP.md`.
+
 Constraint: **free**. Reminders need an always-on process.
 
 **Stage order (owner, 2026-11-04): Mac first, hosted second.** The same Docker stack serves both. While it runs on the Mac,
