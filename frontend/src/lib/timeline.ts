@@ -22,16 +22,25 @@ export function lastDays(n: number, today = new Date()): Date[] {
   return Array.from({ length: n }, (_, i) => new Date(today.getFullYear(), today.getMonth(), today.getDate() - (n - 1 - i)))
 }
 
-/** Wet-or-both diapers per local day, one number for each day in `days`. */
-export function wetPerDay(items: TimelineItem[], days: Date[]): number[] {
-  const counts = days.map(() => 0)
+/**
+ * Diapers per local day, one number for each day in `days`. A "both" change raises `wet` and `dirty`
+ * but counts once in `total`, so `total` is the number of changes.
+ */
+export function diapersPerDay(items: TimelineItem[], days: Date[]): { wet: number[]; dirty: number[]; total: number[] } {
+  const wet = days.map(() => 0)
+  const dirty = days.map(() => 0)
+  const total = days.map(() => 0)
   for (const it of items) {
-    if (it.kind !== 'diaper' || (it.data.kind !== 'wet' && it.data.kind !== 'both')) continue
+    if (it.kind !== 'diaper') continue
     const at = new Date(it.at)
     const i = days.findIndex((d) => d.getFullYear() === at.getFullYear() && d.getMonth() === at.getMonth() && d.getDate() === at.getDate())
-    if (i >= 0) counts[i]++
+    if (i < 0) continue
+    const kind = it.data.kind
+    if (kind === 'wet' || kind === 'both') wet[i]!++
+    if (kind === 'dirty' || kind === 'both') dirty[i]!++
+    total[i]!++
   }
-  return counts
+  return { wet, dirty, total }
 }
 
 import type { TFunction } from 'i18next'

@@ -222,3 +222,27 @@ test('a chip group leaves the gap of the stack it sits in alone (no margin class
   )
   expect(screen.getByRole('group', { name: 'Changed by' }).className).not.toMatch(/(^|\s)-?m[trblxy]?-/)
 })
+
+import { MultiSparkline } from './sparkline'
+
+test('a multi sparkline draws one line per series on a shared scale, with zero on the baseline', () => {
+  const { container } = render(
+    <MultiSparkline
+      label="Diapers"
+      width={84}
+      height={34}
+      series={[
+        { values: [7, 5, 8], color: 'var(--chart-wet)' },
+        { values: [0, 0, 0], color: 'var(--chart-dirty)' },
+      ]}
+    />,
+  )
+  expect(screen.getByRole('img', { name: 'Diapers' })).toBeInTheDocument()
+  const lines = container.querySelectorAll('path[data-series]')
+  expect(lines).toHaveLength(2)
+  expect(lines[0]!.getAttribute('stroke')).toBe('var(--chart-wet)')
+  // the all-zero series lies flat on the bottom edge (height - pad), not in the middle
+  expect(lines[1]!.getAttribute('d')).toBe('M4.0,30.0L42.0,30.0L80.0,30.0')
+  // the peak of the wet series (8, the last point) reaches the top (pad)
+  expect(lines[0]!.getAttribute('d')).toContain('80.0,4.0')
+})

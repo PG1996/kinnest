@@ -20,21 +20,23 @@ test('lastDays crosses a month boundary', () => {
   expect(days.map((d) => d.getDate())).toEqual([29, 30, 1])
 })
 
-import { wetPerDay, type TimelineItem } from './timeline'
+import { diapersPerDay, type TimelineItem } from './timeline'
 
 const diaper = (at: Date, kind: string): TimelineItem => ({ kind: 'diaper', id: `${at.getTime()}-${kind}`, at: at.toISOString(), data: { kind } })
 
-test('wetPerDay counts wet and both diapers per local day, not dirty ones', () => {
+test('diapersPerDay: a both raises the wet and the dirty line but counts once in the total', () => {
   const days = lastDays(3, new Date(2026, 10, 8, 12))
   const items = [
     diaper(new Date(2026, 10, 8, 9), 'wet'),
     diaper(new Date(2026, 10, 8, 23, 59), 'both'),
     diaper(new Date(2026, 10, 8, 10), 'dirty'),
+    diaper(new Date(2026, 10, 8, 11), 'both'),
     diaper(new Date(2026, 10, 7, 0, 0), 'wet'),
-    diaper(new Date(2026, 10, 6, 7), 'wet'), // first day of the window
+    diaper(new Date(2026, 10, 6, 7), 'dirty'), // first day of the window
     diaper(new Date(2026, 10, 5, 12), 'wet'), // outside the window
+    { kind: 'feed', id: 'f', at: new Date(2026, 10, 8, 9).toISOString(), data: { type: 'formula' } } as TimelineItem,
   ]
-  expect(wetPerDay(items, days)).toEqual([1, 1, 2])
+  expect(diapersPerDay(items, days)).toEqual({ wet: [0, 1, 3], dirty: [1, 0, 3], total: [1, 1, 4] })
 })
 
 import { fromQueue, isOnDay } from './timeline'

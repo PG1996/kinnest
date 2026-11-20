@@ -22,7 +22,7 @@ import { Button } from '../components/ui/button'
 import { useFeedTimerActions, useLogDiaper, useLogFeed, useUndoDiaper, useUpdateSleep, type FeedInput } from '../hooks/log'
 import { useSleepActions } from '../hooks/sleepActions'
 import { onHome } from '../lib/medicineHome'
-import { lastDays, wetPerDay } from '../lib/timeline'
+import { diapersPerDay, lastDays } from '../lib/timeline'
 import { formatClock, toLocalDate } from '../lib/time'
 import { useDismissStaleNotifications } from '../lib/staleNotifications'
 import { useNow } from '../lib/useNow'
@@ -55,7 +55,7 @@ export default function Home() {
     return { days, from: days[0]!, to: new Date(last.getFullYear(), last.getMonth(), last.getDate(), 23, 59, 59, 999) }
   }, [today])
   const diapersWeek = useTimeline({ from: week.from, to: week.to, kinds: ['diaper'] }).data
-  const wetSeries = diapersWeek ? wetPerDay(diapersWeek, week.days) : undefined
+  const diaperSeries = diapersWeek ? diapersPerDay(diapersWeek, week.days) : undefined
   const [sheet, setSheet] = useState<'feed' | 'diaper' | null>(null)
   const [toast, setToast] = useState<ToastData | null>(null)
   const sleepActions = useSleepActions(summary?.sleep, setToast)
@@ -180,7 +180,7 @@ export default function Home() {
         <>
           {summary.feed_timer && canLog && <FeedTimerBanner timer={summary.feed_timer} onOpen={() => setSheet('feed')} />}
           <LastFeedCard summary={summary} now={now} canLog={canLog} feeding={!!summary.feed_timer} onLogFeed={() => setSheet('feed')} onStartTimer={() => setSideAsk(true)} />
-          <LastDiaperCard summary={summary} now={now} wetPerDay={wetSeries} />
+          <LastDiaperCard summary={summary} now={now} perDay={diaperSeries} />
           <SleepCard sleep={summary.sleep} now={now} />
         </>
       )}
