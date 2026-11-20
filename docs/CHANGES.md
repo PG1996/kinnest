@@ -170,6 +170,14 @@ The real-use stack (`kinnest-prod`) has not been checked against this list. Take
 - **Bottom sheet**: Close is pulled into the padding (`-mr-4`) so the word lines up with the content's right edge.
 - `index.css` adds the `land` variant (phone held sideways, short screen) and the `cal-in-l` and `cal-in-r` slide keyframes.
 
+### Deployment (branch `deploy-aws`)
+- `deploy/docker-compose.prod.yml` is image-only. The Mac builds with a second file:
+  `docker-compose -f deploy/docker-compose.prod.yml -f deploy/docker-compose.build.yml --env-file .env up -d --build`.
+- The worker is the compose profile `worker`; set `COMPOSE_PROFILES=worker` in the Mac `.env` (the VM uses `worker,ngrok`).
+  Caddy now publishes only `127.0.0.1:${CADDY_HTTP_PORT:-8080}`.
+- New: `deploy/deploy.sh`, `deploy/ec2-setup.sh`, `deploy/systemd/kinnest-backup.{service,timer}`, `.github/workflows/{ci,deploy}.yml`,
+  `deploy/AWS_SETUP.md`. `backup.sh` reads `BACKUP_*` from `.env` and `BACKUP_ENDPOINT` is optional (plain AWS S3).
+
 ### Dev setup
 - vite preview accepts Tailscale Funnel and ngrok hosts.
 - **Dev DB snapshots** with `deploy/backup-dev.sh` and the launchd template `deploy/com.kinnest.dev-backup.plist`. See

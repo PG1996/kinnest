@@ -1,0 +1,101 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Commit to deploy (default: the branch head the workflow runs on, which must be main)"
+        required: false
+
+concurrency: deploy
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: ci
+    runs-on: ubuntu-24.04
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    env:
+      REGISTRY: ghcr.io/pg1996
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      BUCKET: ${{ vars.DEPLOY_BUCKET }}
+      INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - id: rev
+        run: echo "sha=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: api
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: backend
+          platforms: linux/arm64
+          push: true
+          tags: ${{ env.REGISTRY }}/kinnest-api:${{ steps.rev.outputs.sha }}
+      - id: web
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: deploy/Dockerfile.caddy
+          platforms: linux/arm64
+          push: true
+          tags: ${{ env.REGISTRY }}/kinnest-web:${{ steps.rev.outputs.sha }}
+
+      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Upload the deploy bundle
+        id: bundle
+        run: |
+          sha=${{ steps.rev.outputs.sha }}
+          tar czf "$sha.tar.gz" deploy/
+          echo "sum=$(sha256sum "$sha.tar.gz" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          aws s3 cp "$sha.tar.gz" "s3://$BUCKET/releases/$sha.tar.gz"
+
+      - name: Deploy on the VM through SSM
+        env:
+          SHA: ${{ steps.rev.outputs.sha }}
+          SUM: ${{ steps.bundle.outputs.sum }}
+          API_DIGEST: ${{ steps.api.outputs.digest }}
+          WEB_DIGEST: ${{ steps.web.outputs.digest }}
+        run: |
+          # sha and digests are hex, the bucket is a repo variable: nothing here comes from user input
+          script=$(printf '%s\n' \
+            '#!/bin/bash' \
+            'set -euo pipefail' \
+            'cd /opt/kinnest' \
+            "aws s3 cp s3://$BUCKET/releases/$SHA.tar.gz /tmp/$SHA.tar.gz --region $AWS_REGION" \
+            "echo '$SUM  /tmp/$SHA.tar.gz' | sha256sum -c -" \
+            "mkdir -p releases/$SHA && tar xzf /tmp/$SHA.tar.gz -C releases/$SHA" \
+            "releases/$SHA/deploy/deploy.sh $SHA $API_DIGEST $WEB_DIGEST")
+          id=$(aws ssm send-command --instance-ids "$INSTANCE_ID" --document-name AWS-RunShellScript \
+            --parameters "$(jq -n --arg s "$script" '{commands: [$s], executionTimeout: ["900"]}')" \
+            --query Command.CommandId --output text)
+          for _ in $(seq 1 150); do
+            status=$(aws ssm get-command-invocation --command-id "$id" --instance-id "$INSTANCE_ID" --query Status --output text 2>/dev/null || echo Pending)
+            case "$status" in Success|Failed|TimedOut|Cancelled) break ;; esac
+            sleep 6
+          done
+          aws ssm get-command-invocation --command-id "$id" --instance-id "$INSTANCE_ID" \
+            --query '[StandardOutputContent, StandardErrorContent]' --output text
+          [ "$status" = Success ]

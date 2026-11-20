@@ -1,0 +1,9 @@
+[Unit]
+Description=Kinnest nightly database backup to S3
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/kinnest/current
+ExecStart=/opt/kinnest/current/deploy/backup.sh

@@ -1,7 +1,6 @@
 # Running Kinnest for real on your Mac
 
-This is the first step: your Mac is the server. Hosting on a VM with a proper domain comes later (see
-`deploy/ORACLE_SETUP.md`); the same Docker stack moves there unchanged.
+Your Mac was the first server. Hosting moved to AWS (see `deploy/AWS_SETUP.md`); the same Docker stack moves there unchanged.
 
 **The trade-off to know about:** reminders are sent by a process on this Mac. If the Mac is asleep, shut down or offline at
 3am, nobody is reminded. Keep it awake and plugged in while the family relies on it.
@@ -16,7 +15,7 @@ Set in `.env`:
 - `OWNER_EMAIL` to your email. The first sign-in with this address becomes the Admin.
 - `SESSION_SECRET` to the output of `openssl rand -hex 32`.
 - `POSTGRES_PASSWORD` and the matching password inside `DATABASE_URL`.
-- `PUBLIC_HOST=:80` and `CADDY_HTTP_PORT=8080` (already the defaults in `.env.example`).
+- `PUBLIC_HOST=:80`, `CADDY_HTTP_PORT=8080` and `COMPOSE_PROFILES=worker` (already the defaults in `.env.example`; without the `worker` profile no reminders are sent).
 - `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` from `cd backend && .venv/bin/python scripts/gen_vapid.py`. Never change them
   later, or every phone has to turn reminders on again.
 - `PUBLIC_BASE_URL` to the HTTPS address phones will use (step 3).
@@ -26,7 +25,7 @@ Set in `.env`:
   URI to register is `<PUBLIC_BASE_URL>/api/auth/google/callback`.
 
 ```bash
-docker-compose -p kinnest-prod -f deploy/docker-compose.prod.yml --env-file .env up -d --build
+docker-compose -f deploy/docker-compose.prod.yml -f deploy/docker-compose.build.yml --env-file .env up -d --build
 curl localhost:8080/api/health        # {"status":"ok"}
 ```
 Open http://localhost:8080 on the Mac and sign in. Containers restart themselves after a reboot once OrbStack is running
@@ -48,7 +47,7 @@ Push notifications and installing the app need HTTPS. The Mac has no public addr
 - **Daily family use needs a stable address.** Free options to compare: Tailscale Funnel (stable `*.ts.net` address,
   Tailscale account on the Mac only), ngrok's free static domain, or a Cloudflare named tunnel (needs a domain you own).
   Pick one before the family installs the app. Whichever you choose, put the final address in `PUBLIC_BASE_URL`, then
-  `docker-compose -p kinnest-prod -f deploy/docker-compose.prod.yml --env-file .env up -d`.
+  `docker-compose -f deploy/docker-compose.prod.yml -f deploy/docker-compose.build.yml --env-file .env up -d`.
 
 ## 4. Back up the database
 
