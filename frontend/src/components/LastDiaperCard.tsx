@@ -3,15 +3,17 @@ import { Link } from 'react-router-dom'
 import type { Summary } from '../api/hooks'
 import { formatAgo } from '../lib/time'
 import { Card, Eyebrow } from './ui/card'
-import { Sparkline } from './ui/sparkline'
+import { MultiSparkline } from './ui/sparkline'
 
-export default function LastDiaperCard({ summary, now, wetPerDay }: { summary: Summary; now: number; wetPerDay?: number[] }) {
+export type DiapersPerDay = { wet: number[]; dirty: number[]; total: number[] }
+
+export default function LastDiaperCard({ summary, now, perDay }: { summary: Summary; now: number; perDay?: DiapersPerDay }) {
   const { t } = useTranslation()
   const d = summary.last_diaper
   if (!d) return <Card tone="diaper">{t('home.noDiaper')}</Card>
   const c = summary.diapers_today
-  // the average of finished days that have data: not today (still going) and not days before logging began
-  const finished = (wetPerDay ?? []).slice(0, -1).filter((n) => n > 0)
+  // the average of all diapers on finished days that have any: not today (still going) and not days before logging began
+  const finished = (perDay?.total ?? []).slice(0, -1).filter((n) => n > 0)
   const avg = finished.length ? finished.reduce((a, b) => a + b, 0) / finished.length : null
   return (
     <Card tone="diaper" data-testid="diaper-card" className="py-4">
@@ -30,9 +32,25 @@ export default function LastDiaperCard({ summary, now, wetPerDay }: { summary: S
             ))}
           </div>
         </div>
-        {wetPerDay && wetPerDay.length > 1 && (
+        {perDay && perDay.total.length > 1 && (
           <div className="flex flex-col items-end gap-1">
-            <Sparkline values={wetPerDay} label={t('home.sparkLabel', { values: wetPerDay.join(', ') })} className="text-diaper" />
+            <MultiSparkline
+              series={[
+                { values: perDay.wet, color: 'var(--chart-wet)' },
+                { values: perDay.dirty, color: 'var(--chart-dirty)' },
+              ]}
+              label={t('home.sparkLabel', { wet: perDay.wet.join(', '), dirty: perDay.dirty.join(', ') })}
+            />
+            <div aria-hidden="true" className="flex gap-2 text-[11px] font-semibold text-muted">
+              <span className="inline-flex items-center gap-1">
+                <i className="inline-block size-2 rounded-full" style={{ background: 'var(--chart-wet)' }} />
+                {t('home.legendWet')}
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <i className="inline-block size-2 rounded-full" style={{ background: 'var(--chart-dirty)' }} />
+                {t('home.legendDirty')}
+              </span>
+            </div>
             {avg !== null && (
               <span className="rounded-full bg-surface px-2 py-0.5 text-xs font-bold text-diaper-ink">
                 {t('home.sparkAvg', { avg: avg.toFixed(1) })}

@@ -422,27 +422,40 @@ test('overdue feed shows log feed now, which opens the feed screen', async () =>
   expect(await screen.findByRole('dialog')).toBeInTheDocument()
 })
 
-const diaperDays = (counts: number[]) =>
+const diaperDays = (counts: number[], kind = 'wet') =>
   counts.flatMap((n, back) =>
     Array.from({ length: n }, (_, i) => {
       const d = new Date(); d.setDate(d.getDate() - back); d.setHours(8, i, 0, 0)
-      return { kind: 'diaper', id: `d-${back}-${i}`, at: d.toISOString(), data: { kind: 'wet' } }
+      return { kind: 'diaper', id: `d-${kind}-${back}-${i}`, at: d.toISOString(), data: { kind } }
     }),
   )
+const avgText = (avg: string) => en.home.sparkAvg.replace('{{avg}}', avg)
 
-test('diaper card shows a seven-day sparkline and the average of finished days', async () => {
-  // counts[0] is today (unfinished), then six earlier days
-  mockApi({ ...base(), 'GET /api/timeline': { body: { items: diaperDays([6, 7, 7, 7, 7, 7, 7]) } } })
+test('diaper card shows wet and dirty lines for seven days and the average of all diapers on finished days', async () => {
+  // counts[0] is today (unfinished), then six earlier days; each earlier day has 5 wet, 2 dirty and 1 both = 8 diapers
+  const items = [...diaperDays([3, 5, 5, 5, 5, 5, 5]), ...diaperDays([1, 2, 2, 2, 2, 2, 2], 'dirty'), ...diaperDays([0, 1, 1, 1, 1, 1, 1], 'both')]
+  mockApi({ ...base(), 'GET /api/timeline': { body: { items } } })
   renderApp(<Home />)
-  expect(await screen.findByRole('img', { name: /7, 7, 7, 7, 7, 7, 6/ })).toBeInTheDocument()
-  expect(screen.getByText(en.home.sparkAvg.replace('{{avg}}', '7.0'))).toBeInTheDocument()
+  const graph = await screen.findByRole('img', { name: /Wet: 6, 6, 6, 6, 6, 6, 3\. Dirty: 3, 3, 3, 3, 3, 3, 1/ })
+  expect(graph.querySelectorAll('path[data-series]')).toHaveLength(2)
+  expect(screen.getByText(avgText('8.0'))).toBeInTheDocument()
+  const legend = within(graph.parentElement!)
+  expect(legend.getByText(en.home.legendWet)).toBeInTheDocument()
+  expect(legend.getByText(en.home.legendDirty)).toBeInTheDocument()
 })
 
-test('on day two the average counts only days that have data and not today', async () => {
-  // today 3 so far, yesterday 8: the average is 8, not (3+8)/7
-  mockApi({ ...base(), 'GET /api/timeline': { body: { items: diaperDays([3, 8]) } } })
+test('on day two the average counts only days that have diapers and not today', async () => {
+  // today 3 so far, yesterday 6 wet and 2 dirty: the average is 8, not (3+8)/7
+  const items = [...diaperDays([3, 6]), ...diaperDays([0, 2], 'dirty')]
+  mockApi({ ...base(), 'GET /api/timeline': { body: { items } } })
   renderApp(<Home />)
-  expect(await screen.findByText(en.home.sparkAvg.replace('{{avg}}', '8.0'))).toBeInTheDocument()
+  expect(await screen.findByText(avgText('8.0'))).toBeInTheDocument()
+})
+
+test('a day with only dirty diapers still counts in the average', async () => {
+  mockApi({ ...base(), 'GET /api/timeline': { body: { items: [...diaperDays([0, 4]), ...diaperDays([0, 0, 2], 'dirty')] } } })
+  renderApp(<Home />)
+  expect(await screen.findByText(avgText('3.0'))).toBeInTheDocument()
 })
 
 test('no finished day yet hides the average instead of showing a tiny one', async () => {
